@@ -21,6 +21,9 @@ services:
   egress:
     image: livekit/egress:latest
     restart: unless-stopped
+    # Chrome's sandbox inside the egress container needs this.
+    cap_add:
+      - SYS_ADMIN
     environment:
       - EGRESS_CONFIG_FILE=/etc/egress.yaml
     volumes:
