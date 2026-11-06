@@ -1,0 +1,74 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880/tcp" # client signaling (WS, proxied as WSS by Caddy)
+      - "7881:7881/tcp" # RTC TCP fallback
+      - "50000-50200:50000-50200/udp" # WebRTC media (ICE/SRTP)
+    depends_on:
+      - redis
+
+  egress:
+    image: livekit/egress:latest
+    restart: unless-stopped
+    environment:
+      - EGRESS_CONFIG_FILE=/etc/egress.yaml
+    volumes:
+      - ./egress.yaml:/etc/egress.yaml:ro
+      - egress-tmp:/tmp/livekit-egress
+    # No published ports: Egress only makes outbound connections (to
+    # LiveKit's ws, to the web app's layout-view page, and to YouTube's
+    # RTMP ingest), reached by service name on the default compose network.
+    depends_on:
+      - redis
+      - livekit
+
+  web:
+    build:
+      context: ../apps/web
+      args:
+        NEXT_PUBLIC_LIVEKIT_WS_URL: wss://${LIVEKIT_DOMAIN}
+    restart: unless-stopped
+    env_file:
+      - ./web.env
+    volumes:
+      - web-data:/app/data
+    ports:
+      - "3000:3000"
+    depends_on:
+      - livekit
+      - redis
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      - APP_DOMAIN=${APP_DOMAIN}
+      - LIVEKIT_DOMAIN=${LIVEKIT_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+      - livekit
+
+volumes:
+  redis-data:
+  web-data:
+  egress-tmp:
+  caddy-data:
+  caddy-config:

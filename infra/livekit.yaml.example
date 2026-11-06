@@ -1,0 +1,19 @@
+# Config for the self-hosted LiveKit server (media SFU).
+# Generate real values before deploying — see infra/README.md.
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  # The VPS's public IP, so ICE candidates are reachable from guests'
+  # browsers outside the Docker network.
+  use_external_ip: true
+
+redis:
+  address: redis:6379
+
+keys:
+  # api_key: api_secret (both referenced by LIVEKIT_API_KEY/SECRET in .env
+  # and by infra/egress.yaml — all three must match).
+  REPLACE_WITH_API_KEY: REPLACE_WITH_API_SECRET_32_CHARS_MIN

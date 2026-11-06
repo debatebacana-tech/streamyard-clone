@@ -1,0 +1,10 @@
+# Secrets for the self-hosted deploy — never commit real values.
+/infra/.env
+/infra/web.env
+/infra/livekit.yaml
+/infra/egress.yaml
+
+.DS_Store
+
+# local Claude Code session settings, not part of the project
+/.claude/

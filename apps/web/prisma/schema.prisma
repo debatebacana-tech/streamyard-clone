@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Singleton row (id always "default") holding the show's persistent settings.
+model ShowSettings {
+  id                      String   @id @default("default")
+  youtubeStreamKeyCipher  String?
+  lowerThirdText          String   @default("")
+  logoUrl                 String?
+  updatedAt               DateTime @updatedAt
+}

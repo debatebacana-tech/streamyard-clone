@@ -1,0 +1,15 @@
+# Config for the LiveKit Egress worker (headless Chromium + ffmpeg).
+# api_key/api_secret must match infra/livekit.yaml exactly.
+api_key: REPLACE_WITH_API_KEY
+api_secret: REPLACE_WITH_API_SECRET_32_CHARS_MIN
+ws_url: ws://livekit:7880
+
+redis:
+  address: redis:6379
+
+# Internal docker-network connection to LiveKit, not public TLS.
+insecure: true
+
+# Keep output at 720p30 to start (matches the Studio plan's cost/quality
+# choice); bump to 1080p30 later purely by changing EncodingOptionsPreset
+# in the egress/start API route plus the VPS size — no architecture change.
