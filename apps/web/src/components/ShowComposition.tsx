@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AudioTrack,
   VideoTrack,
@@ -12,6 +12,9 @@ import {
 import { RoomEvent, Track } from "livekit-client";
 import { MediaLayer } from "./MediaLayer";
 import { MusicLayer } from "./MusicLayer";
+import { BoardScreen } from "./BoardScreen";
+import { TransitionLayer } from "./TransitionLayer";
+import { CONDENSED, DISPLAY, FRAME } from "./showStyle";
 import {
   clockElapsedMs,
   formatClock,
@@ -29,9 +32,6 @@ import {
 export const CANVAS_W = 1280;
 export const CANVAS_H = 720;
 
-const DISPLAY: CSSProperties = { fontFamily: "var(--font-display), Impact, sans-serif" };
-const CONDENSED: CSSProperties = { fontFamily: "var(--font-condensed), 'Arial Narrow', sans-serif" };
-const FRAME = "#111111";
 
 // Room metadata (branding + on-air scene) is in the join response, so read it
 // as soon as signaling connects instead of waiting for media to connect.
@@ -716,6 +716,7 @@ export function ShowComposition({
             {emptyHint}
           </div>
         )}
+        {scene.board.kind !== "none" && <BoardScreen board={scene.board} branding={branding} />}
         {scene.screen.kind !== "none" &&
           (scene.screen.mediaUrl ? (
             <ScreenMedia scene={scene} withSound={media === "play"} />
@@ -723,6 +724,9 @@ export function ShowComposition({
             <InstitutionalScreen scene={scene} branding={branding} />
           ))}
         {media !== "off" && <MediaLayer silent={media === "silent"} />}
+        {!sceneOverride && media !== "off" && (
+          <TransitionLayer at={scene.transitionAt} config={show.transition} branding={branding} withSound={media === "play"} />
+        )}
       </div>
       {media === "play" && <MusicLayer music={scene.music} />}
       {withAudio &&

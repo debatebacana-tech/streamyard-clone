@@ -111,6 +111,41 @@ export const WEB_POSITIONS: { position: WebPosition; label: string }[] = [
   { position: "full", label: "Tela cheia" },
 ];
 
+// Round fixtures / standings boards (football), filled from ESPN by the server.
+export type BoardTeam = { name: string; abbr: string; logo: string | null };
+export type BoardRow = {
+  rank: number;
+  team: BoardTeam;
+  played: number;
+  wins: number;
+  ties: number;
+  losses: number;
+  gf: number;
+  ga: number;
+  gd: number;
+  points: number;
+  // Stripe color of the table zone (Libertadores, relegation...).
+  zone: string | null;
+};
+export type BoardGroup = { name: string; rows: BoardRow[] };
+export type BoardMatch = {
+  date: number;
+  state: "pre" | "in" | "post";
+  detail: string;
+  venue: string;
+  home: BoardTeam & { score: number | null };
+  away: BoardTeam & { score: number | null };
+};
+export type Board = {
+  kind: "none" | "jogos" | "tabela";
+  competition: string;
+  title: string;
+  subtitle: string;
+  logo: string | null;
+  groups: BoardGroup[];
+  matches: BoardMatch[];
+};
+
 // One YouTube live chat message, as shown on screen.
 export type ChatMessage = { id: string; author: string; text: string; avatarUrl: string | null };
 
@@ -144,6 +179,11 @@ export type Scene = {
   web: { visible: boolean; url: string; position: WebPosition; zoom: number };
   sponsor: { visible: boolean; imageUrl: string | null };
   showLogo: boolean;
+  // Full-screen round fixtures or standings (football).
+  board: Board;
+  // When the last animated cut started (server time), so every output plays
+  // the transition together.
+  transitionAt: number | null;
 };
 
 export type ProgramFormat = "debate" | "futebol" | "especial";
@@ -158,7 +198,11 @@ export type ProgramBranding = {
   backgroundUrl: string | null;
 };
 
-export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[] };
+// The program's transition between scenes: its own video (null = built-in wipe).
+export type TransitionConfig = { enabled: boolean; mediaUrl: string | null; cutMs: number };
+export const DEFAULT_TRANSITION: TransitionConfig = { enabled: true, mediaUrl: null, cutMs: 450 };
+
+export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[]; transition?: TransitionConfig };
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A" };
 
@@ -185,6 +229,8 @@ export const DEFAULT_SCENE: Scene = {
   web: { visible: false, url: "", position: "left", zoom: 1 },
   sponsor: { visible: false, imageUrl: null },
   showLogo: true,
+  board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [] },
+  transitionAt: null,
 };
 
 const LAYOUT_MODES = new Set<string>(LAYOUTS.map((l) => l.mode));
@@ -239,6 +285,78 @@ export function extractEmbedUrl(input: string): string {
   } catch {
     return "";
   }
+}
+
+function int(value: unknown, min: number, max: number): number {
+  return Math.round(num(value, 0, min, max));
+}
+
+function boardTeam(input: unknown): BoardTeam {
+  const t = obj(input);
+  const logo = url(t.logo);
+  return { name: str(t.name, 30, "?"), abbr: str(t.abbr, 5), logo: logo?.startsWith("https://") || logo?.startsWith("/media/") ? logo : null };
+}
+
+function boardScore(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? Math.round(Math.min(99, Math.max(0, value))) : null;
+}
+
+export function normalizeBoard(input: unknown): Board {
+  const b = obj(input);
+  const kind = b.kind === "jogos" || b.kind === "tabela" ? b.kind : "none";
+  const groups = Array.isArray(b.groups) ? b.groups.slice(0, 8) : [];
+  const matches = Array.isArray(b.matches) ? b.matches.slice(0, 20) : [];
+  return {
+    kind,
+    competition: str(b.competition, 40, "bra.1"),
+    title: str(b.title, 60),
+    subtitle: str(b.subtitle, 80),
+    logo: url(b.logo),
+    groups: groups.map((raw) => {
+      const g = obj(raw);
+      const rows = Array.isArray(g.rows) ? g.rows.slice(0, 24) : [];
+      return {
+        name: str(g.name, 30),
+        rows: rows.map((r) => {
+          const row = obj(r);
+          return {
+            rank: int(row.rank, 0, 99),
+            team: boardTeam(row.team),
+            played: int(row.played, 0, 999),
+            wins: int(row.wins, 0, 999),
+            ties: int(row.ties, 0, 999),
+            losses: int(row.losses, 0, 999),
+            gf: int(row.gf, 0, 999),
+            ga: int(row.ga, 0, 999),
+            gd: int(row.gd, -999, 999),
+            points: int(row.points, 0, 999),
+            zone: typeof row.zone === "string" && /^#[0-9a-fA-F]{6}$/.test(row.zone) ? row.zone : null,
+          };
+        }),
+      };
+    }),
+    matches: matches.map((m) => {
+      const match = obj(m);
+      return {
+        date: num(match.date, 0, 0, 1e14),
+        state: match.state === "in" || match.state === "post" ? match.state : "pre",
+        detail: str(match.detail, 20),
+        venue: str(match.venue, 40),
+        home: { ...boardTeam(match.home), score: boardScore(obj(match.home).score) },
+        away: { ...boardTeam(match.away), score: boardScore(obj(match.away).score) },
+      };
+    }),
+  };
+}
+
+export function normalizeTransition(input: unknown): TransitionConfig {
+  const t = obj(input);
+  const mediaUrl = url(t.mediaUrl);
+  return {
+    enabled: bool(t.enabled, DEFAULT_TRANSITION.enabled),
+    mediaUrl: mediaUrl?.startsWith("/media/") ? mediaUrl : null,
+    cutMs: Math.round(num(t.cutMs, DEFAULT_TRANSITION.cutMs, 0, 3000)),
+  };
 }
 
 function webUrl(value: unknown): string {
@@ -334,6 +452,8 @@ export function normalizeScene(input: unknown): Scene {
     },
     sponsor: { visible: bool(sponsor.visible, false), imageUrl: url(sponsor.imageUrl) },
     showLogo: bool(raw.showLogo, true),
+    board: normalizeBoard(raw.board),
+    transitionAt: typeof raw.transitionAt === "number" ? raw.transitionAt : null,
   };
 }
 
@@ -353,6 +473,9 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     chat: { ...current.chat, ...obj(p.chat) },
     highlight: { ...current.highlight, ...obj(p.highlight) },
     screen: { ...current.screen, ...obj(p.screen) },
+    board: { ...current.board, ...obj(p.board) },
+    // Only the server's animated cut sets this.
+    transitionAt: current.transitionAt,
     scoreboard: {
       ...current.scoreboard,
       ...sb,
@@ -384,6 +507,7 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
       program: { ...parsed.program, format: parsed.program.format ?? "debate" },
       scene: normalizeScene(parsed.scene),
       chat: Array.isArray(parsed.chat) ? parsed.chat.slice(-12) : [],
+      transition: normalizeTransition(parsed.transition),
     };
   } catch {
     return null;

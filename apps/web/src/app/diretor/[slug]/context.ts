@@ -9,6 +9,7 @@ export type Scenes = { live: Scene; draft: Scene };
 export type SceneRequest =
   | { action: "patch"; target: "draft" | "live" | "both"; patch: unknown }
   | { action: "take" }
+  | { action: "cut"; patch: unknown }
   | { action: "clock"; op: "start" | "pause" | "reset" | "set"; ms?: number }
   | { action: "music"; op: "play"; url: string; title?: string; loop?: boolean; volume?: number }
   | { action: "music"; op: "stop" }

@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { hostProgram } from "@/lib/hostProgram";
-import { configOf, draftSceneOf, liveSceneOf, saveScenes } from "@/lib/programs";
+import { configOf, draftSceneOf, getProgram, liveSceneOf, saveScenes } from "@/lib/programs";
 import type { ProgramConfig } from "@/lib/programConfig";
 import { clockElapsedMs, mergeScene, type Scene } from "@/lib/scene";
 
 type SceneRequest =
   // Edit the preview, the air, or both (e.g. a goal should hit air immediately).
   | { action: "patch"; target: "draft" | "live" | "both"; patch: unknown }
-  // Send the prepared preview to air.
+  // Send the prepared preview to air (animated when the arrangement changes).
   | { action: "take" }
+  // Apply a change to the preview and take it at once ("direto no ar" scene buttons).
+  | { action: "cut"; patch: unknown }
   // Clock operations run on server time so every viewer agrees.
   | { action: "clock"; op: "start" | "pause" | "reset" | "set"; ms?: number }
   // Background track (straight to air, synced by server time).
@@ -87,6 +89,45 @@ function applyClock(scene: Scene, op: string, ms: number | undefined, now: numbe
   return { ...scene, scoreboard: { ...scene.scoreboard, clock: next } };
 }
 
+// Whether a take changes what's on screen enough to deserve the transition
+// (a new GC or score alone just appears).
+function arrangementChanged(a: Scene, b: Scene): boolean {
+  return (
+    a.layout !== b.layout ||
+    a.stageMode !== b.stageMode ||
+    a.featured !== b.featured ||
+    a.chat.visible !== b.chat.visible ||
+    a.board.kind !== b.board.kind ||
+    a.web.visible !== b.web.visible ||
+    (a.stageMode === "manual" && a.onStage.join() !== b.onStage.join())
+  );
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Take with the program's transition: the outputs start the animation at
+// transitionAt and the scene swaps underneath it at the cut point.
+async function take(slug: string, patch?: unknown) {
+  let program = await getProgram(slug);
+  if (!program) return null;
+  let live = liveSceneOf(program);
+  let draft = draftSceneOf(program);
+  if (patch !== undefined) draft = mergeScene(draft, patch);
+  const transition = configOf(program).transition;
+  if (transition.enabled && arrangementChanged(draft, live)) {
+    const at = Date.now();
+    await saveScenes(program, { live: { ...live, transitionAt: at }, draft });
+    await sleep(transition.cutMs);
+    program = (await getProgram(slug)) ?? program;
+    live = liveSceneOf(program);
+    draft = draftSceneOf(program);
+  }
+  // Clock, track and screen keep running on air; the preview's copy may be stale.
+  live = { ...withAirState(draft, live), transitionAt: live.transitionAt };
+  await saveScenes(program, { live, draft: live });
+  return { live, draft: live };
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { program, error } = await hostProgram(params);
   if (error) return error;
@@ -98,6 +139,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (error) return error;
 
   const body = (await request.json().catch(() => null)) as SceneRequest | null;
+  if (body?.action === "take" || body?.action === "cut") {
+    return NextResponse.json(await take(program.slug, body.action === "cut" ? body.patch : undefined));
+  }
   let live = liveSceneOf(program);
   let draft = draftSceneOf(program);
 
@@ -105,11 +149,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     case "patch":
       if (body.target === "draft" || body.target === "both") draft = mergeScene(draft, body.patch);
       if (body.target === "live" || body.target === "both") live = mergeScene(live, body.patch);
-      break;
-    case "take":
-      // Clock, track and screen keep running on air; the preview's copy may be stale.
-      live = withAirState(draft, live);
-      draft = live;
       break;
     case "clock":
       live = applyClock(live, body.op, body.ms, Date.now());

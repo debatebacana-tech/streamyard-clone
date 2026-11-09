@@ -4,6 +4,8 @@ import {
   DEFAULT_SAVED_SCENES,
   SCREEN_DEFAULTS,
   normalizeSavedScene,
+  normalizeTransition,
+  type TransitionConfig,
   type SavedScene,
   type ScreenKind,
   type ScreenText,
@@ -25,6 +27,8 @@ export type ProgramConfig = {
   scoreboardModule: boolean | null;
   // Saved arrangements for the scenes bar (defaults until the team edits them).
   scenes: SavedScene[];
+  // Animation between scenes on a cut.
+  transition: TransitionConfig;
   screens: Record<Exclude<ScreenKind, "none">, ScreenText>;
 };
 
@@ -69,6 +73,7 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
     scenes: Array.isArray(c.scenes)
       ? c.scenes.map(normalizeSavedScene).filter((x): x is SavedScene => x !== null).slice(0, 12)
       : DEFAULT_SAVED_SCENES,
+    transition: normalizeTransition(c.transition),
     screens: {
       espera: screen(screens.espera, SCREEN_DEFAULTS.espera),
       intervalo: screen(screens.intervalo, SCREEN_DEFAULTS.intervalo),
@@ -84,6 +89,7 @@ export function mergeProgramConfig(current: ProgramConfig, patch: unknown, progr
     {
       ...current,
       ...p,
+      transition: { ...current.transition, ...obj(p.transition) },
       screens: {
         espera: { ...current.screens.espera, ...obj(screens.espera) },
         intervalo: { ...current.screens.intervalo, ...obj(screens.intervalo) },

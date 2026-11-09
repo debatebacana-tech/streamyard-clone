@@ -104,7 +104,7 @@ export function RundownBar() {
 
 // ------------------------------------------------------- rundown settings
 
-function AssetSelect({
+export function AssetSelect({
   label,
   hint,
   value,

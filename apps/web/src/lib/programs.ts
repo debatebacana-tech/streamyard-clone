@@ -73,6 +73,7 @@ async function metadataFor(program: Program): Promise<string> {
     program: brandingOf(program, await brandLogo()),
     scene: liveSceneOf(program),
     chat: chatMessages(program.slug).slice(-12),
+    transition: configOf(program).transition,
   };
   return JSON.stringify(metadata);
 }

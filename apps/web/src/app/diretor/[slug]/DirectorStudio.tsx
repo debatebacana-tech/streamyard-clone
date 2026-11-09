@@ -26,7 +26,8 @@ import {
   WebPanel,
 } from "./panels";
 import { RundownBar, RundownSettings, useProgramConfig } from "./rundown";
-import { ScenesBar } from "./scenes";
+import { ScenesBar, TransitionPanel } from "./scenes";
+import { BoardAutoRefresh, BoardPanel } from "./board";
 import { ChatTab } from "./chat";
 
 function clientId(): string {
@@ -139,7 +140,7 @@ function Workspace() {
   );
 }
 
-type TabId = "cena" | "chat" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
+type TabId = "rodada" | "cena" | "chat" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
 
 // Everything below the provider: header, rundown, monitors and the tabs.
 function Desk() {
@@ -150,11 +151,16 @@ function Desk() {
   const [tab, setTab] = useState<TabId>(football ? "placar" : "cena");
 
   const tabs: { id: TabId; label: string }[] = [
-    ...(football ? [{ id: "placar" as const, label: "Placar" }] : []),
+    ...(football ? [{ id: "placar" as const, label: "Placar" }, { id: "rodada" as const, label: "Rodada e tabela" }] : []),
     { id: "cena", label: "Cena" },
     { id: "chat", label: "Chat" },
     { id: "grafismos", label: "Textos e grafismos" },
-    ...(!football && scoreboard ? [{ id: "placar" as const, label: "Placar" }] : []),
+    ...(!football && scoreboard
+      ? [
+          { id: "placar" as const, label: "Placar" },
+          { id: "rodada" as const, label: "Rodada e tabela" },
+        ]
+      : []),
     { id: "audio", label: "Áudio" },
     { id: "roteiro", label: "Roteiro" },
     { id: "ajustes", label: "Ajustes" },
@@ -180,6 +186,7 @@ function Desk() {
       <ScenesBar />
       <Workspace />
       {football && <QuickScore />}
+      <BoardAutoRefresh />
 
       <nav className="flex flex-wrap gap-1 border-b border-neutral-800">
         {tabs.map((t) => (
@@ -208,7 +215,16 @@ function Desk() {
               <WebPanel />
             </Panel>
           </div>
+          <Panel title="Transição entre cenas">
+            <TransitionPanel />
+          </Panel>
         </div>
+      )}
+
+      {active === "rodada" && (
+        <Panel title="Jogos da rodada e classificação">
+          <BoardPanel />
+        </Panel>
       )}
 
       {active === "chat" && (

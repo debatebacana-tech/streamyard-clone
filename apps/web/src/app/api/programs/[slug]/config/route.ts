@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hostProgram } from "@/lib/hostProgram";
 import { mergeProgramConfig } from "@/lib/programConfig";
-import { configOf } from "@/lib/programs";
+import { configOf, syncProgramRoom } from "@/lib/programs";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -22,6 +22,8 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
   const config = mergeProgramConfig(configOf(program), patch, program.name);
-  await prisma.program.update({ where: { id: program.id }, data: { configJson: JSON.stringify(config) } });
+  const updated = await prisma.program.update({ where: { id: program.id }, data: { configJson: JSON.stringify(config) } });
+  // The outputs preload the transition video from the room metadata.
+  if ("transition" in patch) await syncProgramRoom(updated).catch((err) => console.error("config sync failed", err));
   return NextResponse.json({ config });
 }
