@@ -16,6 +16,7 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
   const [live, setLive] = useState<Scene>(initialLive);
   const [config, setConfig] = useState<ProgramConfig | null>(null);
   const [clubs, setClubs] = useState<Club[]>([]);
+  const [effects, setEffects] = useState<{ id: string; name: string; url: string; kind: string }[]>([]);
   const [flash, setFlash] = useState<Flash>({});
 
   const refresh = useCallback(async () => {
@@ -27,6 +28,13 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
     fetch(`/api/programs/${slug}/config`)
       .then((r) => r.json())
       .then((d) => setConfig(d.config));
+    fetch(`/api/programs/${slug}/assets`)
+      .then((r) => r.json())
+      .then((d) =>
+        setEffects(
+          (d.assets ?? []).filter((a: { role: string; kind: string }) => a.role === "efeito" && (a.kind === "audio" || a.kind === "video")),
+        ),
+      );
     fetch("/api/clubs")
       .then((r) => r.json())
       .then((d) => setClubs(d.clubs ?? []));
@@ -69,7 +77,7 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
   const football = program.format === "futebol" || config?.scoreboardModule === true;
 
   return (
-    <div className="min-h-screen space-y-5 bg-neutral-950 p-3 pb-16 text-white select-none">
+    <div className="min-h-screen space-y-5 bg-neutral-950 p-3 pb-32 text-white select-none">
       <header className="flex items-center justify-between">
         <h1 className="text-lg font-black">{program.name}</h1>
         <span className="text-xs text-neutral-500">controle · verde = entrou no ar</span>
@@ -119,9 +127,25 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
         </section>
       )}
 
-      <button onClick={() => send("stop", "cue", { type: "stop" })} className={`${big} w-full bg-red-700 ${ring("stop")}`}>
-        ⏹ Parar sons
-      </button>
+      {effects.length > 0 && (
+        <section className="space-y-2">
+          <p className="text-xs font-bold tracking-widest text-neutral-500">EFEITOS E VINHETAS</p>
+          <div className="grid grid-cols-2 gap-2">
+            {effects.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => sound(`fx-${a.id}`, a.url)}
+                className={`rounded-2xl bg-neutral-800 px-3 py-4 text-base font-bold leading-tight active:scale-95 ${ring(`fx-${a.id}`)}`}
+              >
+                {a.kind === "video" ? "🎬 " : ""}
+                {a.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <p className="pt-4 text-xs font-bold tracking-widest text-neutral-600">MAIS CONTROLES</p>
 
       {football && (
         <section className="space-y-2">
@@ -195,6 +219,13 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
       >
         🧹 Limpar tela
       </button>
+
+      {/* Always at hand while scrolling through the pads. */}
+      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/90 to-transparent p-3 pt-6">
+        <button onClick={() => send("stop", "cue", { type: "stop" })} className={`${big} w-full bg-red-700 ${ring("stop")}`}>
+          ⏹ Parar sons
+        </button>
+      </div>
     </div>
   );
 }
