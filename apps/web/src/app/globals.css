@@ -72,6 +72,25 @@ body {
   38%, 64% { transform: translateX(0) skewX(-14deg); }
   100% { transform: translateX(120%) skewX(-14deg); }
 }
+/* Scenery behind the caricature, shown while the bands cover the screen. */
+.wipe-stage {
+  background: radial-gradient(ellipse at 50% 120%, #2f5207, #0b1402 65%, #050801);
+  animation: wipe-stage 1.15s ease-in-out both;
+}
+@keyframes wipe-stage {
+  0%, 30% { opacity: 0; }
+  40%, 68% { opacity: 1; }
+  82%, 100% { opacity: 0; }
+}
+.wipe-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(174, 223, 2, 0.2) 0deg 7deg, transparent 7deg 18deg);
+  animation: wipe-rays 1.15s linear both;
+}
+@keyframes wipe-rays {
+  from { transform: translate(-50%, -38%) rotate(0deg); }
+  to { transform: translate(-50%, -38%) rotate(24deg); }
+}
+
 /* The hosts' caricature jumps up from the bottom while the bands cover. */
 .wipe-caricature {
   animation: wipe-caricature 1.15s cubic-bezier(0.2, 1.3, 0.4, 1) both;

@@ -84,6 +84,17 @@ export function TransitionLayer({
       <div className="wipe-band" style={{ background: LIME, animationDelay: "0ms" }} />
       <div className="wipe-band" style={{ background: FRAME, animationDelay: "70ms" }} />
       <div className="wipe-band" style={{ background: "#0d1a02", animationDelay: "140ms" }} />
+      {/* Backdrop behind the caricature: rotating lime rays, a glow, dots and stripes. */}
+      <div className="wipe-stage absolute inset-0 overflow-hidden">
+        <div className="wipe-rays absolute top-1/2 left-1/2 h-[2400px] w-[2400px] -translate-x-1/2 -translate-y-[38%]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_78%,rgba(174,223,2,0.55),rgba(174,223,2,0.08)_42%,transparent_62%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.13)_1.5px,transparent_1.6px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_at_50%_60%,black_20%,transparent_70%)]" />
+        <div className="absolute inset-0 bg-[repeating-linear-gradient(115deg,rgba(174,223,2,0.07)_0_14px,transparent_14px_42px)]" />
+        <span className="absolute -top-4 -left-10 h-14 w-64 -skew-x-[30deg] bg-[#aedf02]" />
+        <span className="absolute -right-10 -bottom-4 h-14 w-64 -skew-x-[30deg] bg-[#aedf02]" />
+        <span className="absolute top-14 -left-10 h-4 w-40 -skew-x-[30deg] bg-[#aedf02]/70" />
+        <span className="absolute -right-10 bottom-14 h-4 w-40 -skew-x-[30deg] bg-[#aedf02]/70" />
+      </div>
       <div className="wipe-logo absolute inset-x-0 top-[34px] flex justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={BRAND_LOGO} alt="" className="h-[120px] w-auto drop-shadow-[0_0_18px_rgba(174,223,2,0.5)]" />
