@@ -152,7 +152,7 @@ export function LayoutPanel() {
   const { draft } = scenes;
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2 xl:grid-cols-5">
+      <div className="grid grid-cols-3 gap-2 xl:grid-cols-4">
         {LAYOUTS.map((l) => (
           <button key={l.mode} title={l.hint} onClick={() => patch({ layout: l.mode })} className={draft.layout === l.mode ? btnOn : btn}>
             {l.label}
@@ -160,6 +160,20 @@ export function LayoutPanel() {
         ))}
       </div>
       <p className="text-[11px] text-neutral-500">{LAYOUTS.find((l) => l.mode === draft.layout)?.hint}</p>
+      {(draft.layout === "spotlight" || draft.layout === "vertical") && (
+        <div className="flex gap-2">
+          {(
+            [
+              ["right", "Apresentadores à esquerda, janela à direita"],
+              ["left", "Janela à esquerda, apresentadores à direita"],
+            ] as const
+          ).map(([s, label]) => (
+            <button key={s} onClick={() => patch({ featuredSide: s })} className={`flex-1 rounded-md px-2 py-1.5 text-xs ${draft.featuredSide === s ? "bg-[#DFFF00] font-semibold text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <label className="flex items-center gap-2 text-sm text-neutral-300">
         <input type="checkbox" checked={draft.showLogo} onChange={(e) => patch({ showLogo: e.target.checked })} />
         Mostrar logo do programa no topo

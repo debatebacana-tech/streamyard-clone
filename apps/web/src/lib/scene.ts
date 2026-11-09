@@ -4,11 +4,13 @@
 // composition renders from.
 
 // "auto" is the grid: one row up to four, two rows beyond.
-export type LayoutMode = "auto" | "spotlight" | "solo" | "pip" | "vertical";
+export type LayoutMode = "auto" | "spotlight" | "center" | "screen" | "solo" | "pip" | "vertical";
 
 export const LAYOUTS: { mode: LayoutMode; label: string; hint: string }[] = [
   { mode: "auto", label: "Grade", hint: "Todos lado a lado (até 4 numa fila, depois duas fileiras)" },
-  { mode: "spotlight", label: "Destaque", hint: "Uma pessoa grande e as outras ao lado" },
+  { mode: "spotlight", label: "Destaque", hint: "A janela (ou quem está em destaque) grande e os apresentadores numa coluna ao lado" },
+  { mode: "center", label: "Janela no meio", hint: "A janela no centro e os apresentadores em volta, metade de cada lado" },
+  { mode: "screen", label: "Só a janela", hint: "Só a tela compartilhada, grande (os apresentadores continuam sendo ouvidos)" },
   { mode: "pip", label: "PiP", hint: "Destaque em tela cheia com as outras em janelinhas" },
   { mode: "solo", label: "Só um", hint: "Apenas a pessoa em destaque" },
   { mode: "vertical", label: "Tela vertical", hint: "A tela compartilhada (Twitter, celular) numa moldura em pé, recortada no meio, com as câmeras ao lado" },
@@ -268,6 +270,9 @@ export type Scene = {
   onStage: string[];
   // Featured participant for spotlight/pip/solo; falls back to a screen share, then the first on stage.
   featured: string | null;
+  // Where the featured window goes in "Destaque"/"Tela vertical": right =
+  // presenters on the left (the show's usual arrangement).
+  featuredSide: "left" | "right";
   // Lower third: subtitle is the lime label ("PAUTA DA MESA"), title the line.
   gc: { visible: boolean; title: string; subtitle: string; imageUrl: string | null };
   // Text running in the footer band.
@@ -332,6 +337,7 @@ export const DEFAULT_SCENE: Scene = {
   layout: "auto",
   onStage: [],
   featured: null,
+  featuredSide: "right",
   gc: { visible: false, title: "", subtitle: "", imageUrl: null },
   ticker: { visible: false, text: "" },
   music: { url: null, title: "", volume: 0.5, loop: true, startedAt: null },
@@ -589,6 +595,7 @@ export function normalizeScene(input: unknown): Scene {
       ? [...new Set(raw.onStage.filter((id): id is string => typeof id === "string" && id.length <= 64))].slice(0, 16)
       : d.onStage,
     featured: typeof raw.featured === "string" && raw.featured.length <= 64 ? raw.featured : null,
+    featuredSide: raw.featuredSide === "left" ? "left" : "right",
     gc: {
       visible: bool(gc.visible, false),
       title: str(gc.title, 120),
@@ -740,6 +747,7 @@ export type SavedScene = {
   stageMode: "all" | "manual";
   onStage: string[];
   featured: string | null;
+  featuredSide?: "left" | "right";
   chat: boolean;
 };
 
@@ -747,7 +755,8 @@ export const DEFAULT_SAVED_SCENES: SavedScene[] = [
   { id: "todos-chat", name: "Todos + chat", layout: "auto", stageMode: "all", onStage: [], featured: null, chat: true },
   { id: "todos", name: "Todos", layout: "auto", stageMode: "all", onStage: [], featured: null, chat: false },
   { id: "projecao", name: "Janelas + projeção", layout: "spotlight", stageMode: "all", onStage: [], featured: null, chat: false },
-  { id: "destaque", name: "Destaque", layout: "spotlight", stageMode: "all", onStage: [], featured: null, chat: false },
+  { id: "janela-meio", name: "Janela no meio", layout: "center", stageMode: "all", onStage: [], featured: null, chat: false },
+  { id: "so-janela", name: "Só a janela", layout: "screen", stageMode: "all", onStage: [], featured: null, chat: false },
 ];
 
 export function normalizeSavedScene(input: unknown): SavedScene | null {
@@ -761,6 +770,7 @@ export function normalizeSavedScene(input: unknown): SavedScene | null {
     stageMode: s.stageMode === "manual" ? "manual" : "all",
     onStage: Array.isArray(s.onStage) ? s.onStage.filter((x): x is string => typeof x === "string").slice(0, 16) : [],
     featured: typeof s.featured === "string" ? s.featured.slice(0, 64) : null,
+    featuredSide: s.featuredSide === "left" ? "left" : "right",
     chat: bool(s.chat, false),
   };
 }
@@ -772,6 +782,7 @@ export function savedScenePatch(saved: SavedScene) {
     stageMode: saved.stageMode,
     ...(saved.stageMode === "manual" && { onStage: saved.onStage }),
     featured: saved.featured,
+    featuredSide: saved.featuredSide ?? "right",
     chat: { visible: saved.chat },
   };
 }
@@ -782,6 +793,7 @@ export function matchesSavedScene(scene: Scene, saved: SavedScene): boolean {
     scene.layout === saved.layout &&
     scene.stageMode === saved.stageMode &&
     scene.chat.visible === saved.chat &&
+    scene.featuredSide === (saved.featuredSide ?? "right") &&
     (saved.stageMode === "all" || JSON.stringify(scene.onStage) === JSON.stringify(saved.onStage))
   );
 }

@@ -178,7 +178,7 @@ function MediaStage({ stage, scene, branding, box, withSound }: {
     );
   }
   return (
-    <div className="absolute flex gap-4" style={box}>
+    <div className={`absolute flex gap-4 ${scene.featuredSide === "right" ? "flex-row-reverse" : ""}`} style={box}>
       <div
         className="min-w-0 flex-[2.6] overflow-hidden rounded-2xl bg-black"
         style={{ border: `5px solid ${FRAME}`, boxShadow: "0 8px 24px rgba(0,0,0,.45)" }}
@@ -232,7 +232,7 @@ function Stage({ stage, scene, branding, box }: {
     const width = Math.round(height * 0.6);
     const cols = others.length <= 2 ? 1 : 2;
     return (
-      <div className="absolute flex gap-4" style={box}>
+      <div className={`absolute flex gap-4 ${scene.featuredSide === "right" ? "flex-row-reverse" : ""}`} style={box}>
         <div className="shrink-0" style={{ width, height }}>
           <Tile trackRef={featured} branding={branding} crop />
         </div>
@@ -258,9 +258,47 @@ function Stage({ stage, scene, branding, box }: {
     );
   }
 
+  // Only the shared window (falls back to whoever is featured).
+  if (scene.layout === "screen") {
+    const screen = stage.find((t) => t.source === Track.Source.ScreenShare && t.participant.identity === scene.featured)
+      ?? stage.find((t) => t.source === Track.Source.ScreenShare)
+      ?? featured;
+    return (
+      <div className="absolute" style={box}>
+        <Tile trackRef={screen} branding={branding} />
+      </div>
+    );
+  }
+
+  // Window in the middle, presenters around it (half on each side).
+  if (scene.layout === "center") {
+    const half = Math.ceil(others.length / 2);
+    const column = (list: TrackReferenceOrPlaceholder[]) =>
+      list.length > 0 && (
+        <div className="flex h-full min-w-0 flex-1 flex-col justify-center gap-4">
+          {list.map((t) => (
+            <div key={key(t)} className="aspect-video w-full min-h-0">
+              <Tile trackRef={t} branding={branding} />
+            </div>
+          ))}
+        </div>
+      );
+    return (
+      <div className="absolute flex items-center gap-4" style={box}>
+        {column(others.slice(0, half))}
+        <div className="flex h-full min-w-0 items-center" style={{ flex: others.length ? 2.4 : 1 }}>
+          <div className="aspect-video max-h-full w-full">
+            <Tile trackRef={featured} branding={branding} />
+          </div>
+        </div>
+        {column(others.slice(half, 6))}
+      </div>
+    );
+  }
+
   if (scene.layout === "spotlight") {
     return (
-      <div className="absolute flex gap-4" style={box}>
+      <div className={`absolute flex gap-4 ${scene.featuredSide === "right" ? "flex-row-reverse" : ""}`} style={box}>
         <div className="min-w-0 flex-[2.6]">
           <Tile trackRef={featured} branding={branding} />
         </div>
@@ -904,7 +942,7 @@ export function ShowComposition({
     bottom: Math.max(y, 24),
   };
   // Re-keys the stage when the arrangement changes, so a cut fades in.
-  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
+  const arrangement = `${scene.layout}:${scene.featuredSide}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
 
   return (
     <ScaledCanvas>

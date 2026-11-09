@@ -96,6 +96,7 @@ function arrangementChanged(a: Scene, b: Scene): boolean {
     a.layout !== b.layout ||
     a.stageMode !== b.stageMode ||
     a.featured !== b.featured ||
+    a.featuredSide !== b.featuredSide ||
     a.chat.visible !== b.chat.visible ||
     a.board.kind !== b.board.kind ||
     a.web.visible !== b.web.visible ||

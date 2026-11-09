@@ -55,6 +55,7 @@ export function ScenesBar() {
       stageMode: d.stageMode,
       onStage: d.stageMode === "manual" ? d.onStage : [],
       featured: d.featured,
+      featuredSide: d.featuredSide,
       chat: d.chat.visible,
     };
     save({ scenes: [...list, scene] });
