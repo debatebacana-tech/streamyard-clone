@@ -329,7 +329,7 @@ function ScoreboardBar({ scene, bottom }: { scene: Scene; bottom: number }) {
               {home.score} <span className="text-2xl" style={{ color: theme.accent }}>vs</span> {away.score}
             </span>
             {clock.visible && (
-              <span className="text-lg tabular-nums uppercase" style={{ ...CONDENSED, fontWeight: 700, color: theme.clock ?? "#fff" }}>
+              <span className="text-lg tabular-nums uppercase" style={{ ...CONDENSED, fontWeight: 700, color: "#fff" }}>
                 <ClockText clock={clock} /> · {clock.period}
               </span>
             )}

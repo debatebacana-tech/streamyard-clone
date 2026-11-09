@@ -57,7 +57,7 @@ export const THEME_PRESETS: { label: string; theme: CompetitionTheme }[] = [
   { label: "Brasileirão", theme: { name: "BRASILEIRÃO", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#062e1f", light: "#f4f1ea", accent: "#ffd400", clock: "#00a859" } },
   { label: "Libertadores", theme: { name: "LIBERTADORES", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0b0b0b", light: "#f5f0e1", accent: "#d4af37", clock: "#b8902c" } },
   { label: "Sul-Americana", theme: { name: "SUL-AMERICANA", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#1b1b3a", light: "#f4f1ea", accent: "#f2c94c", clock: "#2f6fd6" } },
-  { label: "Copa do Brasil", theme: { name: "COPA DO BRASIL", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0a2463", light: "#f4f6fb", accent: "#ffd60a", clock: "#1e6fd9" } },
+  { label: "Copa do Brasil", theme: { name: "COPA DO BRASIL", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#c2410c", light: "#fff7ed", accent: "#fde047", clock: "#f97316" } },
   { label: "Champions", theme: { name: "CHAMPIONS LEAGUE", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0b1d51", light: "#eef2ff", accent: "#9fb4ff", clock: "#1f3fae" } },
   { label: "Estadual", theme: { name: "ESTADUAL", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#111111", light: "#ffffff", accent: "#e30613", clock: "#e30613" } },
 ];
