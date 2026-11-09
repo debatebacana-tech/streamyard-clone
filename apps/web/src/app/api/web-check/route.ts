@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireHostSession } from "@/lib/auth";
 import { ProxyAgent, fetch } from "undici";
 import { extractEmbedUrl } from "@/lib/scene";
-import { TUNNEL_PROXY, isTunneledHost } from "@/lib/tunnel";
+import { TUNNEL_PROXY, isTunneledHost, tunnelStatus } from "@/lib/tunnel";
 
 // Fetches an embed URL from this server, which shares its IP with the Egress
 // browser that renders the live output, so the director learns whether the
@@ -22,6 +22,17 @@ export async function GET(request: Request) {
 
   // Same route the Egress browser takes (see /proxy.pac).
   const tunneled = isTunneledHost(host);
+  if (tunneled) {
+    const tunnel = await tunnelStatus();
+    if (!tunnel.exitNode?.online) {
+      return NextResponse.json({
+        ok: false,
+        reason: tunnel.configured
+          ? "Este site só funciona pelo computador de casa, e ele não está conectado agora"
+          : "Este site bloqueia o servidor da live. Configure \"Campinho via computador de casa\" na Área do Diretor",
+      });
+    }
+  }
   try {
     const res = await fetch(url, {
       ...(tunneled && { dispatcher: new ProxyAgent(TUNNEL_PROXY) }),
