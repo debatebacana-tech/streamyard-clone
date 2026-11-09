@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDataChannel } from "@livekit/components-react";
+import { AUDIO_BLOCKED } from "./MusicLayer";
 
 // Sound pads and video stingers ("vinhetas"). The director broadcasts a cue
 // over the room's data channel; the layout-view page (what Egress records)
@@ -126,7 +127,11 @@ export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean;
       audio.onended = () => {
         if (playing.current.get(cue.url) === audio) playing.current.delete(cue.url);
       };
-      audio.play().catch((err) => console.warn("audio cue failed", err));
+      audio.play().catch((err: DOMException) => {
+        // Sound blocked until the page is clicked: the monitor offers "Ativar som".
+        if (err?.name === "NotAllowedError") window.dispatchEvent(new Event(AUDIO_BLOCKED));
+        else console.warn("audio cue failed", err);
+      });
     },
     [silent],
   );

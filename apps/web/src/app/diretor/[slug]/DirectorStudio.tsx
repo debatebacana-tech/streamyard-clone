@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ControlBar, LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { ShowComposition } from "@/components/ShowComposition";
+import { AudioUnlock } from "@/components/MusicLayer";
 import type { ProgramBranding } from "@/lib/scene";
 import type { AssetItem } from "./assets";
 import { DirectorContext, useDirector, type DirectorCtx, type SceneRequest, type Scenes } from "./context";
@@ -106,7 +107,7 @@ function Monitor({ label, tone, children }: { label: string; tone: "green" | "re
   return (
     <div className="min-w-0 flex-1 space-y-1">
       <p className={`text-xs font-bold tracking-widest ${tone === "red" ? "text-red-500" : "text-emerald-500"}`}>{label}</p>
-      <div className={`aspect-video overflow-hidden rounded-md border-2 bg-black ${tone === "red" ? "border-red-600" : "border-emerald-600"}`}>
+      <div className={`relative aspect-video overflow-hidden rounded-md border-2 bg-black ${tone === "red" ? "border-red-600" : "border-emerald-600"}`}>
         {children}
       </div>
     </div>
@@ -139,6 +140,7 @@ function Workspace() {
         </div>
         <Monitor label="NO AR" tone="red">
           <ShowComposition media="play" emptyHint="Ninguém em cena" />
+          <AudioUnlock />
         </Monitor>
       </div>
       <ControlBar controls={{ microphone: true, camera: true, screenShare: true, leave: false, chat: false }} />
