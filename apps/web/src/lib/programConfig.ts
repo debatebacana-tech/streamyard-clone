@@ -13,6 +13,25 @@ import {
   type ScreenText,
 } from "./scene";
 
+export type HotSound = { id: string; label: string; url: string | null; color: string };
+
+export const DEFAULT_HOT_SOUNDS: HotSound[] = [
+  { id: "gol-bacana", label: "⚽ GOL BACANA", url: null, color: "#DFFF00" },
+  { id: "melhor-amigo", label: "ELE É O NOSSO MELHOR AMIGO — Eduardo Pires", url: null, color: "#38bdf8" },
+];
+
+function hotSound(input: unknown, i: number): HotSound | null {
+  const s = obj(input);
+  const label = text(s.label, 60, "").trim();
+  if (!label) return null;
+  return {
+    id: text(s.id, 40, "") || `som-${i}`,
+    label,
+    url: media(s.url),
+    color: typeof s.color === "string" && /^#[0-9a-fA-F]{6}$/.test(s.color) ? s.color : "#DFFF00",
+  };
+}
+
 export type ProgramConfig = {
   openingVideoUrl: string | null;
   openingTrackUrl: string | null;
@@ -33,6 +52,8 @@ export type ProgramConfig = {
   transition: TransitionConfig;
   // X/Twitter posts lined up for the show (newest first).
   tweets: TweetCard[];
+  // Signature sounds always one click away (e.g. "GOL BACANA").
+  hotSounds: HotSound[];
   screens: Record<Exclude<ScreenKind, "none">, ScreenText>;
 };
 
@@ -78,6 +99,9 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
       ? c.scenes.map(normalizeSavedScene).filter((x): x is SavedScene => x !== null).slice(0, 12)
       : DEFAULT_SAVED_SCENES,
     transition: normalizeTransition(c.transition),
+    hotSounds: Array.isArray(c.hotSounds)
+      ? c.hotSounds.map(hotSound).filter((x): x is HotSound => x !== null).slice(0, 6)
+      : DEFAULT_HOT_SOUNDS,
     tweets: (Array.isArray(c.tweets) ? c.tweets : []).map(normalizeTweetCard).filter((x): x is TweetCard => x !== null).slice(0, 30),
     screens: {
       espera: screen(screens.espera, SCREEN_DEFAULTS.espera),

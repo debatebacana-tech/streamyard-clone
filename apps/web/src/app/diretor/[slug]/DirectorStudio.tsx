@@ -32,6 +32,7 @@ import { TierListPanel } from "./tierlist";
 import { TwitterPanel } from "./twitter";
 import { MediaPanel } from "./media";
 import { ClubPads, ClubsPanel } from "./clubs";
+import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
 
 function clientId(): string {
@@ -193,6 +194,7 @@ function Desk() {
       <ScenesBar />
       <Workspace />
       {football && <QuickScore />}
+      <HotSoundsBar always={football} />
       <BoardAutoRefresh />
 
       <nav className="flex flex-wrap gap-1 border-b border-neutral-800">
