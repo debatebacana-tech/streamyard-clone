@@ -10,6 +10,7 @@ import {
   THEME_PRESETS,
   WEB_POSITIONS,
   clockElapsedMs,
+  extractEmbedUrl,
   formatClock,
   type CompetitionTheme,
   type Team,
@@ -739,11 +740,28 @@ export function WebPanel() {
   const web = scenes.draft.web;
   const [url, setUrl] = useState(web.url);
   const [zoom, setZoom] = useState(web.zoom);
-  const validUrl = /^https:\/\/\S+$/.test(url.trim());
+  const [error, setError] = useState<string | null>(null);
+  const [check, setCheck] = useState<string | null>(null);
+
+  function show() {
+    const embed = extractEmbedUrl(url);
+    if (!embed) {
+      setError("Não reconheci um link. Cole o endereço começando com https:// ou o código <iframe> do widget.");
+      return;
+    }
+    setError(null);
+    setUrl(embed);
+    setCheck("Testando se o servidor da live consegue abrir a página...");
+    fetch(`/api/web-check?url=${encodeURIComponent(embed)}`)
+      .then((r) => r.json())
+      .then((d) => setCheck(d.ok ? "✓ O servidor da live abre esta página." : `⚠ ${d.reason}. Na live (YouTube) ela pode ficar em branco, mesmo aparecendo aqui.`))
+      .catch(() => setCheck(null));
+    return patch({ web: { url: embed, visible: true } });
+  }
 
   return (
     <div className="space-y-3">
-      <input className={`${input} w-full`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… (link do widget do Sofascore, 365Scores…)" />
+      <input className={`${input} w-full`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link https://… ou código <iframe> do widget (365Scores, FotMob…)" />
       <div className="grid grid-cols-2 gap-2">
         {WEB_POSITIONS.map((p) => (
           <button key={p.position} onClick={() => patch({ web: { position: p.position } })} className={web.position === p.position ? btnOn : btn}>
@@ -766,13 +784,18 @@ export function WebPanel() {
         />
       </label>
       <div className="flex gap-2">
-        <button className={btnOn} disabled={!validUrl} onClick={() => patch({ web: { url: url.trim(), visible: true } })}>
+        <button className={btnOn} disabled={!url.trim()} onClick={show}>
           Mostrar página
         </button>
         <button className={btn} disabled={!web.visible} onClick={() => patch({ web: { visible: false } })}>
           Ocultar
         </button>
       </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {check && <p className={`text-xs ${check.startsWith("✓") ? "text-emerald-400" : check.startsWith("⚠") ? "text-amber-400" : "text-neutral-400"}`}>{check}</p>}
+      {web.visible && !scenes.live.web.visible && (
+        <p className="text-xs text-emerald-400">Na prévia. Clique em CORTAR para mandar pro ar.</p>
+      )}
       <p className="text-[11px] text-neutral-500">
         Use o link de &quot;widget&quot; ou &quot;incorporar&quot; do site. Alguns sites bloqueiam aparecer dentro de outra página e ficam em branco. Confira na prévia antes de cortar pro ar.
       </p>

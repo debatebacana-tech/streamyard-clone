@@ -157,14 +157,23 @@ export function normalizeTheme(input: unknown): CompetitionTheme {
   };
 }
 
-// Only https pages can be embedded (the Egress browser loads them).
-function webUrl(value: unknown): string {
-  if (typeof value !== "string" || value.length > 1000) return "";
+// Accepts a plain link or a pasted embed snippet (<iframe src="...">) and
+// returns the https URL to embed, or "" if there isn't one. Only https pages
+// can be embedded (the Egress browser loads them).
+export function extractEmbedUrl(input: string): string {
+  const text = input.trim();
+  const src = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(text)?.[1] ?? text;
+  const candidate = src.replace(/&amp;/g, "&").trim();
+  if (candidate.length > 1000) return "";
   try {
-    return new URL(value).protocol === "https:" ? value : "";
+    return new URL(candidate).protocol === "https:" ? candidate : "";
   } catch {
     return "";
   }
+}
+
+function webUrl(value: unknown): string {
+  return typeof value === "string" ? extractEmbedUrl(value) : "";
 }
 
 const WEB_POSITION_SET = new Set<string>(WEB_POSITIONS.map((p) => p.position));
