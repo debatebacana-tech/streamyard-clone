@@ -6,11 +6,14 @@ import type { HotSound } from "@/lib/programConfig";
 import { UploadButton } from "./assets";
 import { useDirector } from "./context";
 import { useProgramConfig } from "./rundown";
+import { clubFor, useClubs } from "./clubs";
 
 // The show's signature sounds ("GOL BACANA", "Ele é o nosso melhor amigo"):
 // big buttons always on screen, with Z/X/C/V shortcuts, played over everything.
 
 const KEYS = ["z", "x", "c", "v", "b", "n"];
+// Today's clubs: home vinheta/hino on A/S, away on D/F.
+const CLUB_KEYS = { home: ["a", "s"], away: ["d", "f"] } as const;
 
 function typing(e: KeyboardEvent) {
   const el = e.target as HTMLElement;
@@ -18,7 +21,18 @@ function typing(e: KeyboardEvent) {
 }
 
 export function HotSoundsBar({ always }: { always: boolean }) {
-  const { slug, addAsset } = useDirector();
+  const { slug, addAsset, scenes } = useDirector();
+  const { clubs } = useClubs();
+  const sb = scenes.live.scoreboard;
+  const game = (["home", "away"] as const)
+    .map((side) => ({ side, club: clubFor(clubs, sb[side].name) }))
+    .filter((g) => g.club && (g.club.vinhetaUrl || g.club.anthemUrl));
+  const playUrl = (url: string | null, flashId: string) => {
+    if (!url) return;
+    sendCue({ type: "play", id: crypto.randomUUID(), url, kind: /\.(mp4|webm)$/i.test(url) ? "video" : "audio", volume: 1 });
+    setFlash(flashId);
+    setTimeout(() => setFlash((f) => (f === flashId ? null : f)), 600);
+  };
   const { config, save } = useProgramConfig();
   const sendCue = useMediaCues();
   const [editing, setEditing] = useState(false);
@@ -39,10 +53,20 @@ export function HotSoundsBar({ always }: { always: boolean }) {
         return;
       }
       if (typing(e)) return;
-      const i = KEYS.indexOf(e.key.toLowerCase());
+      const key = e.key.toLowerCase();
+      const i = KEYS.indexOf(key);
       if (i >= 0 && sounds[i]?.url) {
         e.preventDefault();
         play(sounds[i]);
+        return;
+      }
+      for (const g of game) {
+        const k = CLUB_KEYS[g.side].indexOf(key as never);
+        const url = k === 0 ? g.club!.vinhetaUrl : k === 1 ? g.club!.anthemUrl : null;
+        if (url) {
+          e.preventDefault();
+          playUrl(url, `${g.side}-${k}`);
+        }
       }
     }
     window.addEventListener("keydown", onKey);
@@ -51,7 +75,7 @@ export function HotSoundsBar({ always }: { always: boolean }) {
 
   const update = (id: string, patch: Partial<HotSound>) => save({ hotSounds: sounds.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
 
-  if (!config || (!always && !sounds.some((s) => s.url) && !editing)) return null;
+  if (!config || (!always && !sounds.some((s) => s.url) && !game.length && !editing)) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/60 p-2">
@@ -112,6 +136,33 @@ export function HotSoundsBar({ always }: { always: boolean }) {
           </span>
         ),
       )}
+      {!editing &&
+        game.map(({ side, club }) => (
+          <span key={side} className="flex items-center gap-1 rounded-md bg-neutral-800 p-1 pl-2" style={{ borderLeft: `4px solid ${club!.color}` }}>
+            {club!.crestUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={club!.crestUrl} alt="" className="h-6 w-6 object-contain" />
+            )}
+            <span className="pr-1 text-xs font-bold uppercase">{club!.short || club!.name}</span>
+            {([
+              [club!.vinhetaUrl, "📣 Vinheta", 0],
+              [club!.anthemUrl, "🎵 Hino", 1],
+            ] as const).map(([url, label, k]) =>
+              url ? (
+                <button
+                  key={k}
+                  onClick={() => playUrl(url, `${side}-${k}`)}
+                  title={`Tecla ${CLUB_KEYS[side][k].toUpperCase()}`}
+                  className={`rounded px-2.5 py-1.5 text-xs font-bold text-black transition ${flash === `${side}-${k}` ? "scale-95 brightness-125" : "hover:brightness-110"}`}
+                  style={{ background: k === 0 ? "#DFFF00" : "#e5e5e5" }}
+                >
+                  <span className="mr-1 rounded bg-black/20 px-1 font-mono text-[10px]">{CLUB_KEYS[side][k].toUpperCase()}</span>
+                  {label}
+                </button>
+              ) : null,
+            )}
+          </span>
+        ))}
       {editing && sounds.length < KEYS.length && (
         <button
           className="rounded-md border border-dashed border-neutral-600 px-3 py-1.5 text-xs text-neutral-300"

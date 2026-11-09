@@ -17,7 +17,6 @@ import {
 import { ImagePicker } from "./assets";
 import { useDirector } from "./context";
 import { AggregateInput, ExtraSelect, PenaltyControls, RedCardButton } from "./matchExtras";
-import { ClubMediaButtons, clubFor, useClubs } from "./clubs";
 
 const input = "rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-neutral-500";
 const btn = "rounded-md bg-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-600 disabled:opacity-40";
@@ -829,7 +828,6 @@ export function WebPanel() {
 export function QuickScore() {
   const { scenes, patch, sceneRequest } = useDirector();
   const sb = scenes.live.scoreboard;
-  const { clubs } = useClubs();
   const goal = (side: "home" | "away", delta: number) =>
     patch({ scoreboard: { [side]: { score: Math.max(0, sb[side].score + delta) } } }, { air: true });
   const team = (side: "home" | "away") => (
@@ -843,10 +841,6 @@ export function QuickScore() {
         ＋ GOL
       </button>
       <RedCardButton side={side} />
-      {(() => {
-        const club = clubFor(clubs, sb[side].name);
-        return club && (club.vinhetaUrl || club.anthemUrl) ? <ClubMediaButtons club={club} /> : null;
-      })()}
     </div>
   );
 
