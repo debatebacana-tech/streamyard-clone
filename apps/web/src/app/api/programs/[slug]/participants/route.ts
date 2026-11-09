@@ -5,7 +5,8 @@ import { roomForProgram } from "@/lib/programs";
 
 type ParticipantAction =
   | { action: "remove"; identity: string }
-  | { action: "mute"; identity: string; trackSid: string };
+  | { action: "mute"; identity: string; trackSid: string }
+  | { action: "rename"; identity: string; name: string };
 
 // Guest moderation. Muting is one-way on purpose: LiveKit only lets the
 // participant themselves unmute, so a guest can't be hot-mic'd remotely.
@@ -31,6 +32,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       }
       await roomService.mutePublishedTrack(room, body.identity, body.trackSid, true);
       return NextResponse.json({ ok: true });
+    case "rename": {
+      // The name shown on the participant's window (director or guest).
+      const name = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
+      if (!name) return NextResponse.json({ error: "Nome vazio" }, { status: 400 });
+      await roomService.updateParticipant(room, body.identity, { name });
+      return NextResponse.json({ ok: true });
+    }
     default:
       return NextResponse.json({ error: "Ação desconhecida" }, { status: 400 });
   }

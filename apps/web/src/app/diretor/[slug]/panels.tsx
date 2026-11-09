@@ -16,6 +16,7 @@ import {
 } from "@/lib/scene";
 import { ImagePicker } from "./assets";
 import { useDirector } from "./context";
+import { useRename } from "./names";
 import { AggregateInput, ExtraSelect, PenaltyControls, RedCardButton } from "./matchExtras";
 
 const input = "rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-neutral-500";
@@ -50,6 +51,7 @@ function Toggle({ on, onClick, labels = ["Mostrar", "Ocultar"] }: { on: boolean;
 export function StagePanel() {
   const { slug, scenes, patch } = useDirector();
   const participants = useParticipants().filter((p) => !p.identity.startsWith("layout-viewer"));
+  const rename = useRename();
   const cams = dedupeTracks(useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], { onlySubscribed: false }));
   const { draft, live } = scenes;
 
@@ -119,7 +121,16 @@ export function StagePanel() {
               {(!mic || mic.isMuted) && <span className="absolute top-1 right-1 rounded bg-black/70 px-1.5 text-[10px]">mic off</span>}
             </div>
             <div className="space-y-1.5 p-2">
-              <p className="truncate text-sm font-medium" title={name}>{name}</p>
+              <p className="flex items-center gap-1 text-sm font-medium" title={name}>
+                <span className="truncate">{name}</span>
+                <button
+                  onClick={() => rename(p.identity, p.name || "", p.isLocal)}
+                  className="shrink-0 rounded px-1 text-xs text-neutral-500 hover:bg-neutral-800 hover:text-white"
+                  title="Trocar o nome que aparece na janela"
+                >
+                  ✎
+                </button>
+              </p>
               <div className="flex flex-wrap gap-1">
                 <button onClick={() => toggleStage(p.identity)} className={`rounded px-2 py-1 text-xs ${inDraft ? "bg-neutral-700 hover:bg-neutral-600" : "bg-emerald-700 hover:bg-emerald-600"}`}>
                   {inDraft ? "Tirar de cena" : "Pôr em cena"}

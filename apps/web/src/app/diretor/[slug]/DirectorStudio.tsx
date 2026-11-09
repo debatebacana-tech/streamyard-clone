@@ -32,6 +32,7 @@ import { TierListPanel } from "./tierlist";
 import { TwitterPanel } from "./twitter";
 import { MediaPanel } from "./media";
 import { ClubPads, ClubsPanel } from "./clubs";
+import { MyName, savedDirectorName } from "./names";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
 
@@ -247,6 +248,7 @@ function Desk() {
         </span>
       </div>
       <div className="flex items-center gap-3">
+        <MyName />
         <a
           href={`/controle/${slug}`}
           target="_blank"
@@ -434,7 +436,7 @@ export function DirectorStudio({ program, initialScenes }: { program: ProgramBra
     fetch("/api/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program: slug, name: "Diretor", clientId: clientId() }),
+      body: JSON.stringify({ program: slug, name: savedDirectorName(), clientId: clientId() }),
     })
       .then(async (r) => {
         const d = await r.json();
