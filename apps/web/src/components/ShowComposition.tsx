@@ -20,6 +20,7 @@ import {
   clockElapsedMs,
   formatClock,
   parseShowMetadata,
+  shootoutState,
   type ChatMessage,
   type Clock,
   type CompetitionTheme,
@@ -260,14 +261,101 @@ function CompetitionTab({ theme, className = "" }: { theme: CompetitionTheme; cl
   );
 }
 
+// Sent-off players: small red cards next to the team (TV style).
+function RedCards({ n, size = 14 }: { n: number; size?: number }) {
+  if (n <= 0) return null;
+  return (
+    <span className="flex gap-[3px]">
+      {Array.from({ length: n }, (_, i) => (
+        <span key={i} className="rounded-[2px] bg-[#e11d2a] shadow" style={{ width: size * 0.68, height: size }} />
+      ))}
+    </span>
+  );
+}
+
+// Stoppage time chip ("+3") next to the clock.
+function Extra({ minutes, theme }: { minutes: number; theme: CompetitionTheme }) {
+  if (minutes <= 0) return null;
+  return (
+    <span className="rounded px-1.5 text-2xl leading-tight" style={{ ...DISPLAY, background: theme.accent, color: theme.dark }}>
+      +{minutes}
+    </span>
+  );
+}
+
+function KickDot({ kick, next, size }: { kick: "goal" | "miss" | undefined; next: boolean; size: number }) {
+  const base = { width: size, height: size, fontSize: size * 0.62 } as const;
+  if (kick === "goal")
+    return (
+      <span className="chat-in flex items-center justify-center rounded-full bg-[#16a34a] font-black text-white shadow" style={base}>
+        ✓
+      </span>
+    );
+  if (kick === "miss")
+    return (
+      <span className="chat-in flex items-center justify-center rounded-full bg-[#dc2626] font-black text-white shadow" style={base}>
+        ✕
+      </span>
+    );
+  return <span className={`rounded-full border-2 ${next ? "live-dot border-white bg-white/40" : "border-white/45"}`} style={base} />;
+}
+
+// Shootout panel: one row per team with a dot per kick, the shootout score,
+// and the winner line once it's decided.
+function PenaltyStrip({ scene, width }: { scene: Scene; width?: number }) {
+  const { home, away, penalties, theme } = scene.scoreboard;
+  const st = shootoutState(penalties);
+  const shown = Math.min(st.rounds, 10);
+  const offset = st.rounds - shown;
+  const size = shown > 7 ? 20 : 24;
+  const row = (team: Team, side: "home" | "away") => {
+    const goals = side === "home" ? st.homeGoals : st.awayGoals;
+    const won = st.winner === side;
+    return (
+      <div className="flex items-center gap-2 px-3 py-1" style={won ? { background: "rgba(255,255,255,0.12)" } : undefined}>
+        <Crest team={team} size={26} />
+        <span className="w-14 text-2xl uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>
+          {team.name.slice(0, 3)}
+        </span>
+        <span className="flex flex-1 gap-1.5">
+          {Array.from({ length: shown }, (_, i) => (
+            <KickDot key={i} kick={penalties[side][offset + i]} next={st.next === side && penalties[side].length === offset + i} size={size} />
+          ))}
+        </span>
+        <span className="w-8 text-right text-3xl tabular-nums" style={{ ...DISPLAY, color: won ? theme.accent : "#fff" }}>
+          {goals}
+        </span>
+      </div>
+    );
+  };
+  return (
+    <div className="chat-panel overflow-hidden rounded-lg shadow-2xl" style={{ width, background: theme.dark, color: "#fff", border: `3px solid ${theme.dark}` }}>
+      <div className="px-3 pt-1 text-sm tracking-[0.25em] uppercase" style={{ ...CONDENSED, fontWeight: 700, color: theme.accent }}>
+        Disputa de pênaltis
+      </div>
+      {row(home, "home")}
+      {row(away, "away")}
+      {st.winner && (
+        <div className="chat-in px-3 py-1.5 text-center text-xl uppercase" style={{ ...CONDENSED, fontWeight: 700, background: theme.accent, color: theme.dark }}>
+          {(st.winner === "home" ? home : away).name} vence nos pênaltis
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBranding }) {
   const { home, away, clock, theme } = scene.scoreboard;
   const team = (t: Team) => (
     <div className="relative z-10 flex items-center gap-2 px-3">
       <Crest team={t} size={40} />
       <span className="text-3xl uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{t.name.slice(0, 3)}</span>
+      <RedCards n={t.redCards} />
     </div>
   );
+  const pens = scene.scoreboard.penalties;
+  const st = pens.active ? shootoutState(pens) : null;
+  const aggregate = scene.scoreboard.aggregate.trim();
   return (
     <div className="absolute top-6 left-6 flex flex-col items-start">
       <CompetitionTab theme={theme} className="ml-2" />
@@ -276,7 +364,9 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
         {team(home)}
         <div className="relative z-10 flex items-center gap-2 px-4 text-4xl" style={{ ...DISPLAY, background: theme.dark, color: "#fff" }}>
           <span>{home.score}</span>
+          {st && <span className="text-2xl" style={{ color: theme.accent }}>({st.homeGoals})</span>}
           <span className="text-xl" style={{ color: theme.accent }}>x</span>
+          {st && <span className="text-2xl" style={{ color: theme.accent }}>({st.awayGoals})</span>}
           <span>{away.score}</span>
         </div>
         {team(away)}
@@ -285,11 +375,28 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
             className="relative z-10 flex flex-col items-center justify-center px-3 leading-none"
             style={{ background: theme.clock ?? branding.primaryColor, color: theme.clock ? "#fff" : branding.accentColor }}
           >
-            <span className="text-3xl tabular-nums" style={DISPLAY}><ClockText clock={clock} /></span>
-            <span className="text-sm uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{clock.period}</span>
+            {st ? (
+              <span className="text-2xl" style={DISPLAY}>PÊNALTIS</span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-3xl tabular-nums" style={DISPLAY}>
+                <ClockText clock={clock} />
+                <Extra minutes={clock.extra} theme={theme} />
+              </span>
+            )}
+            {!st && <span className="text-sm uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{clock.period}</span>}
           </div>
         )}
       </div>
+      {aggregate && !st && (
+        <div className="ml-2 rounded-b-md px-3 py-0.5 text-lg uppercase" style={{ ...CONDENSED, fontWeight: 700, background: theme.dark, color: theme.accent }}>
+          {aggregate}
+        </div>
+      )}
+      {st && (
+        <div className="mt-2">
+          <PenaltyStrip scene={scene} width={420} />
+        </div>
+      )}
     </div>
   );
 }
@@ -307,9 +414,15 @@ function ScoreboardBar({ scene, bottom }: { scene: Scene; bottom: number }) {
         theme={theme}
         className={`top-1/2 h-[190%] -translate-y-1/2 ${side === "home" ? "right-4 -rotate-12" : "left-4 rotate-12"}`}
       />
-      <span className="relative z-10">{t.name}</span>
+      <span className={`relative z-10 flex items-center gap-3 ${side === "away" ? "flex-row-reverse" : ""}`}>
+        {t.name}
+        <RedCards n={t.redCards} size={26} />
+      </span>
     </div>
   );
+  const pens = scene.scoreboard.penalties;
+  const st = pens.active ? shootoutState(pens) : null;
+  const aggregate = scene.scoreboard.aggregate.trim();
   const crest = (t: Team, side: "home" | "away") => (
     <div
       className={`z-10 flex items-center justify-center rounded-full bg-white shadow-xl ${side === "home" ? "-mr-6" : "-ml-6"}`}
@@ -329,18 +442,34 @@ function ScoreboardBar({ scene, bottom }: { scene: Scene; bottom: number }) {
           {name(home, "home")}
           <div className="flex flex-col items-center justify-center px-6" style={{ background: theme.dark, color: "#fff" }}>
             <span className="text-5xl leading-none" style={DISPLAY}>
-              {home.score} <span className="text-2xl" style={{ color: theme.accent }}>vs</span> {away.score}
+              {home.score}
+              {st && <span className="text-3xl" style={{ color: theme.accent }}> ({st.homeGoals})</span>}{" "}
+              <span className="text-2xl" style={{ color: theme.accent }}>vs</span>
+              {st && <span className="text-3xl" style={{ color: theme.accent }}> ({st.awayGoals})</span>} {away.score}
             </span>
-            {clock.visible && (
-              <span className="text-lg tabular-nums uppercase" style={{ ...CONDENSED, fontWeight: 700, color: "#fff" }}>
-                <ClockText clock={clock} /> · {clock.period}
-              </span>
+            {st ? (
+              <span className="text-lg uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>Pênaltis</span>
+            ) : (
+              clock.visible && (
+                <span className="text-lg tabular-nums uppercase" style={{ ...CONDENSED, fontWeight: 700, color: "#fff" }}>
+                  <ClockText clock={clock} />
+                  {clock.extra > 0 && <span style={{ color: theme.accent }}> +{clock.extra}</span>} · {clock.period}
+                </span>
+              )
+            )}
+            {aggregate && !st && (
+              <span className="text-sm uppercase" style={{ ...CONDENSED, fontWeight: 700, color: theme.accent }}>{aggregate}</span>
             )}
           </div>
           {name(away, "away")}
         </div>
       </div>
       {crest(away, "away")}
+      {st && (
+        <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: BAR_H + 30 }}>
+          <PenaltyStrip scene={scene} width={480} />
+        </div>
+      )}
     </div>
   );
 }

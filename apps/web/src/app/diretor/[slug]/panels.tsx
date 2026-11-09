@@ -16,6 +16,7 @@ import {
 } from "@/lib/scene";
 import { ImagePicker } from "./assets";
 import { useDirector } from "./context";
+import { AggregateInput, ExtraSelect, PenaltyControls, RedCardButton } from "./matchExtras";
 
 const input = "rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-neutral-500";
 const btn = "rounded-md bg-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-600 disabled:opacity-40";
@@ -341,7 +342,7 @@ export function ScoreboardPanel() {
         </div>
         <div className="flex flex-wrap items-center gap-1">
           {PERIODS.map((p) => (
-            <button key={p} onClick={() => patch({ scoreboard: { clock: { period: p } } }, { air: true })} className={`rounded px-2 py-1 text-xs ${clock.period === p ? "bg-amber-500 text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}>
+            <button key={p} onClick={() => patch({ scoreboard: { clock: { period: p, extra: 0 } } }, { air: true })} className={`rounded px-2 py-1 text-xs ${clock.period === p ? "bg-amber-500 text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}>
               {p}
             </button>
           ))}
@@ -349,6 +350,15 @@ export function ScoreboardPanel() {
           <input className={`${input} w-20 py-1 text-xs`} value={setValue} onChange={(e) => setSetValue(e.target.value)} placeholder="mm:ss" />
           <button className="rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700" onClick={setClock}>Ajustar</button>
         </div>
+      </div>
+      <div className="space-y-2 rounded-md bg-neutral-950 p-3">
+        <p className="text-xs font-semibold text-neutral-400">IGUAL NA TV (entra no ar na hora)</p>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-300">
+          <span className="flex items-center gap-1">Cartões vermelhos: casa <RedCardButton side="home" /> visitante <RedCardButton side="away" /></span>
+          <ExtraSelect />
+        </div>
+        <AggregateInput />
+        <PenaltyControls />
       </div>
     </div>
   );
@@ -816,6 +826,7 @@ export function QuickScore() {
       <button className="rounded bg-[#DFFF00] px-3 py-1 text-sm font-bold text-black hover:brightness-110" onClick={() => goal(side, 1)}>
         ＋ GOL
       </button>
+      <RedCardButton side={side} />
     </div>
   );
 
@@ -831,13 +842,22 @@ export function QuickScore() {
           <button className={btnOn} onClick={() => sceneRequest({ action: "clock", op: "start" })}>▶</button>
         )}
         <span className="rounded bg-neutral-800 px-2 py-1 text-xs">{sb.clock.period}</span>
+        <ExtraSelect />
       </div>
       {team("away")}
-      <Toggle
-        on={sb.visible}
-        onClick={() => patch({ scoreboard: { visible: !sb.visible } }, { air: true })}
-        labels={["Mostrar no ar", "Tirar do ar"]}
-      />
+      <div className="flex items-center gap-2">
+        {!sb.penalties.active && <PenaltyControls compact />}
+        <Toggle
+          on={sb.visible}
+          onClick={() => patch({ scoreboard: { visible: !sb.visible } }, { air: true })}
+          labels={["Mostrar no ar", "Tirar do ar"]}
+        />
+      </div>
+      {sb.penalties.active && (
+        <div className="w-full border-t border-neutral-800 pt-2">
+          <PenaltyControls compact />
+        </div>
+      )}
     </div>
   );
 }

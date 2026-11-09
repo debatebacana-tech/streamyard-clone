@@ -52,7 +52,47 @@ export const SCREEN_DEFAULTS: Record<Exclude<ScreenKind, "none">, ScreenText> = 
   },
 };
 
-export type Team = { name: string; score: number; crestUrl: string | null; color: string };
+// redCards: sent-off players, shown as red cards next to the name (TV style).
+export type Team = { name: string; score: number; crestUrl: string | null; color: string; redCards: number };
+
+// Penalty shootout, kick by kick (shown TV-style under the scoreboard).
+export type Kick = "goal" | "miss";
+export type Penalties = { active: boolean; first: "home" | "away"; home: Kick[]; away: Kick[] };
+
+export type ShootoutState = {
+  homeGoals: number;
+  awayGoals: number;
+  // Kick slots to draw per team (5, then one more per sudden-death round).
+  rounds: number;
+  next: "home" | "away" | null;
+  winner: "home" | "away" | null;
+};
+
+// Who's ahead, who kicks next and whether it's decided (5 kicks each, then
+// sudden death until a round ends with different results).
+export function shootoutState(p: Penalties): ShootoutState {
+  const hk = p.home.length;
+  const ak = p.away.length;
+  const homeGoals = p.home.filter((k) => k === "goal").length;
+  const awayGoals = p.away.filter((k) => k === "goal").length;
+  let winner: "home" | "away" | null = null;
+  if (hk <= 5 && ak <= 5) {
+    if (homeGoals > awayGoals + (5 - ak)) winner = "home";
+    else if (awayGoals > homeGoals + (5 - hk)) winner = "away";
+  }
+  if (!winner && hk >= 5 && hk === ak && homeGoals !== awayGoals) winner = homeGoals > awayGoals ? "home" : "away";
+  const second = p.first === "home" ? "away" : "home";
+  const next = winner ? null : p[p.first].length === p[second].length ? p.first : second;
+  const nextLen = next ? p[next].length + 1 : 0;
+  return { homeGoals, awayGoals, rounds: Math.max(5, hk, ak, nextLen), next, winner };
+}
+
+// Removes the last kick taken (undo).
+export function undoKick(p: Penalties): Penalties {
+  const second = p.first === "home" ? "away" : "home";
+  const last = p[p.first].length > p[second].length ? p.first : p[second].length > 0 ? second : null;
+  return last ? { ...p, [last]: p[last].slice(0, -1) } : p;
+}
 
 export type Clock = {
   visible: boolean;
@@ -62,6 +102,8 @@ export type Clock = {
   baseMs: number;
   startedAt: number | null;
   period: string;
+  // Stoppage time announced by the 4th official ("+3"), 0 = none.
+  extra: number;
 };
 
 // Colors/branding of the competition the scoreboard belongs to. clock null =
@@ -197,7 +239,17 @@ export type Scene = {
   // or, without it, the built-in text screen. countdownTo drives the pre-live timer.
   screen: { kind: ScreenKind; countdownTo: number | null; mediaUrl: string | null } & ScreenText;
   // "bar": full-width bottom bar (Hospício style); "bug": compact top-left corner, TV style.
-  scoreboard: { visible: boolean; style: "bar" | "bug"; theme: CompetitionTheme; home: Team; away: Team; clock: Clock };
+  scoreboard: {
+    visible: boolean;
+    style: "bar" | "bug";
+    theme: CompetitionTheme;
+    home: Team;
+    away: Team;
+    clock: Clock;
+    penalties: Penalties;
+    // Two-legged ties: aggregate line under the score ("AGREGADO 3-2"), empty = hidden.
+    aggregate: string;
+  };
   // Embedded web page (e.g. a live pitch widget); zoom scales its content to fit.
   web: { visible: boolean; url: string; position: WebPosition; zoom: number };
   sponsor: { visible: boolean; imageUrl: string | null };
@@ -228,7 +280,7 @@ export const DEFAULT_TRANSITION: TransitionConfig = { enabled: true, mediaUrl: n
 
 export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[]; transition?: TransitionConfig };
 
-const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A" };
+const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A", redCards: 0 };
 
 export const DEFAULT_SCENE: Scene = {
   stageMode: "manual",
@@ -248,7 +300,9 @@ export const DEFAULT_SCENE: Scene = {
     theme: DEFAULT_THEME,
     home: { ...DEFAULT_TEAM, name: "CASA" },
     away: { ...DEFAULT_TEAM, name: "VISITANTE", color: "#B91C1C" },
-    clock: { visible: true, running: false, baseMs: 0, startedAt: null, period: "1º T" },
+    clock: { visible: true, running: false, baseMs: 0, startedAt: null, period: "1º T", extra: 0 },
+    penalties: { active: false, first: "home", home: [], away: [] },
+    aggregate: "",
   },
   web: { visible: false, url: "", position: "left", zoom: 1 },
   sponsor: { visible: false, imageUrl: null },
@@ -429,7 +483,12 @@ function normalizeTeam(input: unknown, fallback: Team): Team {
     score: Math.round(num(t.score, fallback.score, 0, 999)),
     crestUrl: "crestUrl" in t ? url(t.crestUrl) : fallback.crestUrl,
     color: color(t.color, fallback.color),
+    redCards: Math.round(num(t.redCards, 0, 0, 5)),
   };
+}
+
+function kicks(value: unknown): Kick[] {
+  return Array.isArray(value) ? value.filter((k): k is Kick => k === "goal" || k === "miss").slice(0, 30) : [];
 }
 
 export function normalizeScene(input: unknown): Scene {
@@ -499,7 +558,15 @@ export function normalizeScene(input: unknown): Scene {
         baseMs: num(clock.baseMs, 0, 0, 24 * 3600 * 1000),
         startedAt: typeof clock.startedAt === "number" ? clock.startedAt : null,
         period: str(clock.period, 12, d.scoreboard.clock.period),
+        extra: Math.round(num(clock.extra, 0, 0, 30)),
       },
+      penalties: {
+        active: bool(obj(sb.penalties).active, false),
+        first: obj(sb.penalties).first === "away" ? "away" : "home",
+        home: kicks(obj(sb.penalties).home),
+        away: kicks(obj(sb.penalties).away),
+      },
+      aggregate: str(sb.aggregate, 40),
     },
     web: {
       visible: bool(web.visible, false),
@@ -542,6 +609,7 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
       home: { ...current.scoreboard.home, ...obj(sb.home) },
       away: { ...current.scoreboard.away, ...obj(sb.away) },
       clock: { ...current.scoreboard.clock, ...obj(sb.clock) },
+      penalties: { ...current.scoreboard.penalties, ...obj(sb.penalties) },
     },
   });
 }
