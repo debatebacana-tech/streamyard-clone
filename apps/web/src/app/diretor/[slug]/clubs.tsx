@@ -39,29 +39,78 @@ export function clubFor(clubs: Club[], name: string): Club | null {
   return clubs.find((c) => c.name.toLowerCase() === n || (c.short && c.short.toLowerCase() === n)) ?? null;
 }
 
-// 🎬 / 🎵 buttons for one club (stinger as a full-screen cue, anthem as the background track).
+const isVideo = (url: string) => /\.(mp4|webm)$/i.test(url);
+
+// Vinheta and hino are quick sounds played over the show (like the effect
+// pads; Esc or "Parar" cuts them). A video vinheta still plays full screen.
 export function ClubMediaButtons({ club, labels = false }: { club: Club; labels?: boolean }) {
-  const { sceneRequest } = useDirector();
   const sendCue = useMediaCues();
+  const play = (url: string | null) =>
+    url && sendCue({ type: "play", id: crypto.randomUUID(), url, kind: isVideo(url) ? "video" : "audio", volume: 1 });
   return (
     <span className="inline-flex gap-1">
-      <button
-        className={small}
-        disabled={!club.vinhetaUrl}
-        title={club.vinhetaUrl ? `Vinheta do ${club.name}` : "Sem vinheta cadastrada"}
-        onClick={() => club.vinhetaUrl && sendCue({ type: "play", id: crypto.randomUUID(), url: club.vinhetaUrl, kind: "video", volume: 1 })}
-      >
-        🎬{labels && " Vinheta"}
+      <button className={small} disabled={!club.vinhetaUrl} title={club.vinhetaUrl ? `Vinheta do ${club.name}` : "Sem vinheta cadastrada"} onClick={() => play(club.vinhetaUrl)}>
+        📣{labels && " Vinheta"}
       </button>
-      <button
-        className={small}
-        disabled={!club.anthemUrl}
-        title={club.anthemUrl ? `Hino do ${club.name}` : "Sem hino cadastrado"}
-        onClick={() => club.anthemUrl && sceneRequest({ action: "music", op: "play", url: club.anthemUrl, title: `Hino — ${club.name}`, loop: false, volume: 0.9 })}
-      >
+      <button className={small} disabled={!club.anthemUrl} title={club.anthemUrl ? `Hino do ${club.name}` : "Sem hino cadastrado"} onClick={() => play(club.anthemUrl)}>
         🎵{labels && " Hino"}
       </button>
     </span>
+  );
+}
+
+// Áudio tab: the two clubs of today's game as big pads, plus any other club.
+export function ClubPads() {
+  const { scenes } = useDirector();
+  const sendCue = useMediaCues();
+  const { clubs } = useClubs();
+  const [other, setOther] = useState("");
+  const sb = scenes.live.scoreboard;
+  const game = [clubFor(clubs, sb.home.name), clubFor(clubs, sb.away.name)].filter((c): c is Club => c !== null);
+  const extra = clubs.find((c) => c.id === other);
+  const list = [...game, ...(extra && !game.includes(extra) ? [extra] : [])];
+  const play = (url: string | null) =>
+    url && sendCue({ type: "play", id: crypto.randomUUID(), url, kind: isVideo(url) ? "video" : "audio", volume: 1 });
+
+  return (
+    <div className="space-y-3">
+      {list.length === 0 && <p className="text-sm text-neutral-500">Escolha os clubes do jogo na aba Placar (ou um clube abaixo).</p>}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {list.map((c) => (
+          <div key={c.id} className="flex items-center gap-3 rounded-md bg-neutral-950 p-2" style={{ borderLeft: `5px solid ${c.color}` }}>
+            <Crest url={c.crestUrl} size={44} />
+            <span className="min-w-0 flex-1 truncate font-bold">{c.name}</span>
+            <button
+              className="rounded-md bg-[#DFFF00] px-4 py-3 text-sm font-bold text-black hover:brightness-110 disabled:opacity-30"
+              disabled={!c.vinhetaUrl}
+              onClick={() => play(c.vinhetaUrl)}
+            >
+              📣 Vinheta
+            </button>
+            <button
+              className="rounded-md bg-neutral-200 px-4 py-3 text-sm font-bold text-black hover:bg-white disabled:opacity-30"
+              disabled={!c.anthemUrl}
+              onClick={() => play(c.anthemUrl)}
+            >
+              🎵 Hino
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <select className={input} value={other} onChange={(e) => setOther(e.target.value)}>
+          <option value="">Outro clube...</option>
+          {clubs.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <button className={small} onClick={() => sendCue({ type: "stop" })}>
+          ⏹ Parar (Esc)
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -75,7 +124,7 @@ function Crest({ url, size = 32 }: { url: string | null; size?: number }) {
 }
 
 export function ClubsPanel() {
-  const { slug, scenes, patch, sceneRequest, addAsset } = useDirector();
+  const { slug, scenes, patch, addAsset } = useDirector();
   const sendCue = useMediaCues();
   const { clubs, reload } = useClubs();
   const [name, setName] = useState("");
@@ -149,11 +198,8 @@ export function ClubsPanel() {
           {pick("away")}
         </div>
         <div className="flex flex-wrap gap-2 pt-1">
-          <button className={small} onClick={() => sceneRequest({ action: "music", op: "stop" })}>
-            ⏹ Parar hino
-          </button>
           <button className={small} onClick={() => sendCue({ type: "stop" })}>
-            ⏹ Parar vinheta
+            ⏹ Parar vinheta/hino (Esc)
           </button>
         </div>
         <p className="text-[11px] text-neutral-500">Escolher o clube já põe nome, escudo e cor no placar (e zera o placar).</p>
@@ -203,7 +249,7 @@ export function ClubsPanel() {
               {c.name} {c.short && <span className="text-xs text-neutral-500">{c.short}</span>}
             </span>
             <span className={`text-xs ${c.vinhetaUrl ? "text-emerald-400" : "text-neutral-500"}`}>{c.vinhetaUrl ? "✓ vinheta" : "sem vinheta"}</span>
-            <UploadButton slug={slug} accept="video/mp4,video/webm" label="Vinheta" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, vinhetaUrl: a.url }); }} />
+            <UploadButton slug={slug} accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/x-m4a,video/mp4,video/webm" label="Vinheta" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, vinhetaUrl: a.url }); }} />
             <span className={`text-xs ${c.anthemUrl ? "text-emerald-400" : "text-neutral-500"}`}>{c.anthemUrl ? "✓ hino" : "sem hino"}</span>
             <UploadButton slug={slug} accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/x-m4a" label="Hino" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, anthemUrl: a.url }); }} />
             <UploadButton slug={slug} accept="image/png,image/jpeg,image/webp" label="Escudo" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, crestUrl: a.url }); }} />

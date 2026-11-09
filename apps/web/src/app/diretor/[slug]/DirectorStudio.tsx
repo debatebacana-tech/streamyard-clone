@@ -31,7 +31,7 @@ import { BoardAutoRefresh, BoardPanel } from "./board";
 import { TierListPanel } from "./tierlist";
 import { TwitterPanel } from "./twitter";
 import { MediaPanel } from "./media";
-import { ClubsPanel } from "./clubs";
+import { ClubPads, ClubsPanel } from "./clubs";
 import { ChatTab } from "./chat";
 
 function clientId(): string {
@@ -283,6 +283,12 @@ function Desk() {
             </Panel>
           </div>
         </div>
+      )}
+
+      {active === "audio" && scoreboard && (
+        <Panel title="Clubes do jogo — vinheta e hino" right={<span className="text-[10px] text-neutral-500">áudios rápidos · por cima da trilha</span>}>
+          <ClubPads />
+        </Panel>
       )}
 
       {active === "audio" && (
