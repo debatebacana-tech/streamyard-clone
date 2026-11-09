@@ -911,8 +911,12 @@ export function ShowComposition({
   const scene = sceneOverride ?? show.scene;
   const all = dedupeTracks(tracks);
   // "all": everyone in the room, in join order; otherwise the director's picks.
+  // In "all", the director's own browser only counts once it shows a camera.
+  const showsVideo = (t: TrackReferenceOrPlaceholder) => isTrackReference(t) && !t.publication.isMuted;
   const onStageIds =
-    scene.stageMode === "all" ? [...new Set(all.map((t) => t.participant.identity))] : scene.onStage;
+    scene.stageMode === "all"
+      ? [...new Set(all.filter((t) => !t.participant.identity.startsWith("host-") || showsVideo(t)).map((t) => t.participant.identity))]
+      : scene.onStage;
   const order = new Map(onStageIds.map((id, i) => [id, i]));
   const stage = all
     .filter((t) => order.has(t.participant.identity))

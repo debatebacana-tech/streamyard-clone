@@ -21,6 +21,13 @@ export default function LoginPage() {
     });
 
     if (res.ok) {
+      // Back to where the login was asked for (e.g. the phone control page).
+      const next = new URLSearchParams(window.location.search).get("next") ?? "";
+      if (/^\/(diretor|controle)(\/[\w-]*)?$/.test(next)) {
+        // Full load: the client router may still hold the redirect to /login.
+        window.location.assign(next);
+        return;
+      }
       router.push("/diretor");
       router.refresh();
     } else {

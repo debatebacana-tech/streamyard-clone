@@ -33,6 +33,7 @@ import { TwitterPanel } from "./twitter";
 import { MediaPanel } from "./media";
 import { ClubPads, ClubsPanel } from "./clubs";
 import { HotSoundsBar } from "./hotsounds";
+import { LiveQueue } from "./livequeue";
 import { ChatTab } from "./chat";
 
 function clientId(): string {
@@ -112,7 +113,7 @@ function Monitor({ label, tone, children }: { label: string; tone: "green" | "re
   );
 }
 
-function Workspace() {
+function Workspace({ compact = false }: { compact?: boolean }) {
   const { scenes, direct, setDirect, sceneRequest } = useDirector();
   const pending = JSON.stringify(scenes.draft) !== JSON.stringify(scenes.live);
 
@@ -122,7 +123,7 @@ function Workspace() {
         <Monitor label="PRÉVIA" tone="green">
           <ShowComposition scene={scenes.draft} emptyHint="Ninguém em cena — use “Pôr em cena” nos participantes" />
         </Monitor>
-        <div className="flex w-28 shrink-0 flex-col items-center justify-center gap-2">
+        <div className={`flex shrink-0 flex-col items-center justify-center gap-2 ${compact ? "w-20" : "w-28"}`}>
           <button
             onClick={() => sceneRequest({ action: "take" })}
             disabled={direct || !pending}
@@ -141,6 +142,38 @@ function Workspace() {
         </Monitor>
       </div>
       <ControlBar controls={{ microphone: true, camera: true, screenShare: true, leave: false, chat: false }} />
+    </div>
+  );
+}
+
+const SHORTCUTS: [string, string][] = [
+  ["Espaço", "Cortar a prévia para o ar (com a animação)"],
+  ["Q W E R T Y U I", "Cenas da barra CENAS (1ª, 2ª, 3ª...)"],
+  ["Z X C V B N", "Destaques (Gol Bacana, Eduardo Pires...)"],
+  ["A / S", "Vinheta / hino do clube da casa"],
+  ["D / F", "Vinheta / hino do visitante"],
+  ["1 a 9", "Efeitos da aba Áudio (com a aba aberta)"],
+  ["Esc", "Para efeitos, vinhetas e hinos"],
+  ["?", "Mostra esta cola"],
+];
+
+function ShortcutsHelp({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div className="w-full max-w-md space-y-3 rounded-xl border border-neutral-700 bg-neutral-900 p-5" onClick={(e) => e.stopPropagation()}>
+        <p className="text-lg font-bold">Atalhos de teclado</p>
+        <ul className="space-y-1.5 text-sm">
+          {SHORTCUTS.map(([k, v]) => (
+            <li key={k} className="flex gap-3">
+              <kbd className="w-32 shrink-0 rounded bg-neutral-800 px-2 py-0.5 text-center font-mono text-xs text-[#DFFF00]">{k}</kbd>
+              <span className="text-neutral-300">{v}</span>
+            </li>
+          ))}
+        </ul>
+        <button onClick={onClose} className="w-full rounded-md bg-neutral-700 py-1.5 text-sm hover:bg-neutral-600">
+          Fechar
+        </button>
+      </div>
     </div>
   );
 }
@@ -174,21 +207,100 @@ function Desk() {
     { id: "ajustes", label: "Ajustes" },
   ];
   const active = tabs.some((t) => t.id === tab) ? tab : "cena";
+  const [mode, setModeState] = useState<"live" | "prep">("prep");
+  const [help, setHelp] = useState(false);
+
+  // Remember the operator's mode per browser.
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("director-mode");
+    } catch {}
+    if (saved === "live") setTimeout(() => setModeState("live"), 0);
+  }, []);
+  const setMode = (m: "live" | "prep") => {
+    setModeState(m);
+    try {
+      localStorage.setItem("director-mode", m);
+    } catch {}
+  };
+  const prepare = (t: string) => {
+    setMode("prep");
+    setTab(t as TabId);
+  };
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, select, [contenteditable]")) return;
+      if (e.key === "?") setHelp((h) => !h);
+      if (e.key === "Escape") setHelp(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const modeToggle = (
+    <div className="flex overflow-hidden rounded-md border border-neutral-700 text-xs font-bold">
+      <button onClick={() => setMode("live")} className={`px-3 py-1.5 ${mode === "live" ? "bg-red-600 text-white" : "text-neutral-400 hover:bg-neutral-800"}`}>
+        ● AO VIVO
+      </button>
+      <button onClick={() => setMode("prep")} className={`px-3 py-1.5 ${mode === "prep" ? "bg-neutral-200 text-black" : "text-neutral-400 hover:bg-neutral-800"}`}>
+        PREPARAÇÃO
+      </button>
+    </div>
+  );
+
+  const header = (
+    <header className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <Link href="/diretor" className="text-sm text-neutral-400 hover:text-neutral-200">← Programas</Link>
+        <span className="flex items-center gap-[3px]">
+          <span className="h-1 w-5 bg-[#DFFF00]" />
+          <span className="h-1 w-1 bg-[#DFFF00]" />
+          <span className="h-1 w-1 bg-[#DFFF00]" />
+        </span>
+        <h1 className="text-xl font-bold">{branding.name}</h1>
+        {modeToggle}
+        <button onClick={() => setHelp(true)} className="rounded-full border border-neutral-700 px-2 text-xs text-neutral-400 hover:text-white" title="Atalhos de teclado (?)">
+          ?
+        </button>
+        <a href={`/controle/${slug}`} target="_blank" className="text-xs text-neutral-400 underline hover:text-white" title="Abra no celular: botões grandes de sons, placar e cenas">
+          📱 controle no celular
+        </a>
+      </div>
+      <LiveControl slug={slug} />
+    </header>
+  );
+
+  const helpModal = help && <ShortcutsHelp onClose={() => setHelp(false)} />;
+
+  if (mode === "live") {
+    return (
+      <div className="mx-auto w-full max-w-[1700px] flex-1 space-y-3 p-3">
+        {header}
+        <RundownBar />
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_400px]">
+          <div className="min-w-0 space-y-3">
+            <Workspace compact />
+            <ScenesBar />
+            {(football || scoreboard) && <QuickScore />}
+            <HotSoundsBar always={football} />
+          </div>
+          <div className="xl:max-h-[calc(100vh-150px)] xl:overflow-y-auto">
+            <LiveQueue scoreboard={scoreboard} onPrepare={prepare} />
+          </div>
+        </div>
+        <BoardAutoRefresh />
+        {helpModal}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-[1500px] flex-1 space-y-4 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/diretor" className="text-sm text-neutral-400 hover:text-neutral-200">← Programas</Link>
-          <span className="flex items-center gap-[3px]">
-            <span className="h-1 w-5 bg-[#DFFF00]" />
-            <span className="h-1 w-1 bg-[#DFFF00]" />
-            <span className="h-1 w-1 bg-[#DFFF00]" />
-          </span>
-          <h1 className="text-xl font-bold">{branding.name}</h1>
-        </div>
-        <LiveControl slug={slug} />
-      </header>
+      {header}
+      {helpModal}
 
       <RundownBar />
       <ScenesBar />
