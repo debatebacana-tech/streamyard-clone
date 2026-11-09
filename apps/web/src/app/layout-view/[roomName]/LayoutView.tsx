@@ -1,58 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  GridLayout,
-  LiveKitRoom,
-  ParticipantTile,
-  RoomAudioRenderer,
-  useRoomInfo,
-  useTracks,
-} from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
-
-type ShowMetadata = {
-  lowerThirdText?: string;
-  logoUrl?: string;
-};
-
-function parseMetadata(raw: string | undefined): ShowMetadata {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as ShowMetadata;
-  } catch {
-    return {};
-  }
-}
-
-function Composition() {
-  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
-    onlySubscribed: true,
-  });
-  const { metadata } = useRoomInfo();
-  const { lowerThirdText, logoUrl } = parseMetadata(metadata);
-
-  return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black">
-      <GridLayout tracks={tracks} className="h-full w-full">
-        <ParticipantTile />
-      </GridLayout>
-      <RoomAudioRenderer />
-
-      {logoUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt="" className="absolute top-6 left-6 h-16 w-auto drop-shadow-lg" />
-      )}
-
-      {lowerThirdText && (
-        <div className="absolute bottom-10 left-10 right-10 rounded-md bg-black/70 px-6 py-3">
-          <p className="text-2xl font-semibold text-white">{lowerThirdText}</p>
-        </div>
-      )}
-    </div>
-  );
-}
+import { ShowComposition } from "@/components/ShowComposition";
 
 export function LayoutView({
   roomName,
@@ -102,9 +53,11 @@ export function LayoutView({
       audio={false}
       video={false}
       data-lk-theme="default"
-      className="h-screen w-screen"
+      // Inline on purpose: the LiveKit stylesheet's .lk-room-container height
+      // would otherwise beat Tailwind and collapse the canvas to 0px.
+      style={{ position: "fixed", inset: 0, background: "#000" }}
     >
-      <Composition />
+      <ShowComposition withAudio media="play" />
     </LiveKitRoom>
   );
 }

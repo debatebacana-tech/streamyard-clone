@@ -7,11 +7,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Singleton row (id always "default") holding the show's persistent settings.
+// Singleton row (id always "default"): channel-wide settings shared by all programs.
 model ShowSettings {
   id                      String   @id @default("default")
   youtubeStreamKeyCipher  String?
   lowerThirdText          String   @default("")
   logoUrl                 String?
+  // Only one program can be live at a time (one channel, one egress worth of CPU).
+  liveProgramSlug         String?
+  liveEgressId            String?
   updatedAt               DateTime @updatedAt
+}
+
+model Program {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  primaryColor  String   @default("#E30613")
+  accentColor   String   @default("#FFFFFF")
+  logoUrl       String?
+  backgroundUrl String?
+  // JSON-encoded Scene (see lib/scene.ts): what is on air, and the director's
+  // next scene being prepared in the preview monitor.
+  sceneJson      String   @default("{}")
+  draftSceneJson String   @default("{}")
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  assets         Asset[]
+  gcPresets      GcPreset[]
+}
+
+// Uploaded file (image, audio or video) stored under /app/data/uploads and
+// served at /media/<fileName>.
+model Asset {
+  id        String   @id @default(cuid())
+  programId String
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  kind      String   // image | audio | video
+  name      String
+  fileName  String   @unique
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+}
+
+model GcPreset {
+  id        String   @id @default(cuid())
+  programId String
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  title     String
+  subtitle  String   @default("")
+  imageUrl  String?
+  createdAt DateTime @default(now())
 }

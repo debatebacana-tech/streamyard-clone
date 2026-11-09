@@ -21,7 +21,7 @@ export default function LoginPage() {
     });
 
     if (res.ok) {
-      router.push("/studio");
+      router.push("/diretor");
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
@@ -36,11 +36,11 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-8"
       >
-        <h1 className="text-xl font-semibold">Entrar no estúdio</h1>
+        <h1 className="text-xl font-semibold">Área do Diretor</h1>
         <input
           type="password"
           autoFocus
-          placeholder="Senha do host"
+          placeholder="Senha do diretor"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm outline-none focus:border-neutral-500"

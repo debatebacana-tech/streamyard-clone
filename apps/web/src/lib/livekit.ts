@@ -79,7 +79,6 @@ export function getWsUrl(): string {
 }
 
 export async function startYoutubeEgress(params: {
-  roomName: string;
   layoutUrl: string;
   rtmpUrl: string;
 }) {
@@ -104,10 +103,4 @@ export async function startYoutubeEgress(params: {
 export async function stopEgress(egressId: string) {
   const egress = getEgressClient();
   return egress.stopEgress(egressId);
-}
-
-export async function listActiveEgress(roomName: string) {
-  const egress = getEgressClient();
-  const all = await egress.listEgress({ roomName, active: true });
-  return all;
 }

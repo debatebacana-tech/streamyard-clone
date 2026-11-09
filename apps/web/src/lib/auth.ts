@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { getIronSession, type SessionOptions } from "iron-session";
 
 export type SessionData = {
@@ -23,6 +24,8 @@ function requireSessionSecret(): string {
 }
 
 export async function getSession() {
+  // iron-session checks expiry with Date.now(); keep it out of prerendering.
+  await connection();
   return getIronSession<SessionData>(await cookies(), sessionOptions);
 }
 

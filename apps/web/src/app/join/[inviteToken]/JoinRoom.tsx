@@ -29,6 +29,19 @@ function RoomView() {
   );
 }
 
+// Stable per-browser id: the director's "on stage" choice survives a refresh.
+function clientId(): string {
+  try {
+    const existing = localStorage.getItem("studio-client-id");
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem("studio-client-id", id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
 export function JoinRoom({ inviteToken }: { inviteToken: string }) {
   const [name, setName] = useState("");
   const [credentials, setCredentials] = useState<{ token: string; wsUrl: string } | null>(null);
@@ -41,7 +54,7 @@ export function JoinRoom({ inviteToken }: { inviteToken: string }) {
     const res = await fetch("/api/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteToken, name: name.trim() || undefined }),
+      body: JSON.stringify({ inviteToken, name: name.trim() || undefined, clientId: clientId() }),
     });
     const data = await res.json();
     setLoading(false);
@@ -71,7 +84,7 @@ export function JoinRoom({ inviteToken }: { inviteToken: string }) {
   return (
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-8">
-        <h1 className="text-xl font-semibold">Entrar no programa</h1>
+        <h1 className="text-xl font-semibold">Entrar nos bastidores</h1>
         <input
           autoFocus
           placeholder="Seu nome"

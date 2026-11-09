@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Anton, Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,6 +11,10 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// Broadcast graphics: condensed display face for GC/scoreboard, like TV packages.
+const anton = Anton({ variable: "--font-display", weight: "400", subsets: ["latin"] });
+const barlow = Barlow_Condensed({ variable: "--font-condensed", weight: ["500", "700"], subsets: ["latin"] });
 
 // Every page here is session- or live-room-driven (host auth, invite tokens,
 // signed layout tokens) with no meaningful static shell to prerender, so we
@@ -26,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${anton.variable} ${barlow.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-950 text-neutral-100">{children}</body>
     </html>
