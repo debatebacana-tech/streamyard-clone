@@ -202,6 +202,10 @@ export type TierList = {
   items: TierItem[];
   // Show the not-yet-ranked items under the board.
   showPool: boolean;
+  // Width of the tier name boxes in px (0 = fit the longest name).
+  labelWidth: number;
+  // Item size multiplier (1 = automatic size).
+  itemScale: number;
 };
 
 export const DEFAULT_TIERS: Tier[] = [
@@ -346,7 +350,7 @@ export const DEFAULT_SCENE: Scene = {
   sponsor: { visible: false, imageUrl: null },
   showLogo: true,
   board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [] },
-  tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true },
+  tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true, labelWidth: 0, itemScale: 1 },
   tweet: { visible: false, mode: "side", card: null },
   media: { visible: false, url: null, kind: "image", mode: "destaque", startedAt: null, pausedAt: null, loop: false, volume: 1 },
   transitionAt: null,
@@ -497,6 +501,8 @@ export function normalizeTierList(input: unknown): TierList {
     tiers: tiers.length ? tiers : DEFAULT_TIERS,
     items,
     showPool: bool(t.showPool, true),
+    labelWidth: Math.round(num(t.labelWidth, 0, 0, 400)),
+    itemScale: num(t.itemScale, 1, 0.6, 2),
   };
 }
 

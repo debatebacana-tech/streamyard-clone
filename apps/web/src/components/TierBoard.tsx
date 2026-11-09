@@ -13,14 +13,14 @@ export const TIER_W = 720;
 const ROW_BG = "#141414";
 const LINE = "#2b2b2b";
 
-function Tile({ item, size }: { item: TierItem; size: number }) {
+function Tile({ item, size, scale = 1, font }: { item: TierItem; size: number; scale?: number; font?: number }) {
   if (!item.imageUrl) {
     return (
       <span
-        className="tier-pop flex shrink-0 items-center justify-center rounded-lg px-3 text-center leading-tight text-white uppercase"
-        style={{ ...CONDENSED, fontWeight: 700, height: size, minWidth: size, maxWidth: size * 2.6, fontSize: Math.max(15, size * 0.32), background: "#262626", border: `1px solid ${LINE}` }}
+        className="tier-pop flex shrink-0 items-center justify-center rounded-lg px-2 text-center leading-none text-white uppercase"
+        style={{ ...CONDENSED, fontWeight: 700, height: size, minWidth: Math.min(size, 40), fontSize: font ?? Math.max(13, size * 0.32 * scale), background: "#262626", border: `1px solid ${LINE}`, whiteSpace: "nowrap" }}
       >
-        <span className="line-clamp-2">{item.label}</span>
+        {item.label}
       </span>
     );
   }
@@ -43,33 +43,65 @@ function Tile({ item, size }: { item: TierItem; size: number }) {
   );
 }
 
-function Rows({ list, width, height, labelW }: { list: TierList; width: number; height: number; labelW: number }) {
+// Tier name box: one line when it fits, else two; the font shrinks to fit the box.
+function labelFont(label: string, width: number, rowH: number): number {
+  const len = Math.max(1, label.length);
+  if (len <= 2) return Math.min(rowH * 0.55, 60, (width - 12) / (0.55 * len));
+  const words = label.split(/\s+/);
+  const lines = len > 7 && words.length > 1 ? 2 : 1;
+  const perLine = lines === 2 ? Math.max(...words.map((w) => w.length), Math.ceil(len / 2)) : len;
+  return Math.max(10, Math.min(rowH * (lines === 2 ? 0.36 : 0.45), 34, (width - 14) / (0.47 * perLine)));
+}
+
+function Rows({ list, width, height, labelW: baseLabelW }: { list: TierList; width: number; height: number; labelW: number }) {
   const pool = list.items.filter((i) => i.tier < 0);
   const showPool = list.showPool && pool.length > 0;
   const gap = 6;
   const poolH = showPool ? Math.min(70, height * 0.16) : 0;
   const rowH = Math.floor((height - poolH - (showPool ? 10 : 0) - gap * (list.tiers.length - 1)) / list.tiers.length);
+  // Automatic width fits the longest tier name (names like "FEZ HISTÓRIA").
+  const longest = Math.max(...list.tiers.map((t) => t.label.length));
+  const autoW = longest <= 2 ? baseLabelW : Math.min(width * 0.4, Math.max(baseLabelW, Math.ceil(longest * Math.min(rowH * 0.4, 28) * 0.5 + 24)));
+  const labelW = list.labelWidth > 0 ? Math.min(list.labelWidth, width * 0.5) : autoW;
   const inner = width - labelW - 16;
 
   // Tiles shrink when a row gets crowded, so nothing falls off the screen.
-  const tileFor = (count: number, max: number) => Math.max(26, Math.min(max, Math.floor((inner - (count - 1) * 8) / Math.max(1, count))));
+  const tileFor = (count: number, max: number) =>
+    Math.max(26, Math.min(max * list.itemScale, max * 1.6, Math.floor((inner - (count - 1) * 8) / Math.max(1, count))));
 
   return (
     <div className="flex flex-col" style={{ width, height, gap }}>
       {list.tiers.map((tier, i) => {
         const items = list.items.filter((it) => it.tier === i).sort((a, b) => (a.placedAt ?? 0) - (b.placedAt ?? 0));
-        const size = tileFor(items.length, rowH - 12);
+        // Fit the row: text items get the largest font that still fits on one
+        // line of tiles; when even a small font doesn't fit, use two lines.
+        const fit = (h: number, lines: number) => {
+          const images = items.filter((it) => it.imageUrl);
+          const texts = items.filter((it) => !it.imageUrl);
+          const fixed = images.length * h + texts.length * 16 + Math.max(0, items.length - 1) * 8;
+          const chars = texts.reduce((n, it) => n + Math.max(2, it.label.length), 0);
+          const room = inner * lines - fixed;
+          const font = Math.max(10, Math.min(Math.max(13, h * 0.32 * list.itemScale), chars ? room / (chars * 0.5) : 99));
+          return { font, ok: chars === 0 ? room >= 0 : room / (chars * 0.5) >= 12 };
+        };
+        let size = Math.min(rowH - 8, tileFor(items.length, rowH - 12));
+        let fitted = fit(size, 1);
+        const twoLines = !fitted.ok && items.length > 1;
+        if (twoLines) {
+          size = Math.floor((rowH - 14) / 2);
+          fitted = fit(size, 2);
+        }
         return (
           <div key={i} className="flex overflow-hidden rounded-xl" style={{ height: rowH, background: ROW_BG, border: `1px solid ${LINE}` }}>
             <span
-              className="flex shrink-0 items-center justify-center text-center leading-none uppercase"
-              style={{ ...DISPLAY, width: labelW, background: tier.color, color: "#111", fontSize: Math.min(rowH * 0.55, tier.label.length > 2 ? 26 : 60) }}
+              className="flex shrink-0 items-center justify-center px-1.5 text-center leading-[0.95] break-words uppercase"
+              style={{ ...DISPLAY, width: labelW, background: tier.color, color: "#111", fontSize: labelFont(tier.label, labelW, rowH) }}
             >
               {tier.label}
             </span>
-            <div className="flex min-w-0 flex-1 items-center gap-2 px-2">
+            <div className={`flex min-w-0 flex-1 items-center gap-2 px-2 ${twoLines ? "flex-wrap content-center gap-y-1.5" : ""}`}>
               {items.map((item) => (
-                <Tile key={`${item.id}-${i}`} item={item} size={size} />
+                <Tile key={`${item.id}-${i}`} item={item} size={size} scale={list.itemScale} font={fitted.font} />
               ))}
             </div>
           </div>

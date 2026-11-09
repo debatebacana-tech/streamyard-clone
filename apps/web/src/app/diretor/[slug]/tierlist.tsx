@@ -40,6 +40,35 @@ function Chip({ item, selected, onClick }: { item: TierItem; selected: boolean; 
   );
 }
 
+// Applies on release, so dragging doesn't flood the air with updates.
+function SizeSlider({ label, hint, min, max, step, value, onChange }: { label: string; hint: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void }) {
+  const [local, setLocal] = useState(value);
+  const [prev, setPrev] = useState(value);
+  if (prev !== value) {
+    setPrev(value);
+    setLocal(value);
+  }
+  return (
+    <label className="block space-y-1 pt-2">
+      <span className="flex justify-between text-xs text-neutral-400">
+        {label} <span className="text-neutral-500">{hint}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={local}
+        onChange={(e) => setLocal(Number(e.target.value))}
+        onMouseUp={() => onChange(local)}
+        onTouchEnd={() => onChange(local)}
+        onKeyUp={() => onChange(local)}
+        className="w-full"
+      />
+    </label>
+  );
+}
+
 export function TierListPanel() {
   const { slug, scenes, sceneRequest, addAsset } = useDirector();
   const list = scenes.live.tierList;
@@ -229,7 +258,7 @@ export function TierListPanel() {
           {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
 
-        <details className="rounded-md bg-neutral-950 p-3 text-sm">
+        <details open className="rounded-md bg-neutral-950 p-3 text-sm">
           <summary className="cursor-pointer font-semibold">Faixas ({list.tiers.map((t) => t.label).join(" ")})</summary>
           <div className="mt-2 space-y-1.5">
             {list.tiers.map((tier, i) => (
@@ -263,7 +292,25 @@ export function TierListPanel() {
                 Voltar para S A B C D
               </button>
             </div>
-            <p className="text-[11px] text-neutral-500">Pode trocar os nomes: “CRAQUE”, “BOM”, “NÃO DÁ”...</p>
+            <p className="text-[11px] text-neutral-500">Pode trocar os nomes: “REI DELAS”, “FEZ HISTÓRIA”, “NÃO DÁ”...</p>
+            <SizeSlider
+              label="Largura das caixas das faixas"
+              hint={list.labelWidth === 0 ? "automática (cabe o nome mais longo)" : `${list.labelWidth} px`}
+              min={0}
+              max={360}
+              step={10}
+              value={list.labelWidth}
+              onChange={(v) => update({ labelWidth: v })}
+            />
+            <SizeSlider
+              label="Tamanho dos itens"
+              hint={`${Math.round(list.itemScale * 100)}%`}
+              min={0.6}
+              max={2}
+              step={0.1}
+              value={list.itemScale}
+              onChange={(v) => update({ itemScale: v })}
+            />
           </div>
         </details>
 
