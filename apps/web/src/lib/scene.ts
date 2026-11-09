@@ -3,15 +3,14 @@
 // on-air scene is mirrored into the LiveKit room metadata that the
 // composition renders from.
 
-// "auto" follows the brand manual's grid for the number of people on stage
-// (1 to 5 cameras, or shared screen + cameras).
+// "auto" is the grid: one row up to four, two rows beyond.
 export type LayoutMode = "auto" | "spotlight" | "solo" | "pip";
 
 export const LAYOUTS: { mode: LayoutMode; label: string; hint: string }[] = [
-  { mode: "auto", label: "Mesa", hint: "Grade do manual pelo número de pessoas em cena" },
+  { mode: "auto", label: "Grade", hint: "Todos lado a lado (até 4 numa fila, depois duas fileiras)" },
   { mode: "spotlight", label: "Destaque", hint: "Uma pessoa grande e as outras ao lado" },
+  { mode: "pip", label: "PiP", hint: "Destaque em tela cheia com as outras em janelinhas" },
   { mode: "solo", label: "Só um", hint: "Apenas a pessoa em destaque" },
-  { mode: "pip", label: "Tela cheia", hint: "Destaque em tela cheia com as outras em janelinhas" },
 ];
 
 // Institutional full screens from the brand manual.
@@ -126,8 +125,9 @@ export type Scene = {
   ticker: { visible: boolean; text: string };
   // Background track, synced for every viewer via startedAt (null = stopped).
   music: { url: string | null; title: string; volume: number; loop: boolean; startedAt: number | null };
-  // Full-screen institutional screen; countdownTo drives the "espera" timer.
-  screen: { kind: ScreenKind; countdownTo: number | null } & ScreenText;
+  // Full-screen rundown screen: the team's own art (mediaUrl, image or video)
+  // or, without it, the built-in text screen. countdownTo drives the pre-live timer.
+  screen: { kind: ScreenKind; countdownTo: number | null; mediaUrl: string | null } & ScreenText;
   // "bar": full-width bottom bar (Hospício style); "bug": compact top-left corner, TV style.
   scoreboard: { visible: boolean; style: "bar" | "bug"; theme: CompetitionTheme; home: Team; away: Team; clock: Clock };
   // Embedded web page (e.g. a live pitch widget); zoom scales its content to fit.
@@ -160,7 +160,7 @@ export const DEFAULT_SCENE: Scene = {
   gc: { visible: false, title: "", subtitle: "", imageUrl: null },
   ticker: { visible: false, text: "" },
   music: { url: null, title: "", volume: 0.5, loop: true, startedAt: null },
-  screen: { kind: "none", countdownTo: null, ...SCREEN_DEFAULTS.espera },
+  screen: { kind: "none", countdownTo: null, mediaUrl: null, ...SCREEN_DEFAULTS.espera },
   scoreboard: {
     visible: false,
     style: "bug",
@@ -281,6 +281,7 @@ export function normalizeScene(input: unknown): Scene {
     screen: {
       kind: screenKind,
       countdownTo: typeof screen.countdownTo === "number" ? screen.countdownTo : null,
+      mediaUrl: url(screen.mediaUrl),
       label: str(screen.label, 40, d.screen.label),
       title: str(screen.title, 60, d.screen.title),
       subtitle: str(screen.subtitle, 120, d.screen.subtitle),

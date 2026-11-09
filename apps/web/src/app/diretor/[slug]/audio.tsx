@@ -106,7 +106,7 @@ export function EffectsPanel() {
   const sendCue = useMediaCues();
   const [volume, setVolume] = useState(0.9);
   // Oldest first, so keyboard shortcuts stay put as new pads are added.
-  const pads = assets.filter((a) => (a.kind === "audio" || a.kind === "video") && a.role !== "trilha").reverse();
+  const pads = assets.filter((a) => (a.kind === "audio" || a.kind === "video") && a.role === "efeito").reverse();
 
   const play = (pad: AssetItem) =>
     sendCue({ type: "play", id: crypto.randomUUID(), url: pad.url, kind: pad.kind === "video" ? "video" : "audio", volume });

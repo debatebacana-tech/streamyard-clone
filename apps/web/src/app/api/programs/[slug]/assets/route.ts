@@ -12,7 +12,7 @@ function present(asset: { id: string; kind: string; role: string; name: string; 
   return { id: asset.id, kind: asset.kind, role: asset.role, name: asset.name, url: mediaUrl(asset.fileName), size: asset.size };
 }
 
-const ROLES = new Set(["trilha", "efeito"]);
+const ROLES = new Set(["trilha", "efeito", "arte"]);
 
 export async function GET(_request: Request, { params }: Params) {
   const { program, error } = await hostProgram(params);

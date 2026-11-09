@@ -35,6 +35,7 @@ function applyRundown(scene: Scene, step: RundownStep, config: ProgramConfig, no
             ...config.screens.espera,
             kind: "espera",
             countdownTo: countdownMs && countdownMs > 0 ? now + countdownMs : null,
+            mediaUrl: config.waitingMediaUrl,
           },
         },
         config.waitingTrackUrl,
@@ -49,7 +50,7 @@ function applyRundown(scene: Scene, step: RundownStep, config: ProgramConfig, no
       return { ...scene, screen: { ...scene.screen, kind: "none" } };
     case "intervalo":
       return startMusic(
-        { ...scene, screen: { ...config.screens.intervalo, kind: "intervalo", countdownTo: null } },
+        { ...scene, screen: { ...config.screens.intervalo, kind: "intervalo", countdownTo: null, mediaUrl: config.breakMediaUrl } },
         config.breakTrackUrl,
         now,
         true,
@@ -57,7 +58,7 @@ function applyRundown(scene: Scene, step: RundownStep, config: ProgramConfig, no
       );
     case "encerramento":
       return startMusic(
-        { ...scene, screen: { ...config.screens.encerramento, kind: "encerramento", countdownTo: null } },
+        { ...scene, screen: { ...config.screens.encerramento, kind: "encerramento", countdownTo: null, mediaUrl: config.closingMediaUrl } },
         config.closingTrackUrl,
         now,
         false,

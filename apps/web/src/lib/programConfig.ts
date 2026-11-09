@@ -8,6 +8,11 @@ export type ProgramConfig = {
   waitingTrackUrl: string | null;
   breakTrackUrl: string | null;
   closingTrackUrl: string | null;
+  // The team's own art (image or video) for each screen; the built-in text
+  // screen is only a fallback when none is chosen.
+  waitingMediaUrl: string | null;
+  breakMediaUrl: string | null;
+  closingMediaUrl: string | null;
   // Scoreboard tools in the director panel: always on for football programs,
   // an optional module elsewhere (null = follow the program's format).
   scoreboardModule: boolean | null;
@@ -48,6 +53,9 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
     waitingTrackUrl: media(c.waitingTrackUrl),
     breakTrackUrl: media(c.breakTrackUrl),
     closingTrackUrl: media(c.closingTrackUrl),
+    waitingMediaUrl: media(c.waitingMediaUrl),
+    breakMediaUrl: media(c.breakMediaUrl),
+    closingMediaUrl: media(c.closingMediaUrl),
     scoreboardModule: typeof c.scoreboardModule === "boolean" ? c.scoreboardModule : null,
     screens: {
       espera: screen(screens.espera, SCREEN_DEFAULTS.espera),

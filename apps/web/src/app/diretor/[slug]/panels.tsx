@@ -124,7 +124,6 @@ export function StagePanel() {
 export function LayoutPanel() {
   const { scenes, patch } = useDirector();
   const { draft } = scenes;
-  const [title, setTitle] = useState(draft.title);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-4 gap-2">
@@ -135,20 +134,9 @@ export function LayoutPanel() {
         ))}
       </div>
       <p className="text-[11px] text-neutral-500">{LAYOUTS.find((l) => l.mode === draft.layout)?.hint}</p>
-      <label className="block space-y-1">
-        <span className="text-xs text-neutral-400">Título da cena (no cabeçalho, ao lado do nome do programa)</span>
-        <input
-          className={`${input} w-full uppercase`}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => title !== draft.title && patch({ title })}
-          onKeyDown={(e) => e.key === "Enter" && patch({ title })}
-          placeholder="Ex: A RODADA EM PAUTA, CENTRAL DA PARTIDA"
-        />
-      </label>
       <label className="flex items-center gap-2 text-sm text-neutral-300">
         <input type="checkbox" checked={draft.showLogo} onChange={(e) => patch({ showLogo: e.target.checked })} />
-        Mostrar logo no canto superior direito
+        Mostrar logo do programa no topo
       </label>
     </div>
   );
@@ -303,8 +291,8 @@ export function ScoreboardPanel() {
       <div className="flex flex-wrap items-center gap-2">
         <Toggle on={draft.scoreboard.visible} onClick={() => patch({ scoreboard: { visible: !draft.scoreboard.visible } })} labels={["Mostrar placar", "Ocultar placar"]} />
         <select className={input} value={draft.scoreboard.style} onChange={(e) => patch({ scoreboard: { style: e.target.value } })}>
-          <option value="bug">No topo (central da partida)</option>
-          <option value="bar">Embaixo (ao lado do GC)</option>
+          <option value="bug">Estilo selo (canto)</option>
+          <option value="bar">Estilo barra (embaixo)</option>
         </select>
         <label className="flex items-center gap-1 text-sm text-neutral-300">
           <input type="checkbox" checked={draft.scoreboard.clock.visible} onChange={(e) => patch({ scoreboard: { clock: { visible: e.target.checked } } }, { air: true })} />
@@ -418,14 +406,34 @@ export function IdentityPanel() {
           </button>
         </div>
       </label>
+      <div className="flex gap-4 text-xs text-neutral-400">
+        <label className="flex items-center gap-2">
+          Cor principal
+          <input
+            type="color"
+            value={branding.primaryColor}
+            onChange={(e) => patchProgram({ primaryColor: e.target.value })}
+            className="h-8 w-10 cursor-pointer bg-transparent"
+          />
+        </label>
+        <label className="flex items-center gap-2">
+          Cor do texto sobre ela
+          <input
+            type="color"
+            value={branding.accentColor}
+            onChange={(e) => patchProgram({ accentColor: e.target.value })}
+            className="h-8 w-10 cursor-pointer bg-transparent"
+          />
+        </label>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <p className="text-xs text-neutral-400">Logo Debate Bacana (vale para todos os programas)</p>
           <ImagePicker slug={slug} assets={assets} value={brandLogo} onChange={saveBrandLogo} onUploaded={addAsset} />
-          <p className="text-[11px] text-neutral-500">Use o PNG com fundo transparente do manual.</p>
+          <p className="text-[11px] text-neutral-500">De preferência PNG com fundo transparente.</p>
         </div>
         <div className="space-y-1">
-          <p className="text-xs text-neutral-400">Fundo (opcional — o manual pede grafite liso)</p>
+          <p className="text-xs text-neutral-400">Fundo (1280×720 ou maior)</p>
           <ImagePicker slug={slug} assets={assets} value={branding.backgroundUrl} onChange={(url) => patchProgram({ backgroundUrl: url })} onUploaded={addAsset} />
         </div>
       </div>
@@ -586,6 +594,7 @@ export function ThemePanel() {
   const theme = scenes.draft.scoreboard.theme;
   const [saved, setSaved] = useState<SavedTheme[]>([]);
   const [name, setName] = useState(theme.name);
+  const [opacity, setOpacity] = useState(theme.elementOpacity);
   const setTheme = (t: Partial<CompetitionTheme>) => patch({ scoreboard: { theme: t } });
 
   useEffect(() => {
@@ -596,6 +605,7 @@ export function ThemePanel() {
 
   function apply(t: CompetitionTheme) {
     setName(t.name);
+    setOpacity(t.elementOpacity);
     return patch({ scoreboard: { theme: t } });
   }
 
@@ -647,19 +657,47 @@ export function ThemePanel() {
         placeholder="Nome da competição no placar (ex: BRASILEIRÃO)"
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <ColorField label="Cor da competição (linha e × do placar)" value={theme.clock ?? "#DFFF00"} onChange={(v) => setTheme({ clock: v })} />
-        {theme.clock && (
-          <button onClick={() => setTheme({ clock: null })} className="text-xs text-neutral-500 hover:text-neutral-300" title="Voltar ao limão da marca">
-            ↺ limão da marca
+      <div className="flex flex-wrap gap-3">
+        <ColorField label="Fundo" value={theme.dark} onChange={(v) => setTheme({ dark: v })} />
+        <ColorField label="Faixas" value={theme.light} onChange={(v) => setTheme({ light: v })} />
+        <ColorField label="Destaque" value={theme.accent} onChange={(v) => setTheme({ accent: v })} />
+        {theme.clock ? (
+          <span className="flex items-center gap-1">
+            <ColorField label="Cronômetro" value={theme.clock} onChange={(v) => setTheme({ clock: v })} />
+            <button onClick={() => setTheme({ clock: null })} className="text-[10px] text-neutral-500 hover:text-neutral-300" title="Usar a cor do programa">↺</button>
+          </span>
+        ) : (
+          <button onClick={() => setTheme({ clock: theme.accent })} className="text-xs text-neutral-500 hover:text-neutral-300">
+            cronômetro: cor do programa (trocar)
           </button>
         )}
       </div>
 
-      <div className="space-y-1">
-        <p className="text-xs text-neutral-400">Logo da competição (ao lado do placar)</p>
-        <ImagePicker slug={slug} assets={assets} value={theme.logoUrl} onChange={(url) => setTheme({ logoUrl: url })} onUploaded={addAsset} />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-xs text-neutral-400">Logo da competição</p>
+          <ImagePicker slug={slug} assets={assets} value={theme.logoUrl} onChange={(url) => setTheme({ logoUrl: url })} onUploaded={addAsset} />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-neutral-400">Elemento no placar (taça, bola, símbolo)</p>
+          <ImagePicker slug={slug} assets={assets} value={theme.elementUrl} onChange={(url) => setTheme({ elementUrl: url })} onUploaded={addAsset} />
+        </div>
       </div>
+      <label className="flex items-center gap-2 text-xs text-neutral-400">
+        Intensidade do elemento
+        <input
+          type="range"
+          min={0}
+          max={0.6}
+          step={0.02}
+          value={opacity}
+          onChange={(e) => setOpacity(Number(e.target.value))}
+          onPointerUp={() => setTheme({ elementOpacity: opacity })}
+          onKeyUp={() => setTheme({ elementOpacity: opacity })}
+          className="flex-1"
+        />
+      </label>
+      <p className="text-[11px] text-neutral-500">Sem elemento enviado, o próprio logo vira a marca d&apos;água.</p>
       <button className={btn} onClick={save}>Salvar como tema</button>
     </div>
   );
