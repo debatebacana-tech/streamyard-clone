@@ -24,6 +24,47 @@ export type Clock = {
   period: string;
 };
 
+// Colors/branding of the competition the scoreboard belongs to. clock null =
+// use the program's primary color (the original look, kept as "Padrão").
+export type CompetitionTheme = {
+  name: string;
+  logoUrl: string | null;
+  dark: string;
+  light: string;
+  accent: string;
+  clock: string | null;
+};
+
+export const DEFAULT_THEME: CompetitionTheme = {
+  name: "",
+  logoUrl: null,
+  dark: "#111111",
+  light: "#f4f1ea",
+  accent: "#fcd34d",
+  clock: null,
+};
+
+// Starting points only: colors approximate each competition's look and are
+// editable; logos are uploaded by the team.
+export const THEME_PRESETS: { label: string; theme: CompetitionTheme }[] = [
+  { label: "Padrão", theme: DEFAULT_THEME },
+  { label: "Brasileirão", theme: { name: "BRASILEIRÃO", logoUrl: null, dark: "#062e1f", light: "#f4f1ea", accent: "#ffd400", clock: "#00a859" } },
+  { label: "Libertadores", theme: { name: "LIBERTADORES", logoUrl: null, dark: "#0b0b0b", light: "#f5f0e1", accent: "#d4af37", clock: "#b8902c" } },
+  { label: "Sul-Americana", theme: { name: "SUL-AMERICANA", logoUrl: null, dark: "#1b1b3a", light: "#f4f1ea", accent: "#f2c94c", clock: "#2f6fd6" } },
+  { label: "Copa do Brasil", theme: { name: "COPA DO BRASIL", logoUrl: null, dark: "#0a2463", light: "#f4f6fb", accent: "#ffd60a", clock: "#1e6fd9" } },
+  { label: "Champions", theme: { name: "CHAMPIONS LEAGUE", logoUrl: null, dark: "#0b1d51", light: "#eef2ff", accent: "#9fb4ff", clock: "#1f3fae" } },
+  { label: "Estadual", theme: { name: "ESTADUAL", logoUrl: null, dark: "#111111", light: "#ffffff", accent: "#e30613", clock: "#e30613" } },
+];
+
+export type WebPosition = "left" | "right" | "center" | "full";
+
+export const WEB_POSITIONS: { position: WebPosition; label: string }[] = [
+  { position: "left", label: "Painel à esquerda" },
+  { position: "right", label: "Painel à direita" },
+  { position: "center", label: "Central" },
+  { position: "full", label: "Tela cheia" },
+];
+
 export type Scene = {
   layout: LayoutMode;
   // Participants shown in the output; everyone else stays backstage (not seen or heard).
@@ -33,7 +74,9 @@ export type Scene = {
   gc: { visible: boolean; title: string; subtitle: string; imageUrl: string | null };
   ticker: { visible: boolean; text: string };
   // "bar": full-width bottom bar (Hospício style); "bug": compact top-left corner, TV style.
-  scoreboard: { visible: boolean; style: "bar" | "bug"; home: Team; away: Team; clock: Clock };
+  scoreboard: { visible: boolean; style: "bar" | "bug"; theme: CompetitionTheme; home: Team; away: Team; clock: Clock };
+  // Embedded web page (e.g. a live pitch widget); zoom scales its content to fit.
+  web: { visible: boolean; url: string; position: WebPosition; zoom: number };
   sponsor: { visible: boolean; imageUrl: string | null };
   showLogo: boolean;
 };
@@ -60,10 +103,12 @@ export const DEFAULT_SCENE: Scene = {
   scoreboard: {
     visible: false,
     style: "bug",
+    theme: DEFAULT_THEME,
     home: { ...DEFAULT_TEAM, name: "CASA" },
     away: { ...DEFAULT_TEAM, name: "VISITANTE", color: "#B91C1C" },
     clock: { visible: true, running: false, baseMs: 0, startedAt: null, period: "1º T" },
   },
+  web: { visible: false, url: "", position: "left", zoom: 1 },
   sponsor: { visible: false, imageUrl: null },
   showLogo: true,
 };
@@ -91,6 +136,31 @@ function color(value: unknown, fallback: string): string {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
 }
 
+export function normalizeTheme(input: unknown): CompetitionTheme {
+  const t = obj(input);
+  const d = DEFAULT_THEME;
+  return {
+    name: str(t.name, 40, d.name),
+    logoUrl: url(t.logoUrl),
+    dark: color(t.dark, d.dark),
+    light: color(t.light, d.light),
+    accent: color(t.accent, d.accent),
+    clock: t.clock === null || t.clock === undefined ? null : color(t.clock, d.accent),
+  };
+}
+
+// Only https pages can be embedded (the Egress browser loads them).
+function webUrl(value: unknown): string {
+  if (typeof value !== "string" || value.length > 1000) return "";
+  try {
+    return new URL(value).protocol === "https:" ? value : "";
+  } catch {
+    return "";
+  }
+}
+
+const WEB_POSITION_SET = new Set<string>(WEB_POSITIONS.map((p) => p.position));
+
 function normalizeTeam(input: unknown, fallback: Team): Team {
   const t = obj(input);
   return {
@@ -108,6 +178,7 @@ export function normalizeScene(input: unknown): Scene {
   const sb = obj(raw.scoreboard);
   const clock = obj(sb.clock);
   const sponsor = obj(raw.sponsor);
+  const web = obj(raw.web);
   const d = DEFAULT_SCENE;
 
   return {
@@ -126,6 +197,7 @@ export function normalizeScene(input: unknown): Scene {
     scoreboard: {
       visible: bool(sb.visible, false),
       style: sb.style === "bar" ? "bar" : "bug",
+      theme: normalizeTheme(sb.theme),
       home: normalizeTeam(sb.home, d.scoreboard.home),
       away: normalizeTeam(sb.away, d.scoreboard.away),
       clock: {
@@ -135,6 +207,12 @@ export function normalizeScene(input: unknown): Scene {
         startedAt: typeof clock.startedAt === "number" ? clock.startedAt : null,
         period: str(clock.period, 12, d.scoreboard.clock.period),
       },
+    },
+    web: {
+      visible: bool(web.visible, false),
+      url: webUrl(web.url),
+      position: typeof web.position === "string" && WEB_POSITION_SET.has(web.position) ? (web.position as WebPosition) : d.web.position,
+      zoom: num(web.zoom, 1, 0.3, 2),
     },
     sponsor: { visible: bool(sponsor.visible, false), imageUrl: url(sponsor.imageUrl) },
     showLogo: bool(raw.showLogo, true),
@@ -152,9 +230,11 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     gc: { ...current.gc, ...obj(p.gc) },
     ticker: { ...current.ticker, ...obj(p.ticker) },
     sponsor: { ...current.sponsor, ...obj(p.sponsor) },
+    web: { ...current.web, ...obj(p.web) },
     scoreboard: {
       ...current.scoreboard,
       ...sb,
+      theme: { ...current.scoreboard.theme, ...obj(sb.theme) },
       home: { ...current.scoreboard.home, ...obj(sb.home) },
       away: { ...current.scoreboard.away, ...obj(sb.away) },
       clock: { ...current.scoreboard.clock, ...obj(sb.clock) },
