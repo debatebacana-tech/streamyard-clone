@@ -43,6 +43,10 @@ RUN npm run build
 
 FROM base AS runner
 WORKDIR /app
+# Also read at runtime by server code (lib/livekit.ts) via a dynamic lookup
+# that Next can't inline, so it must be in the runner's environment too.
+ARG NEXT_PUBLIC_LIVEKIT_WS_URL
+ENV NEXT_PUBLIC_LIVEKIT_WS_URL=${NEXT_PUBLIC_LIVEKIT_WS_URL}
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
