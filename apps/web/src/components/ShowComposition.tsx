@@ -403,7 +403,7 @@ function RedCards({ n, size = 14 }: { n: number; size?: number }) {
 function Extra({ minutes, theme }: { minutes: number; theme: CompetitionTheme }) {
   if (minutes <= 0) return null;
   return (
-    <span className="rounded px-1.5 text-2xl leading-tight" style={{ ...DISPLAY, background: theme.accent, color: theme.dark }}>
+    <span className="rounded px-1 text-[18px] leading-tight" style={{ ...DISPLAY, background: theme.accent, color: theme.dark }}>
       +{minutes}
     </span>
   );
@@ -498,18 +498,23 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
         {team(away)}
         {clock.visible && (
           <div
-            className="relative z-10 flex flex-col items-center justify-center px-3 leading-none"
+            // Time and period stacked and centered inside the bar height.
+            className="relative z-10 flex min-w-[88px] flex-col items-center justify-center gap-[3px] px-3"
             style={{ background: theme.clock ?? branding.primaryColor, color: theme.clock ? "#fff" : branding.accentColor }}
           >
             {st ? (
-              <span className="text-2xl" style={DISPLAY}>PÊNALTIS</span>
+              <span className="text-2xl leading-none" style={DISPLAY}>PÊNALTIS</span>
             ) : (
-              <span className="flex items-center gap-1.5 text-3xl tabular-nums" style={DISPLAY}>
+              <span className="flex items-center gap-1.5 text-[27px] leading-none tabular-nums" style={DISPLAY}>
                 <ClockText clock={clock} />
                 <Extra minutes={clock.extra} theme={theme} />
               </span>
             )}
-            {!st && <span className="text-sm uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{clock.period}</span>}
+            {!st && (
+              <span className="text-[12px] leading-none tracking-wider uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>
+                {clock.period}
+              </span>
+            )}
           </div>
         )}
       </div>
