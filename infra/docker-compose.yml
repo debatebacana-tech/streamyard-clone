@@ -94,6 +94,9 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # The config dir (not the single file) is mounted and watched, so a git
+    # update of the Caddyfile is picked up without restarting the container.
+    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile --watch
     environment:
       - APP_DOMAIN=${APP_DOMAIN}
       - LIVEKIT_DOMAIN=${LIVEKIT_DOMAIN}
@@ -101,7 +104,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy:/etc/caddy:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
