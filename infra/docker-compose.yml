@@ -18,13 +18,20 @@ services:
     depends_on:
       - redis
 
-  egress-config:
+  # Renders the Egress/Ingress configs from the server's generated egress.yaml
+  # (which holds the API secret) plus committed tuning, so config changes
+  # reach existing servers through git.
+  configs:
     image: alpine:3
-    command: sh -c "cat /in/egress.yaml /in/egress.extra.yaml > /out/egress.yaml"
+    command: >-
+      sh -c "cat /in/egress.yaml /in/egress.extra.yaml > /out/egress.yaml
+      && grep -E '^api_(key|secret):' /in/egress.yaml > /out/ingress.yaml
+      && cat /in/ingress.extra.yaml >> /out/ingress.yaml"
     volumes:
       - ./egress.yaml:/in/egress.yaml:ro
       - ./egress.extra.yaml:/in/egress.extra.yaml:ro
-      - egress-config:/out
+      - ./ingress.extra.yaml:/in/ingress.extra.yaml:ro
+      - configs:/out
 
   egress:
     image: livekit/egress:latest
@@ -35,7 +42,7 @@ services:
     environment:
       - EGRESS_CONFIG_FILE=/etc/egress/egress.yaml
     volumes:
-      - egress-config:/etc/egress:ro
+      - configs:/etc/egress:ro
       - egress-tmp:/tmp/livekit-egress
     # No published ports: Egress only makes outbound connections (to
     # LiveKit's ws, to the web app's layout-view page, and to YouTube's
@@ -45,7 +52,27 @@ services:
         condition: service_started
       livekit:
         condition: service_started
-      egress-config:
+      configs:
+        condition: service_completed_successfully
+
+  # Brings OBS into a program room: WHIP (proxied by Caddy at /w on the
+  # LiveKit domain, media on 7885/udp) or RTMP on 1935.
+  ingress:
+    image: livekit/ingress:latest
+    restart: unless-stopped
+    environment:
+      - INGRESS_CONFIG_FILE=/etc/ingress/ingress.yaml
+    volumes:
+      - configs:/etc/ingress:ro
+    ports:
+      - "1935:1935/tcp"
+      - "7885:7885/udp"
+    depends_on:
+      redis:
+        condition: service_started
+      livekit:
+        condition: service_started
+      configs:
         condition: service_completed_successfully
 
   web:
@@ -85,6 +112,6 @@ volumes:
   redis-data:
   web-data:
   egress-tmp:
-  egress-config:
+  configs:
   caddy-data:
   caddy-config:

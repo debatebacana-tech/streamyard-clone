@@ -496,3 +496,103 @@ export function InvitePanel() {
     </div>
   );
 }
+
+// ------------------------------------------------------------------------- OBS
+
+type ObsInfo = { type: "whip" | "rtmp"; server: string; streamKey: string; status: string; error: string | null };
+
+function CopyField({ label, value, secret = false }: { label: string; value: string; secret?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-neutral-400">{label}</p>
+      <div className="flex gap-2">
+        <input readOnly type={secret ? "password" : "text"} value={value} className={`${input} min-w-0 flex-1 font-mono text-xs`} />
+        <button
+          className={btn}
+          onClick={async () => {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? "✓" : "Copiar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function ObsPanel() {
+  const { slug } = useDirector();
+  const [obs, setObs] = useState<ObsInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      const res = await fetch(`/api/programs/${slug}/obs`);
+      const data = await res.json().catch(() => ({}));
+      if (!alive) return;
+      if (res.ok) setObs(data.obs);
+      else setError(data.error ?? "Falha ao consultar o OBS");
+    }
+    const first = setTimeout(load, 0);
+    const id = setInterval(load, 5000);
+    return () => {
+      alive = false;
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [slug]);
+
+  async function create(type: "whip" | "rtmp") {
+    if (obs && !confirm("Gerar uma nova chave? A anterior deixa de funcionar.")) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/programs/${slug}/obs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (res.ok) setObs(data.obs);
+    else setError(data.error ?? "Falha");
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-neutral-400">
+        Mande a saída do OBS para cá: ela aparece em Participantes como <b>OBS</b> e entra na cena como qualquer convidado.
+      </p>
+      {obs ? (
+        <>
+          <p className="text-sm">
+            Status: <span className={obs.status === "recebendo" ? "text-emerald-400" : "text-neutral-300"}>{obs.status}</span>
+            {obs.error && <span className="text-red-400"> · {obs.error}</span>}
+          </p>
+          <CopyField label={obs.type === "whip" ? "Servidor (WHIP)" : "Servidor (RTMP)"} value={obs.server} />
+          <CopyField label={obs.type === "whip" ? "Bearer Token" : "Chave de transmissão"} value={obs.streamKey} secret />
+          <p className="text-xs text-neutral-500">
+            {obs.type === "whip"
+              ? "No OBS: Configurações → Transmissão → Serviço: WHIP. Cole o servidor e o Bearer Token. Use saída em 720p, 30fps, até 4000 kbps."
+              : "No OBS: Configurações → Transmissão → Serviço: Personalizado. RTMP consome mais CPU do servidor; prefira WHIP (OBS 30 ou mais novo)."}
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-neutral-500">Nenhuma entrada de OBS criada para este programa.</p>
+      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button className={btnOn} disabled={busy} onClick={() => create("whip")}>
+          {obs ? "Nova chave WHIP" : "Criar entrada WHIP (recomendado)"}
+        </button>
+        <button className={btn} disabled={busy} onClick={() => create("rtmp")}>
+          {obs ? "Nova chave RTMP" : "Criar entrada RTMP"}
+        </button>
+      </div>
+    </div>
+  );
+}

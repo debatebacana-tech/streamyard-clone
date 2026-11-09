@@ -13,6 +13,7 @@ import {
   IdentityPanel,
   InvitePanel,
   LayoutPanel,
+  ObsPanel,
   Panel,
   ScoreboardPanel,
   SoundPanel,
@@ -245,6 +246,9 @@ export function DirectorStudio({ program, initialScenes }: { program: ProgramBra
               </Panel>
               <Panel title="Convidados">
                 <InvitePanel />
+              </Panel>
+              <Panel title="OBS">
+                <ObsPanel />
               </Panel>
             </div>
           </div>

@@ -5,11 +5,11 @@ import {
   AudioTrack,
   VideoTrack,
   isTrackReference,
-  useRoomInfo,
+  useRoomContext,
   useTracks,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { RoomEvent, Track } from "livekit-client";
 import { MediaLayer } from "./MediaLayer";
 import {
   clockElapsedMs,
@@ -29,6 +29,21 @@ export const CANVAS_H = 720;
 const DISPLAY: CSSProperties = { fontFamily: "var(--font-display), Impact, sans-serif" };
 const CONDENSED: CSSProperties = { fontFamily: "var(--font-condensed), 'Arial Narrow', sans-serif" };
 const FRAME = "#111111";
+
+// Room metadata (branding + on-air scene) is in the join response, so read it
+// as soon as signaling connects instead of waiting for media to connect.
+function useRoomMetadata(): string | undefined {
+  const room = useRoomContext();
+  const [metadata, setMetadata] = useState(room.metadata);
+  useEffect(() => {
+    const update = () => setMetadata(room.metadata);
+    room.on(RoomEvent.SignalConnected, update).on(RoomEvent.Connected, update).on(RoomEvent.RoomMetadataChanged, update);
+    return () => {
+      room.off(RoomEvent.SignalConnected, update).off(RoomEvent.Connected, update).off(RoomEvent.RoomMetadataChanged, update);
+    };
+  }, [room]);
+  return metadata;
+}
 
 function ScaledCanvas({ children }: { children: ReactNode }) {
   const outer = useRef<HTMLDivElement>(null);
@@ -373,8 +388,7 @@ export function ShowComposition({
   media?: "play" | "silent" | "off";
   emptyHint?: string;
 }) {
-  const { metadata } = useRoomInfo();
-  const show = parseShowMetadata(metadata);
+  const show = parseShowMetadata(useRoomMetadata());
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
