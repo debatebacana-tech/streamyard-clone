@@ -1,7 +1,28 @@
 # streamyard-clone
 
-Estúdio de transmissão ao vivo self-hosted para o YouTube: host solo hoje,
-convidados remotos pelo navegador amanhã, sem depender de um SaaS de terceiros.
+Estúdio de transmissão ao vivo self-hosted para o YouTube, com vários
+programas (Debate Bacana, Futebol Bacana, Sábado Bacana), convidados remotos
+pelo navegador e uma Área do Diretor no estilo mesa de corte — sem depender
+de um SaaS de terceiros.
+
+## O que tem
+
+- **Área do Diretor** (`/diretor`): escolhe o programa e controla tudo. Um
+  programa no ar por vez (um canal, uma transmissão por vez).
+- **Prévia e No ar**: o diretor monta a próxima cena na prévia e manda pro ar
+  com "CORTAR" (ou marca "direto no ar").
+- **Participantes**: convidados entram pelo link do programa e ficam nos
+  bastidores até o diretor pôr em cena; destaque, mutar, remover.
+- **Layouts**: grade, destaque, PiP e só um.
+- **GC** com escudo/imagem e lista de GCs salvos; **letreiro**; **patrocinador**.
+- **Placar e cronômetro** (selo no canto ou barra embaixo), gol com um clique,
+  períodos, cronômetro calculado pela hora do servidor.
+- **Central de áudio e vinhetas**: botões de som (MP3/WAV) e vinhetas em vídeo
+  (MP4/WEBM), teclas 1–9, Esc para parar. Entram no áudio da live.
+- **Identidade por programa**: nome, cores, logo e fundo (envio de arquivos
+  pelo próprio painel).
+- **OBS**: entrada WHIP (recomendado, OBS 30+) ou RTMP por programa; o OBS
+  aparece como participante e entra na cena.
 
 Arquitetura: **LiveKit** (SFU self-hospedado) + **LiveKit Egress** (Web
 Egress, carregando nossa própria página de composição) empurrando RTMP
@@ -11,7 +32,7 @@ direto pro YouTube. Veja o plano completo e as decisões de arquitetura em
 ## Estrutura
 
 ```
-apps/web/   Next.js (Studio do host, página de layout, lobby do convidado, API)
+apps/web/   Next.js (Área do Diretor, página de composição, lobby do convidado, API)
 infra/      docker-compose + configs de LiveKit/Egress/Caddy para a VPS
 docs/       plano de arquitetura
 ```
@@ -35,51 +56,33 @@ Abra http://localhost:3000 — vai pedir a senha do host (`HOST_PASSWORD` no
 
 ## Deploy na VPS
 
-Pré-requisitos: uma VPS com Docker + Docker Compose instalados (recomendação
-do plano: ~4 vCPU / 8GB RAM, ex. Hetzner CPX31), e dois registros DNS
-apontando pro IP da VPS:
+Uma VPS Ubuntu 24.04 com 2+ vCPU / 4+ GB (ex.: Hetzner CPX22). Não precisa
+comprar domínio: o script usa `studio.<ip>.sslip.io` e `livekit.<ip>.sslip.io`,
+que apontam pro IP sozinhos e recebem HTTPS do Let's Encrypt.
 
-- `studio.seudominio.com` → o app
-- `livekit.seudominio.com` → o servidor LiveKit (sinalização WSS)
+**Jeito mais fácil (sem terminal):** ao criar o servidor na Hetzner, cole em
+**Cloud config**:
 
-Na VPS:
-
-```bash
-git clone https://github.com/<seu-usuario>/streamyard-clone.git
-cd streamyard-clone/infra
-
-cp .env.example .env
-# edite APP_DOMAIN e LIVEKIT_DOMAIN
-
-cp livekit.yaml.example livekit.yaml
-cp egress.yaml.example egress.yaml
-cp web.env.example web.env
+```yaml
+#cloud-config
+runcmd:
+  - export HOST_PASSWORD=SuaSenha123 && curl -fsSL https://raw.githubusercontent.com/debatebacana-tech/streamyard-clone/main-2g0cpk/infra/bootstrap.sh | bash > /var/log/streamyard-bootstrap.log 2>&1
 ```
 
-Gere as chaves e edite os três arquivos acima:
+Ou, por SSH na VPS: `curl -fsSL .../infra/bootstrap.sh | HOST_PASSWORD=SuaSenha123 bash`.
 
-```bash
-# chave/segredo do LiveKit (mesma em livekit.yaml, egress.yaml e web.env)
-openssl rand -hex 16   # -> LIVEKIT_API_KEY
-openssl rand -base64 32  # -> LIVEKIT_API_SECRET / SESSION_SECRET / ENCRYPTION_KEY
-```
+O [`infra/bootstrap.sh`](infra/bootstrap.sh) instala Docker e swap, clona o
+repo, gera todas as chaves (LiveKit, Egress, sessão, criptografia) e sobe os
+containers. Ele também instala uma **atualização automática**: a cada 2
+minutos a VPS confere o branch no GitHub e, se houver commit novo, reconstrói.
+Ou seja, para atualizar o servidor basta dar push.
 
-Em `livekit.yaml`, troque a linha `REPLACE_WITH_API_KEY: REPLACE_WITH_API_SECRET...`
-pela chave/segredo gerados. Em `egress.yaml`, troque `api_key`/`api_secret`
-pelos mesmos valores. Em `web.env`, preencha `HOST_PASSWORD`, `SESSION_SECRET`,
-`ENCRYPTION_KEY`, `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` (iguais aos dois
-arquivos anteriores).
+Portas usadas (a Hetzner não tem firewall por padrão): 80/443 (site e HTTPS),
+7881/tcp e 50000-50200/udp (vídeo WebRTC), 1935/tcp (RTMP do OBS),
+7885/udp (WHIP do OBS com transcodificação).
 
-Depois:
-
-```bash
-docker compose up -d --build
-```
-
-O Caddy já emite TLS automaticamente para os dois domínios. Acesse
-`https://studio.seudominio.com`, entre com a `HOST_PASSWORD`, cole a chave
-de transmissão do YouTube (gerada em **YouTube Studio → Criar → Ao vivo**)
-e clique em "Ir ao vivo".
+Depois: abra `https://studio.<ip>.sslip.io`, entre com a senha, cole a chave
+de transmissão do YouTube em **Canal do YouTube** e escolha o programa.
 
 ### Verificação antes de ir ao ar de verdade
 
