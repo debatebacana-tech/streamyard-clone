@@ -18,7 +18,9 @@ import {
   ScoreboardPanel,
   SoundPanel,
   StagePanel,
+  ThemePanel,
   TickerSponsorPanel,
+  WebPanel,
 } from "./panels";
 
 function clientId(): string {
@@ -232,6 +234,12 @@ export function DirectorStudio({ program, initialScenes }: { program: ProgramBra
             <div className="space-y-4">
               <Panel title="Placar e cronômetro">
                 <ScoreboardPanel />
+              </Panel>
+              <Panel title="Tema da competição (placar)">
+                <ThemePanel />
+              </Panel>
+              <Panel title="Página web (campinho ao vivo)">
+                <WebPanel />
               </Panel>
               <Panel title="Letreiro e patrocínio">
                 <TickerSponsorPanel />

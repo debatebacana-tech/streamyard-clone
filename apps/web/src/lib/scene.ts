@@ -29,6 +29,10 @@ export type Clock = {
 export type CompetitionTheme = {
   name: string;
   logoUrl: string | null;
+  // Decorative piece of the competition's identity (trophy, ball, symbol)
+  // watermarked inside the scoreboard; falls back to the logo.
+  elementUrl: string | null;
+  elementOpacity: number;
   dark: string;
   light: string;
   accent: string;
@@ -38,6 +42,8 @@ export type CompetitionTheme = {
 export const DEFAULT_THEME: CompetitionTheme = {
   name: "",
   logoUrl: null,
+  elementUrl: null,
+  elementOpacity: 0.18,
   dark: "#111111",
   light: "#f4f1ea",
   accent: "#fcd34d",
@@ -48,12 +54,12 @@ export const DEFAULT_THEME: CompetitionTheme = {
 // editable; logos are uploaded by the team.
 export const THEME_PRESETS: { label: string; theme: CompetitionTheme }[] = [
   { label: "Padrão", theme: DEFAULT_THEME },
-  { label: "Brasileirão", theme: { name: "BRASILEIRÃO", logoUrl: null, dark: "#062e1f", light: "#f4f1ea", accent: "#ffd400", clock: "#00a859" } },
-  { label: "Libertadores", theme: { name: "LIBERTADORES", logoUrl: null, dark: "#0b0b0b", light: "#f5f0e1", accent: "#d4af37", clock: "#b8902c" } },
-  { label: "Sul-Americana", theme: { name: "SUL-AMERICANA", logoUrl: null, dark: "#1b1b3a", light: "#f4f1ea", accent: "#f2c94c", clock: "#2f6fd6" } },
-  { label: "Copa do Brasil", theme: { name: "COPA DO BRASIL", logoUrl: null, dark: "#0a2463", light: "#f4f6fb", accent: "#ffd60a", clock: "#1e6fd9" } },
-  { label: "Champions", theme: { name: "CHAMPIONS LEAGUE", logoUrl: null, dark: "#0b1d51", light: "#eef2ff", accent: "#9fb4ff", clock: "#1f3fae" } },
-  { label: "Estadual", theme: { name: "ESTADUAL", logoUrl: null, dark: "#111111", light: "#ffffff", accent: "#e30613", clock: "#e30613" } },
+  { label: "Brasileirão", theme: { name: "BRASILEIRÃO", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#062e1f", light: "#f4f1ea", accent: "#ffd400", clock: "#00a859" } },
+  { label: "Libertadores", theme: { name: "LIBERTADORES", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0b0b0b", light: "#f5f0e1", accent: "#d4af37", clock: "#b8902c" } },
+  { label: "Sul-Americana", theme: { name: "SUL-AMERICANA", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#1b1b3a", light: "#f4f1ea", accent: "#f2c94c", clock: "#2f6fd6" } },
+  { label: "Copa do Brasil", theme: { name: "COPA DO BRASIL", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0a2463", light: "#f4f6fb", accent: "#ffd60a", clock: "#1e6fd9" } },
+  { label: "Champions", theme: { name: "CHAMPIONS LEAGUE", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0b1d51", light: "#eef2ff", accent: "#9fb4ff", clock: "#1f3fae" } },
+  { label: "Estadual", theme: { name: "ESTADUAL", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#111111", light: "#ffffff", accent: "#e30613", clock: "#e30613" } },
 ];
 
 export type WebPosition = "left" | "right" | "center" | "full";
@@ -142,6 +148,8 @@ export function normalizeTheme(input: unknown): CompetitionTheme {
   return {
     name: str(t.name, 40, d.name),
     logoUrl: url(t.logoUrl),
+    elementUrl: url(t.elementUrl),
+    elementOpacity: num(t.elementOpacity, d.elementOpacity, 0, 1),
     dark: color(t.dark, d.dark),
     light: color(t.light, d.light),
     accent: color(t.accent, d.accent),

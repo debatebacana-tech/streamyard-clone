@@ -61,3 +61,12 @@ model GcPreset {
   imageUrl  String?
   createdAt DateTime @default(now())
 }
+
+// Scoreboard themes saved by the team (e.g. "Paulistão" with its logo), shared
+// by every program. themeJson is a CompetitionTheme (see lib/scene.ts).
+model SavedTheme {
+  id        String   @id @default(cuid())
+  label     String
+  themeJson String
+  createdAt DateTime @default(now())
+}

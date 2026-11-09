@@ -5,7 +5,15 @@ import { VideoTrack, isTrackReference, useParticipants, useTracks } from "@livek
 import { Track } from "livekit-client";
 import { useMediaCues } from "@/components/MediaLayer";
 import { dedupeTracks } from "@/components/ShowComposition";
-import { LAYOUTS, clockElapsedMs, formatClock, type Team } from "@/lib/scene";
+import {
+  LAYOUTS,
+  THEME_PRESETS,
+  WEB_POSITIONS,
+  clockElapsedMs,
+  formatClock,
+  type CompetitionTheme,
+  type Team,
+} from "@/lib/scene";
 import { ImagePicker, UploadButton } from "./assets";
 import { useDirector } from "./context";
 
@@ -593,6 +601,181 @@ export function ObsPanel() {
           {obs ? "Nova chave RTMP" : "Criar entrada RTMP"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ competition theme
+
+type SavedTheme = { id: string; label: string; theme: CompetitionTheme };
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-neutral-400">
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-7 w-8 cursor-pointer bg-transparent" />
+      {label}
+    </label>
+  );
+}
+
+export function ThemePanel() {
+  const { slug, scenes, patch, assets, addAsset } = useDirector();
+  const theme = scenes.draft.scoreboard.theme;
+  const [saved, setSaved] = useState<SavedTheme[]>([]);
+  const [name, setName] = useState(theme.name);
+  const [opacity, setOpacity] = useState(theme.elementOpacity);
+  const setTheme = (t: Partial<CompetitionTheme>) => patch({ scoreboard: { theme: t } });
+
+  useEffect(() => {
+    fetch("/api/themes")
+      .then((r) => r.json())
+      .then((d) => setSaved(d.themes ?? []));
+  }, []);
+
+  function apply(t: CompetitionTheme) {
+    setName(t.name);
+    setOpacity(t.elementOpacity);
+    return patch({ scoreboard: { theme: t } });
+  }
+
+  async function save() {
+    const label = prompt("Nome do tema (ex: Paulistão 2026):", theme.name || "");
+    if (!label?.trim()) return;
+    const res = await fetch("/api/themes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, theme }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setSaved((list) => [...list, data.theme]);
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Apagar este tema salvo?")) return;
+    await fetch(`/api/themes?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    setSaved((list) => list.filter((t) => t.id !== id));
+  }
+
+  const chip = "rounded px-2 py-1 text-xs hover:brightness-125";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        {THEME_PRESETS.map((p) => (
+          <button key={p.label} onClick={() => apply(p.theme)} className={chip} style={{ background: p.theme.dark, color: p.theme.accent, border: `1px solid ${p.theme.accent}55` }}>
+            {p.label}
+          </button>
+        ))}
+        {saved.map((t) => (
+          <span key={t.id} className="group inline-flex items-center">
+            <button onClick={() => apply(t.theme)} className={`${chip} rounded-r-none`} style={{ background: t.theme.dark, color: t.theme.accent }}>
+              ★ {t.label}
+            </button>
+            <button onClick={() => remove(t.id)} className="rounded-r bg-neutral-800 px-1.5 py-1 text-xs text-neutral-500 hover:text-red-400">✕</button>
+          </span>
+        ))}
+      </div>
+
+      <input
+        className={`${input} w-full uppercase`}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => name !== theme.name && setTheme({ name })}
+        placeholder="Nome da competição no placar (ex: BRASILEIRÃO)"
+      />
+
+      <div className="flex flex-wrap gap-3">
+        <ColorField label="Fundo" value={theme.dark} onChange={(v) => setTheme({ dark: v })} />
+        <ColorField label="Faixas" value={theme.light} onChange={(v) => setTheme({ light: v })} />
+        <ColorField label="Destaque" value={theme.accent} onChange={(v) => setTheme({ accent: v })} />
+        {theme.clock ? (
+          <span className="flex items-center gap-1">
+            <ColorField label="Cronômetro" value={theme.clock} onChange={(v) => setTheme({ clock: v })} />
+            <button onClick={() => setTheme({ clock: null })} className="text-[10px] text-neutral-500 hover:text-neutral-300" title="Usar a cor do programa">↺</button>
+          </span>
+        ) : (
+          <button onClick={() => setTheme({ clock: theme.accent })} className="text-xs text-neutral-500 hover:text-neutral-300">
+            cronômetro: cor do programa (trocar)
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-xs text-neutral-400">Logo da competição</p>
+          <ImagePicker slug={slug} assets={assets} value={theme.logoUrl} onChange={(url) => setTheme({ logoUrl: url })} onUploaded={addAsset} />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-neutral-400">Elemento no placar (taça, bola, símbolo)</p>
+          <ImagePicker slug={slug} assets={assets} value={theme.elementUrl} onChange={(url) => setTheme({ elementUrl: url })} onUploaded={addAsset} />
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-xs text-neutral-400">
+        Intensidade do elemento
+        <input
+          type="range"
+          min={0}
+          max={0.6}
+          step={0.02}
+          value={opacity}
+          onChange={(e) => setOpacity(Number(e.target.value))}
+          onPointerUp={() => setTheme({ elementOpacity: opacity })}
+          onKeyUp={() => setTheme({ elementOpacity: opacity })}
+          className="flex-1"
+        />
+      </label>
+      <p className="text-[11px] text-neutral-500">Sem elemento enviado, o próprio logo vira a marca d&apos;água.</p>
+      <button className={btn} onClick={save}>Salvar como tema</button>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- web overlay
+
+export function WebPanel() {
+  const { scenes, patch } = useDirector();
+  const web = scenes.draft.web;
+  const [url, setUrl] = useState(web.url);
+  const [zoom, setZoom] = useState(web.zoom);
+  const validUrl = /^https:\/\/\S+$/.test(url.trim());
+
+  return (
+    <div className="space-y-3">
+      <input className={`${input} w-full`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… (link do widget do Sofascore, 365Scores…)" />
+      <div className="grid grid-cols-2 gap-2">
+        {WEB_POSITIONS.map((p) => (
+          <button key={p.position} onClick={() => patch({ web: { position: p.position } })} className={web.position === p.position ? btnOn : btn}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <label className="flex items-center gap-2 text-xs text-neutral-400">
+        Zoom {Math.round(zoom * 100)}%
+        <input
+          type="range"
+          min={0.3}
+          max={2}
+          step={0.05}
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          onPointerUp={() => patch({ web: { zoom } })}
+          onKeyUp={() => patch({ web: { zoom } })}
+          className="flex-1"
+        />
+      </label>
+      <div className="flex gap-2">
+        <button className={btnOn} disabled={!validUrl} onClick={() => patch({ web: { url: url.trim(), visible: true } })}>
+          Mostrar página
+        </button>
+        <button className={btn} disabled={!web.visible} onClick={() => patch({ web: { visible: false } })}>
+          Ocultar
+        </button>
+      </div>
+      <p className="text-[11px] text-neutral-500">
+        Use o link de &quot;widget&quot; ou &quot;incorporar&quot; do site. Alguns sites bloqueiam aparecer dentro de outra página e ficam em branco. Confira na prévia antes de cortar pro ar.
+      </p>
     </div>
   );
 }

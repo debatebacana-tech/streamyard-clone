@@ -16,6 +16,7 @@ import {
   formatClock,
   parseShowMetadata,
   type Clock,
+  type CompetitionTheme,
   type ProgramBranding,
   type Scene,
   type Team,
@@ -231,29 +232,61 @@ function Crest({ team, size }: { team: Team; size: number }) {
   );
 }
 
+function Watermark({ theme, className }: { theme: CompetitionTheme; className: string }) {
+  const src = theme.elementUrl ?? theme.logoUrl;
+  if (!src || theme.elementOpacity <= 0) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" className={`pointer-events-none absolute object-contain ${className}`} style={{ opacity: theme.elementOpacity }} />
+  );
+}
+
+function CompetitionTab({ theme, className = "" }: { theme: CompetitionTheme; className?: string }) {
+  if (!theme.name && !theme.logoUrl) return null;
+  return (
+    <div
+      className={`flex h-8 items-center gap-2 rounded-t-md px-3 text-lg whitespace-nowrap uppercase ${className}`}
+      style={{ ...CONDENSED, fontWeight: 700, background: theme.dark, color: theme.accent }}
+    >
+      {theme.logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={theme.logoUrl} alt="" className="h-6 w-auto object-contain" />
+      )}
+      {theme.name}
+    </div>
+  );
+}
+
 function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBranding }) {
-  const { home, away, clock } = scene.scoreboard;
+  const { home, away, clock, theme } = scene.scoreboard;
   const team = (t: Team) => (
-    <div className="flex items-center gap-2 px-3">
+    <div className="relative z-10 flex items-center gap-2 px-3">
       <Crest team={t} size={40} />
       <span className="text-3xl uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{t.name.slice(0, 3)}</span>
     </div>
   );
   return (
-    <div className="absolute top-6 left-6 flex h-14 items-stretch overflow-hidden rounded-lg shadow-2xl" style={{ background: "#fff", color: FRAME }}>
-      {team(home)}
-      <div className="flex items-center gap-2 px-4 text-4xl" style={{ ...DISPLAY, background: FRAME, color: "#fff" }}>
-        <span>{home.score}</span>
-        <span className="text-xl opacity-60">x</span>
-        <span>{away.score}</span>
-      </div>
-      {team(away)}
-      {clock.visible && (
-        <div className="flex flex-col items-center justify-center px-3 leading-none" style={{ background: branding.primaryColor, color: branding.accentColor }}>
-          <span className="text-3xl tabular-nums" style={DISPLAY}><ClockText clock={clock} /></span>
-          <span className="text-sm uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{clock.period}</span>
+    <div className="absolute top-6 left-6 flex flex-col items-start">
+      <CompetitionTab theme={theme} className="ml-2" />
+      <div className="relative flex h-14 items-stretch overflow-hidden rounded-lg shadow-2xl" style={{ background: theme.light, color: theme.dark, border: `3px solid ${theme.dark}` }}>
+        <Watermark theme={theme} className="top-1/2 left-1/2 h-[180%] -translate-x-1/2 -translate-y-1/2 -rotate-12" />
+        {team(home)}
+        <div className="relative z-10 flex items-center gap-2 px-4 text-4xl" style={{ ...DISPLAY, background: theme.dark, color: "#fff" }}>
+          <span>{home.score}</span>
+          <span className="text-xl" style={{ color: theme.accent }}>x</span>
+          <span>{away.score}</span>
         </div>
-      )}
+        {team(away)}
+        {clock.visible && (
+          <div
+            className="relative z-10 flex flex-col items-center justify-center px-3 leading-none"
+            style={{ background: theme.clock ?? branding.primaryColor, color: theme.clock ? "#fff" : branding.accentColor }}
+          >
+            <span className="text-3xl tabular-nums" style={DISPLAY}><ClockText clock={clock} /></span>
+            <span className="text-sm uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{clock.period}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -261,37 +294,85 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
 const BAR_H = 92;
 
 function ScoreboardBar({ scene, bottom }: { scene: Scene; bottom: number }) {
-  const { home, away, clock } = scene.scoreboard;
-  const name = (t: Team, align: "left" | "right") => (
+  const { home, away, clock, theme } = scene.scoreboard;
+  const name = (t: Team, side: "home" | "away") => (
     <div
-      className={`flex flex-1 items-center px-8 text-5xl uppercase ${align === "right" ? "justify-end" : ""}`}
-      style={{ ...DISPLAY, background: "#f4f1ea", color: FRAME }}
+      className={`relative flex flex-1 items-center overflow-hidden px-8 text-5xl uppercase ${side === "away" ? "justify-end" : ""}`}
+      style={{ ...DISPLAY, background: theme.light, color: theme.dark }}
     >
-      {t.name}
+      <Watermark
+        theme={theme}
+        className={`top-1/2 h-[190%] -translate-y-1/2 ${side === "home" ? "right-4 -rotate-12" : "left-4 rotate-12"}`}
+      />
+      <span className="relative z-10">{t.name}</span>
+    </div>
+  );
+  const crest = (t: Team, side: "home" | "away") => (
+    <div
+      className={`z-10 flex items-center justify-center rounded-full bg-white shadow-xl ${side === "home" ? "-mr-6" : "-ml-6"}`}
+      style={{ width: BAR_H + 12, height: BAR_H + 12, border: `4px solid ${theme.dark}` }}
+    >
+      <Crest team={t} size={BAR_H - 12} />
     </div>
   );
   return (
     <div className="absolute right-6 left-6 flex items-center" style={{ bottom, height: BAR_H }}>
-      <div className="z-10 -mr-6 flex items-center justify-center rounded-full bg-white shadow-xl" style={{ width: BAR_H + 12, height: BAR_H + 12 }}>
-        <Crest team={home} size={BAR_H - 8} />
-      </div>
-      <div className="flex h-[70px] flex-1 items-stretch overflow-hidden rounded-md shadow-2xl" style={{ border: `4px solid ${FRAME}` }}>
-        {name(home, "left")}
-        <div className="flex flex-col items-center justify-center px-6" style={{ background: FRAME, color: "#fff" }}>
-          <span className="text-5xl leading-none" style={DISPLAY}>
-            {home.score} <span className="text-2xl text-amber-300">vs</span> {away.score}
-          </span>
-          {clock.visible && (
-            <span className="text-lg tabular-nums uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>
-              <ClockText clock={clock} /> · {clock.period}
-            </span>
-          )}
+      {crest(home, "home")}
+      <div className="relative flex h-[70px] flex-1 items-stretch rounded-md shadow-2xl" style={{ border: `4px solid ${theme.dark}` }}>
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+          <CompetitionTab theme={theme} />
         </div>
-        {name(away, "right")}
+        <div className="flex flex-1 items-stretch overflow-hidden rounded-[3px]">
+          {name(home, "home")}
+          <div className="flex flex-col items-center justify-center px-6" style={{ background: theme.dark, color: "#fff" }}>
+            <span className="text-5xl leading-none" style={DISPLAY}>
+              {home.score} <span className="text-2xl" style={{ color: theme.accent }}>vs</span> {away.score}
+            </span>
+            {clock.visible && (
+              <span className="text-lg tabular-nums uppercase" style={{ ...CONDENSED, fontWeight: 700, color: theme.clock ?? "#fff" }}>
+                <ClockText clock={clock} /> · {clock.period}
+              </span>
+            )}
+          </div>
+          {name(away, "away")}
+        </div>
       </div>
-      <div className="z-10 -ml-6 flex items-center justify-center rounded-full bg-white shadow-xl" style={{ width: BAR_H + 12, height: BAR_H + 12 }}>
-        <Crest team={away} size={BAR_H - 8} />
-      </div>
+      {crest(away, "away")}
+    </div>
+  );
+}
+
+const SIDE_W = 340;
+
+// An embedded page (e.g. a live pitch widget). It's rendered at 1/zoom size and
+// scaled, so a widget designed for a big page can be shrunk to fit the slot.
+function WebOverlay({ scene, box }: { scene: Scene; box: Box }) {
+  const { url, position, zoom } = scene.web;
+  const rect =
+    position === "full"
+      ? { top: 0, left: 0, width: CANVAS_W, height: CANVAS_H }
+      : position === "center"
+        ? { top: 110, left: 190, width: 900, height: 500 }
+        : {
+            top: box.top,
+            left: position === "left" ? 24 : CANVAS_W - 24 - SIDE_W,
+            width: SIDE_W,
+            height: CANVAS_H - box.top - box.bottom,
+          };
+  const framed = position !== "full";
+  return (
+    <div
+      className={`absolute overflow-hidden bg-white ${framed ? "rounded-2xl" : ""}`}
+      style={{ ...rect, ...(framed && { border: `5px solid ${FRAME}`, boxShadow: "0 8px 24px rgba(0,0,0,.45)" }) }}
+    >
+      <iframe
+        src={url}
+        title="overlay"
+        sandbox="allow-scripts allow-same-origin allow-popups"
+        allow="autoplay"
+        className="origin-top-left border-0"
+        style={{ width: rect.width / zoom, height: rect.height / zoom, transform: `scale(${zoom})` }}
+      />
     </div>
   );
 }
@@ -417,15 +498,24 @@ export function ShowComposition({
   const gcOn = scene.gc.visible && scene.gc.title.trim() !== "";
   const barOn = scene.scoreboard.visible && scene.scoreboard.style === "bar";
   const bugOn = scene.scoreboard.visible && scene.scoreboard.style === "bug";
+  const themeTab = Boolean(scene.scoreboard.theme.name || scene.scoreboard.theme.logoUrl);
+  const webOn = scene.web.visible && scene.web.url !== "";
+  const side = webOn && (scene.web.position === "left" || scene.web.position === "right") ? scene.web.position : null;
 
   // Bottom-up stack: ticker, scoreboard bar, GC; the stage fills what's left.
   let y = tickerOn ? TICKER_H + 12 : 18;
   const barBottom = y;
-  if (barOn) y += BAR_H + 14;
+  if (barOn) y += BAR_H + (themeTab ? 36 : 14);
   const gcBottom = y;
   if (gcOn) y += GC_H + 22;
   const headerOn = scene.showLogo;
-  const box: Box = { top: headerOn ? 128 : bugOn ? 92 : 24, left: 24, right: 24, bottom: Math.max(y, 24) };
+  const top = headerOn ? 128 : bugOn ? (themeTab ? 124 : 92) : 24;
+  const box: Box = {
+    top,
+    left: side === "left" ? 24 + SIDE_W + 16 : 24,
+    right: side === "right" ? 24 + SIDE_W + 16 : 24,
+    bottom: Math.max(y, 24),
+  };
 
   return (
     <ScaledCanvas>
@@ -438,6 +528,7 @@ export function ShowComposition({
         }}
       >
         <Stage stage={stage} scene={scene} branding={branding} box={box} />
+        {webOn && <WebOverlay scene={scene} box={box} />}
         <Header scene={scene} branding={branding} bugOn={bugOn} />
         {bugOn && <ScoreboardBug scene={scene} branding={branding} />}
         {barOn && <ScoreboardBar scene={scene} bottom={barBottom} />}
