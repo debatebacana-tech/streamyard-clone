@@ -123,6 +123,52 @@ function Crest({ url, size = 32 }: { url: string | null; size?: number }) {
   );
 }
 
+// Type a few letters, pick the club: no long list to scroll.
+function ClubSearch({ clubs, placeholder, onPick }: { clubs: Club[]; placeholder: string; onPick: (club: Club) => void }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const results = q.trim() ? clubs.filter((c) => norm(`${c.name} ${c.short}`).includes(norm(q.trim()))).slice(0, 8) : [];
+  const choose = (c: Club) => {
+    onPick(c);
+    setQ("");
+    setOpen(false);
+  };
+  return (
+    <div className="relative min-w-0 flex-1">
+      <input
+        className={`${input} w-full`}
+        value={q}
+        placeholder={placeholder}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && results[0]) choose(results[0]);
+          if (e.key === "Escape") setOpen(false);
+        }}
+      />
+      {open && q.trim() && (
+        <ul className="absolute z-30 mt-1 w-full overflow-hidden rounded-md border border-neutral-700 bg-neutral-900 shadow-2xl">
+          {results.length === 0 && <li className="px-3 py-2 text-xs text-neutral-500">Nenhum clube com esse nome</li>}
+          {results.map((c) => (
+            <li key={c.id}>
+              <button onMouseDown={(e) => e.preventDefault()} onClick={() => choose(c)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-800">
+                <Crest url={c.crestUrl} size={22} />
+                {c.name}
+                {c.short && <span className="text-xs text-neutral-500">{c.short}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ClubsPanel() {
   const { slug, scenes, patch, addAsset } = useDirector();
   const sendCue = useMediaCues();
@@ -169,25 +215,19 @@ export function ClubsPanel() {
       <span className="text-xs text-neutral-400">{side === "home" ? "Casa" : "Visitante"}</span>
       <div className="flex items-center gap-2">
         <Crest url={(side === "home" ? home : away)?.crestUrl ?? sb[side].crestUrl} />
-        <select
-          className={`${input} min-w-0 flex-1`}
-          // Always "choose": picking the club already named still re-applies crest and color.
-          value=""
-          onChange={(e) => setTeam(side, clubs.find((c) => c.id === e.target.value))}
-        >
-          <option value="">{sb[side].name ? `${sb[side].name} (no placar) — trocar…` : "— escolha o clube —"}</option>
-          {clubs.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="truncate text-sm font-semibold">{sb[side].name || "—"}</p>
+          <ClubSearch clubs={clubs} placeholder="Pesquisar e trocar o clube..." onPick={(c) => setTeam(side, c)} />
+        </div>
       </div>
       {(side === "home" ? home : away) && <ClubMediaButtons club={(side === "home" ? home : away)!} labels />}
     </div>
   );
 
-  const shown = clubs.filter((c) => c.name.toLowerCase().includes(filter.toLowerCase()));
+  // The library stays closed: search a club to edit it (the game's clubs show by default).
+  const shown = filter
+    ? clubs.filter((c) => c.id === filter)
+    : [home, away].filter((c): c is Club => c !== null && c !== undefined);
 
   return (
     <div className="space-y-4">
@@ -230,11 +270,20 @@ export function ClubsPanel() {
           </button>
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
-        {clubs.length > 8 && <input className={`${input} w-full`} placeholder="Procurar clube..." value={filter} onChange={(e) => setFilter(e.target.value)} />}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-neutral-400">Editar clube (vinheta, hino, escudo):</span>
+          <ClubSearch clubs={clubs} placeholder={`Pesquisar entre ${clubs.length} clubes salvos...`} onPick={(c) => setFilter(c.id)} />
+          {filter && (
+            <button className={small} onClick={() => setFilter("")}>
+              fechar
+            </button>
+          )}
+        </div>
       </div>
 
       <ul className="max-h-[480px] space-y-1 overflow-y-auto">
         {clubs.length === 0 && <li className="text-sm text-neutral-500">Nenhum clube salvo ainda. Importe os times de um campeonato ou adicione um por um.</li>}
+        {clubs.length > 0 && shown.length === 0 && <li className="text-xs text-neutral-500">Pesquise um clube acima para enviar vinheta, hino ou escudo.</li>}
         {shown.map((c) => (
           <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-md bg-neutral-900 px-2 py-1.5 text-sm">
             <Crest url={c.crestUrl} />

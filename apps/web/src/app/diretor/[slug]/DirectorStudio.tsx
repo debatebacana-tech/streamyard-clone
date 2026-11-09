@@ -185,25 +185,25 @@ function Desk() {
   const { config, save } = useProgramConfig();
   const football = branding.format === "futebol";
   const scoreboard = scoreboardEnabled(config, branding.format);
-  const [tab, setTab] = useState<TabId>(football ? "placar" : "cena");
+  const [tab, setTab] = useState<TabId>("cena");
 
-  const tabs: { id: TabId; label: string }[] = [
-    ...(football ? [{ id: "placar" as const, label: "Placar" }, { id: "rodada" as const, label: "Rodada e tabela" }] : []),
-    { id: "cena", label: "Cena" },
-    { id: "chat", label: "Chat" },
-    { id: "midia", label: "Foto e vídeo" },
-    { id: "twitter", label: "Twitter" },
-    { id: "grafismos", label: "Textos e grafismos" },
-    { id: "tier", label: "Tier list" },
-    ...(!football && scoreboard
+  // In the order the team uses them most.
+  const tabs: { id: TabId; label: string; icon: string }[] = [
+    { id: "cena", label: "Cenas", icon: "🎬" },
+    { id: "audio", label: "Áudios", icon: "🔊" },
+    { id: "chat", label: "Chat", icon: "💬" },
+    ...(scoreboard
       ? [
-          { id: "placar" as const, label: "Placar" },
-          { id: "rodada" as const, label: "Rodada e tabela" },
+          { id: "placar" as const, label: "Placar", icon: "⚽" },
+          { id: "rodada" as const, label: "Rodada e tabela", icon: "🏆" },
         ]
       : []),
-    { id: "audio", label: "Áudio" },
-    { id: "roteiro", label: "Roteiro" },
-    { id: "ajustes", label: "Ajustes" },
+    { id: "grafismos", label: "Textos", icon: "🅰️" },
+    { id: "midia", label: "Foto e vídeo", icon: "🖼️" },
+    { id: "tier", label: "Tier list", icon: "📊" },
+    { id: "twitter", label: "Twitter", icon: "𝕏" },
+    { id: "roteiro", label: "Roteiro", icon: "🗂️" },
+    { id: "ajustes", label: "Ajustes", icon: "⚙️" },
   ];
   const active = tabs.some((t) => t.id === tab) ? tab : "cena";
   const [help, setHelp] = useState(false);
@@ -220,30 +220,53 @@ function Desk() {
   }, []);
 
   const header = (
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <Link href="/diretor" className="text-sm text-neutral-400 hover:text-neutral-200">← Programas</Link>
-        <span className="flex items-center gap-[3px]">
-          <span className="h-1 w-5 bg-[#DFFF00]" />
-          <span className="h-1 w-1 bg-[#DFFF00]" />
-          <span className="h-1 w-1 bg-[#DFFF00]" />
+    <header className="studio-bar flex flex-wrap items-center justify-between gap-3 px-4 py-2">
+      <div className="flex items-center gap-4">
+        <Link href="/diretor" className="flex items-center gap-3" title="Todos os programas">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/debate-bacana.png" alt="Debate Bacana" className="h-12 w-auto drop-shadow-[0_0_12px_rgba(174,223,2,0.35)]" />
+        </Link>
+        <span className="h-10 w-px bg-white/15" />
+        <div className="leading-tight">
+          <Link href="/diretor" className="text-[11px] tracking-widest text-neutral-500 uppercase hover:text-neutral-300">
+            ← Programas
+          </Link>
+          <h1 className="text-2xl leading-none uppercase" style={{ fontFamily: "var(--font-display), Impact, sans-serif" }}>
+            {branding.name}
+          </h1>
+        </div>
+        <span className="hidden items-center gap-[3px] md:flex">
+          <span className="h-1 w-6 rounded-full bg-[var(--db-lime)]" />
+          <span className="h-1 w-1 rounded-full bg-[var(--db-lime)]" />
+          <span className="h-1 w-1 rounded-full bg-[var(--db-lime)]" />
         </span>
-        <h1 className="text-xl font-bold">{branding.name}</h1>
-        <button onClick={() => setHelp(true)} className="rounded-full border border-neutral-700 px-2 text-xs text-neutral-400 hover:text-white" title="Atalhos de teclado (?)">
+      </div>
+      <div className="flex items-center gap-3">
+        <a
+          href={`/controle/${slug}`}
+          target="_blank"
+          className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:border-[var(--db-lime)] hover:text-white"
+          title="Abra no celular: botões grandes de sons, placar e cenas"
+        >
+          📱 Controle no celular
+        </a>
+        <button
+          onClick={() => setHelp(true)}
+          className="h-8 w-8 rounded-full border border-white/10 text-sm text-neutral-300 hover:border-[var(--db-lime)] hover:text-white"
+          title="Atalhos de teclado (?)"
+        >
           ?
         </button>
-        <a href={`/controle/${slug}`} target="_blank" className="text-xs text-neutral-400 underline hover:text-white" title="Abra no celular: botões grandes de sons, placar e cenas">
-          📱 controle no celular
-        </a>
+        <LiveControl slug={slug} />
       </div>
-      <LiveControl slug={slug} />
     </header>
   );
 
   const helpModal = help && <ShortcutsHelp onClose={() => setHelp(false)} />;
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] flex-1 space-y-4 p-4">
+    <div className="studio-bg min-h-full w-full flex-1">
+    <div className="mx-auto w-full max-w-[1500px] space-y-4 p-4">
       {header}
       {helpModal}
 
@@ -254,15 +277,18 @@ function Desk() {
       <HotSoundsBar always={football} />
       <BoardAutoRefresh />
 
-      <nav className="flex flex-wrap gap-1 border-b border-neutral-800">
+      <nav className="studio-bar flex flex-wrap gap-1.5 p-1.5">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${
-              active === t.id ? "border-[#DFFF00] text-white" : "border-transparent text-neutral-400 hover:text-neutral-200"
+            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
+              active === t.id
+                ? "bg-[var(--db-lime)] text-black shadow-[0_0_18px_rgba(174,223,2,0.35)]"
+                : "text-neutral-400 hover:bg-white/5 hover:text-white"
             }`}
           >
+            <span className="text-base leading-none">{t.icon}</span>
             {t.label}
           </button>
         ))}
@@ -385,6 +411,7 @@ function Desk() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

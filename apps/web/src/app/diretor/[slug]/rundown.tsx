@@ -65,8 +65,8 @@ export function RundownBar() {
   }
 
   return (
-    <div className="flex flex-wrap items-stretch gap-2 rounded-lg border border-neutral-800 bg-neutral-900/60 p-2">
-      <span className="flex items-center px-2 text-xs font-bold tracking-widest text-neutral-500">ROTEIRO</span>
+    <div className="studio-bar flex flex-wrap items-stretch gap-2 p-2">
+      <span className="studio-label flex items-center px-2 text-base">ROTEIRO</span>
       {STEPS.map(({ step, label, hint }, i) => {
         const on = current === step;
         return (

@@ -78,8 +78,8 @@ export function HotSoundsBar({ always }: { always: boolean }) {
   if (!config || (!always && !sounds.some((s) => s.url) && !game.length && !editing)) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/60 p-2">
-      <span className="px-2 text-xs font-bold tracking-widest text-neutral-500">DESTAQUES</span>
+    <div className="studio-bar flex flex-wrap items-center gap-2 p-2">
+      <span className="studio-label px-2 text-base">DESTAQUES</span>
       {sounds.map((s, i) =>
         editing ? (
           <span key={s.id} className="flex items-center gap-1 rounded-md bg-neutral-800 p-1">

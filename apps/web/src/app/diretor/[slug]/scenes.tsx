@@ -67,8 +67,8 @@ export function ScenesBar() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/60 p-2">
-      <span className="px-2 text-xs font-bold tracking-widest text-neutral-500">CENAS</span>
+    <div className="studio-bar flex flex-wrap items-center gap-2 p-2">
+      <span className="studio-label px-2 text-base">CENAS</span>
       {list.map((s, i) => {
         const inPreview = matchesSavedScene(scenes.draft, s);
         const onAir = matchesSavedScene(scenes.live, s);

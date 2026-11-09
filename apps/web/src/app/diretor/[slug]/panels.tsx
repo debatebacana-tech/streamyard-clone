@@ -24,9 +24,12 @@ const btnOn = "rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium hover:bg-re
 
 export function Panel({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
   return (
-    <section className="space-y-3 rounded-lg border border-neutral-800 bg-neutral-900/60 p-4">
+    <section className="studio-bar space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold tracking-wide text-neutral-300 uppercase">{title}</h2>
+        <h2 className="flex items-center gap-2 text-lg leading-none uppercase" style={{ fontFamily: "var(--font-display), Impact, sans-serif", letterSpacing: "0.04em" }}>
+          <span className="h-4 w-1.5 rounded-full bg-[var(--db-lime)]" />
+          {title}
+        </h2>
         {right}
       </div>
       {children}
@@ -845,8 +848,8 @@ export function QuickScore() {
   );
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-[#DFFF00]/40 bg-neutral-900 px-4 py-2">
-      <span className="text-xs font-bold tracking-widest text-[#DFFF00]">PLACAR</span>
+    <div className="flex flex-wrap items-center justify-between gap-4 studio-bar px-4 py-2 !border-[rgba(174,223,2,0.4)]">
+      <span className="studio-label text-base">PLACAR</span>
       {team("home")}
       <div className="flex items-center gap-2">
         <LiveClock />
