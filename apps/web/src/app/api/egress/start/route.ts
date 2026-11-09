@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ egressId: egressInfo.egressId });
   } catch (error) {
     console.error("Failed to start egress", error);
-    return NextResponse.json({ error: "Falha ao iniciar a transmissão" }, { status: 502 });
+    const detail = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: `Falha ao iniciar a transmissão: ${detail}` }, { status: 502 });
   }
 }

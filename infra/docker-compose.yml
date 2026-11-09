@@ -18,6 +18,14 @@ services:
     depends_on:
       - redis
 
+  egress-config:
+    image: alpine:3
+    command: sh -c "cat /in/egress.yaml /in/egress.extra.yaml > /out/egress.yaml"
+    volumes:
+      - ./egress.yaml:/in/egress.yaml:ro
+      - ./egress.extra.yaml:/in/egress.extra.yaml:ro
+      - egress-config:/out
+
   egress:
     image: livekit/egress:latest
     restart: unless-stopped
@@ -25,16 +33,20 @@ services:
     cap_add:
       - SYS_ADMIN
     environment:
-      - EGRESS_CONFIG_FILE=/etc/egress.yaml
+      - EGRESS_CONFIG_FILE=/etc/egress/egress.yaml
     volumes:
-      - ./egress.yaml:/etc/egress.yaml:ro
+      - egress-config:/etc/egress:ro
       - egress-tmp:/tmp/livekit-egress
     # No published ports: Egress only makes outbound connections (to
     # LiveKit's ws, to the web app's layout-view page, and to YouTube's
     # RTMP ingest), reached by service name on the default compose network.
     depends_on:
-      - redis
-      - livekit
+      redis:
+        condition: service_started
+      livekit:
+        condition: service_started
+      egress-config:
+        condition: service_completed_successfully
 
   web:
     build:
@@ -73,5 +85,6 @@ volumes:
   redis-data:
   web-data:
   egress-tmp:
+  egress-config:
   caddy-data:
   caddy-config:
