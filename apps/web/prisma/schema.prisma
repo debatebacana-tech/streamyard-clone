@@ -80,3 +80,16 @@ model SavedTheme {
   themeJson String
   createdAt DateTime @default(now())
 }
+
+// Clubs saved once and reused in every match (shared by all programs): crest,
+// color, and the club's stinger video and anthem played before kickoff.
+model Club {
+  id         String   @id @default(cuid())
+  name       String
+  short      String   @default("")
+  color      String   @default("#1E3A8A")
+  crestUrl   String?
+  vinhetaUrl String?
+  anthemUrl  String?
+  createdAt  DateTime @default(now())
+}

@@ -31,6 +31,7 @@ import { BoardAutoRefresh, BoardPanel } from "./board";
 import { TierListPanel } from "./tierlist";
 import { TwitterPanel } from "./twitter";
 import { MediaPanel } from "./media";
+import { ClubsPanel } from "./clubs";
 import { ChatTab } from "./chat";
 
 function clientId(): string {
@@ -269,13 +270,18 @@ function Desk() {
       )}
 
       {active === "placar" && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Panel title="Placar e cronômetro">
-            <ScoreboardPanel />
+        <div className="space-y-4">
+          <Panel title="Clubes — escudo, vinheta e hino">
+            <ClubsPanel />
           </Panel>
-          <Panel title="Competição">
-            <ThemePanel />
-          </Panel>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Panel title="Placar e cronômetro">
+              <ScoreboardPanel />
+            </Panel>
+            <Panel title="Competição">
+              <ThemePanel />
+            </Panel>
+          </div>
         </div>
       )}
 

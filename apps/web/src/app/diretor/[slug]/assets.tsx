@@ -12,7 +12,7 @@ export type AssetItem = {
   size: number;
 };
 
-export async function uploadAsset(slug: string, file: File, role?: "trilha" | "efeito" | "arte" | "midia"): Promise<AssetItem> {
+export async function uploadAsset(slug: string, file: File, role?: "trilha" | "efeito" | "arte" | "midia" | "clube"): Promise<AssetItem> {
   const form = new FormData();
   form.append("file", file);
   if (role) form.append("role", role);
@@ -33,7 +33,7 @@ export function UploadButton({
   slug: string;
   accept: string;
   label?: string;
-  role?: "trilha" | "efeito" | "arte" | "midia";
+  role?: "trilha" | "efeito" | "arte" | "midia" | "clube";
   onUploaded: (asset: AssetItem) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);

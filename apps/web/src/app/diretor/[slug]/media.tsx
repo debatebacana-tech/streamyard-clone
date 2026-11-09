@@ -34,7 +34,7 @@ export function MediaPanel() {
   const { slug, scenes, patch, assets, addAsset, removeAsset } = useDirector();
   const live = scenes.live.media;
   const [filter, setFilter] = useState<"all" | "image" | "video">("all");
-  const library = assets.filter((a) => (a.kind === "image" || a.kind === "video") && (filter === "all" || a.kind === filter));
+  const library = assets.filter((a) => (a.kind === "image" || a.kind === "video") && a.role !== "clube" && (filter === "all" || a.kind === filter));
   const air = (media: Partial<ProjectedMedia>) => patch({ media }, { air: true });
   const onAir = live.visible ? live.url : null;
   const paused = live.pausedAt !== null;
