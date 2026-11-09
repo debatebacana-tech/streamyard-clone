@@ -7,6 +7,7 @@ import { useMediaCues } from "@/components/MediaLayer";
 import { dedupeTracks } from "@/components/ShowComposition";
 import {
   LAYOUTS,
+  SCOREBOARD_VARIANTS,
   THEME_PRESETS,
   WEB_POSITIONS,
   clockElapsedMs,
@@ -676,6 +677,23 @@ export function ThemePanel() {
             <button onClick={() => remove(t.id)} className="rounded-r bg-neutral-800 px-1.5 py-1 text-xs text-neutral-500 hover:text-red-400">✕</button>
           </span>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          className={input}
+          value={theme.variant}
+          onChange={(e) => setTheme({ variant: e.target.value as CompetitionTheme["variant"] })}
+          title="Desenho do placar no estilo selo"
+        >
+          {SCOREBOARD_VARIANTS.map((v) => (
+            <option key={v.variant} value={v.variant}>Desenho: {v.label}</option>
+          ))}
+        </select>
+        <label className="flex items-center gap-1.5 text-sm text-neutral-300">
+          <input type="checkbox" checked={theme.crests} onChange={(e) => setTheme({ crests: e.target.checked })} />
+          escudos no lugar das siglas
+        </label>
       </div>
 
       <input

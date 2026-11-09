@@ -257,14 +257,32 @@ function CompetitionTab({ theme, className = "" }: { theme: CompetitionTheme; cl
   );
 }
 
-function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBranding }) {
+function abbr(t: Team) {
+  return t.name.slice(0, 3).toUpperCase();
+}
+
+// Team identity inside a scoreboard: crest or 3-letter abbreviation.
+function TeamMark({ team, theme, size, className = "text-3xl" }: { team: Team; theme: CompetitionTheme; size: number; className?: string }) {
+  return theme.crests ? (
+    <Crest team={team} size={size} />
+  ) : (
+    <span className={`uppercase ${className}`} style={{ ...CONDENSED, fontWeight: 700 }}>{abbr(team)}</span>
+  );
+}
+
+function clockColors(theme: CompetitionTheme, branding: ProgramBranding) {
+  return { bg: theme.clock ?? branding.primaryColor, fg: theme.clock ? "#fff" : branding.accentColor };
+}
+
+function ClassicBug({ scene, branding }: { scene: Scene; branding: ProgramBranding }) {
   const { home, away, clock, theme } = scene.scoreboard;
   const team = (t: Team) => (
     <div className="relative z-10 flex items-center gap-2 px-3">
       <Crest team={t} size={40} />
-      <span className="text-3xl uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{t.name.slice(0, 3)}</span>
+      {!theme.crests && <span className="text-3xl uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{abbr(t)}</span>}
     </div>
   );
+  const c = clockColors(theme, branding);
   return (
     <div className="absolute top-6 left-6 flex flex-col items-start">
       <CompetitionTab theme={theme} className="ml-2" />
@@ -278,10 +296,7 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
         </div>
         {team(away)}
         {clock.visible && (
-          <div
-            className="relative z-10 flex flex-col items-center justify-center px-3 leading-none"
-            style={{ background: theme.clock ?? branding.primaryColor, color: theme.clock ? "#fff" : branding.accentColor }}
-          >
+          <div className="relative z-10 flex flex-col items-center justify-center px-3 leading-none" style={{ background: c.bg, color: c.fg }}>
             <span className="text-3xl tabular-nums" style={DISPLAY}><ClockText clock={clock} /></span>
             <span className="text-sm uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>{clock.period}</span>
           </div>
@@ -289,6 +304,141 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
       </div>
     </div>
   );
+}
+
+// Brasileirão / Copa do Brasil broadcast look: gradient blocks, the
+// competition logo breaking out of the bar in the middle, dark clock block.
+function BrBug({ scene }: { scene: Scene }) {
+  const { home, away, clock, theme } = scene.scoreboard;
+  const SANS: CSSProperties = { fontFamily: "var(--font-geist-sans), Arial, sans-serif" };
+  const block = (t: Team, side: "home" | "away") => (
+    <div
+      className={`flex h-full w-[190px] items-center justify-between px-4 text-white ${side === "away" ? "flex-row-reverse" : ""}`}
+      style={{ background: `linear-gradient(90deg, ${side === "home" ? theme.dark : theme.light}, ${side === "home" ? theme.light : theme.dark})` }}
+    >
+      <TeamMark team={t} theme={theme} size={46} className="text-4xl" />
+      <span className="text-5xl tabular-nums" style={SANS}>{t.score}</span>
+    </div>
+  );
+  return (
+    <div className="absolute top-8 left-6 flex h-[64px] items-stretch shadow-2xl">
+      <span className="w-1.5 bg-white" />
+      {block(home, "home")}
+      <div className="relative w-[104px]" style={{ background: theme.light }}>
+        <div className="absolute -top-6 left-1/2 flex -translate-x-1/2 flex-col items-center">
+          {theme.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={theme.logoUrl} alt="" className="h-[96px] w-auto max-w-[120px] object-contain drop-shadow-lg" />
+          ) : (
+            <span className="mt-6 h-12 w-12 rounded-full" style={{ background: theme.accent }} />
+          )}
+          {theme.name && (
+            <span className="mt-0.5 text-xs tracking-wider whitespace-nowrap text-white uppercase" style={{ ...SANS, fontWeight: 800 }}>
+              {theme.name}
+            </span>
+          )}
+        </div>
+      </div>
+      {block(away, "away")}
+      {clock.visible && (
+        <div className="flex flex-col items-center justify-center px-5 leading-none text-white" style={{ background: theme.clock ?? theme.dark, borderLeft: `3px solid ${theme.light}` }}>
+          <span className="text-5xl tabular-nums" style={SANS}><ClockText clock={clock} /></span>
+          <span className="mt-1 text-xs uppercase opacity-70" style={{ ...SANS, fontWeight: 700 }}>{clock.period}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Champions League look: slim bar, logo and clock in light boxes, teams on a
+// deep gradient, colored end stripe.
+function UclBug({ scene }: { scene: Scene }) {
+  const { home, away, clock, theme } = scene.scoreboard;
+  const SANS: CSSProperties = { fontFamily: "var(--font-geist-sans), Arial, sans-serif" };
+  const sep = <span className="h-5 w-px self-center bg-white/30" />;
+  return (
+    <div className="absolute top-8 left-6 flex h-[46px] items-stretch shadow-2xl" style={SANS}>
+      <div className="flex w-[46px] items-center justify-center" style={{ background: theme.dark }}>
+        {theme.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={theme.logoUrl} alt="" className="h-9 w-9 object-contain" />
+        ) : (
+          <span className="h-6 w-6 rounded-full border-2 border-white" />
+        )}
+      </div>
+      {clock.visible && (
+        <div className="flex items-center gap-2 px-3 text-3xl tabular-nums" style={{ background: theme.clock ?? theme.light, color: theme.dark }}>
+          <ClockText clock={clock} />
+          <span className="text-xs font-bold uppercase opacity-60">{clock.period}</span>
+        </div>
+      )}
+      <span className="w-1.5 bg-white" />
+      <div className="flex items-center gap-4 px-4 text-3xl text-white" style={{ background: `linear-gradient(90deg, ${theme.dark}, ${theme.dark}cc 50%, ${theme.dark})` }}>
+        <TeamMark team={home} theme={theme} size={34} className="text-3xl" />
+        {sep}
+        <span className="tabular-nums">{home.score}</span>
+        {sep}
+        <span className="tabular-nums">{away.score}</span>
+        {sep}
+        <TeamMark team={away} theme={theme} size={34} className="text-3xl" />
+      </div>
+      <span className="w-1.5" style={{ background: theme.accent }} />
+    </div>
+  );
+}
+
+// Conmebol (Libertadores / Sul-Americana) look: dark capsules with a metallic
+// rim, the trophy between the scores and the clock in its own capsule.
+function ConmebolBug({ scene }: { scene: Scene }) {
+  const { home, away, clock, theme } = scene.scoreboard;
+  const rim = `linear-gradient(180deg, ${theme.accent}, #fff8 45%, ${theme.accent} 55%, ${theme.accent}99)`;
+  const capsule = "flex h-[52px] items-center rounded-full p-[3px] shadow-2xl";
+  const inner = "flex h-full items-center rounded-full";
+  return (
+    <div className="absolute top-8 left-6 flex items-center gap-3">
+      <div className={capsule} style={{ background: rim }}>
+        <div className={`${inner} gap-3 pr-2 pl-6 text-white`} style={{ background: theme.dark }}>
+          <TeamMark team={home} theme={theme} size={38} className="text-4xl" />
+          <span className="w-8 text-center text-4xl" style={DISPLAY}>{home.score}</span>
+          <div className="relative flex h-full w-12 items-center justify-center">
+            {theme.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={theme.logoUrl} alt="" className="h-[64px] w-auto object-contain drop-shadow" />
+            ) : (
+              <span className="h-full w-1 rounded" style={{ background: theme.accent }} />
+            )}
+          </div>
+          <span className="w-8 text-center text-4xl" style={DISPLAY}>{away.score}</span>
+          <TeamMark team={away} theme={theme} size={38} className="text-4xl" />
+          <span className="w-4" />
+        </div>
+      </div>
+      {clock.visible && (
+        <div className={capsule} style={{ background: rim }}>
+          <div className={`${inner} gap-2 px-5 text-white`} style={{ background: theme.clock ?? theme.dark }}>
+            <span className="text-3xl tabular-nums" style={DISPLAY}><ClockText clock={clock} /></span>
+            <span className="text-xs uppercase opacity-70" style={{ ...CONDENSED, fontWeight: 700 }}>{clock.period}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Widths the header must clear to stay centered beside each corner design.
+const BUG_W: Record<CompetitionTheme["variant"], number> = { classic: 440, br: 640, ucl: 470, conmebol: 520 };
+
+function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBranding }) {
+  switch (scene.scoreboard.theme.variant) {
+    case "br":
+      return <BrBug scene={scene} />;
+    case "ucl":
+      return <UclBug scene={scene} />;
+    case "conmebol":
+      return <ConmebolBug scene={scene} />;
+    default:
+      return <ClassicBug scene={scene} branding={branding} />;
+  }
 }
 
 const BAR_H = 92;
@@ -426,7 +576,7 @@ function Ticker({ scene, branding }: { scene: Scene; branding: ProgramBranding }
 function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBranding; bugOn: boolean }) {
   const sponsorOn = scene.sponsor.visible && scene.sponsor.imageUrl;
   // Center the title in the space the scoreboard bug and sponsor leave free.
-  const left = bugOn ? 470 : sponsorOn ? 200 : 24;
+  const left = bugOn ? 24 + BUG_W[scene.scoreboard.theme.variant] + 12 : sponsorOn ? 200 : 24;
   const right = sponsorOn ? 200 : 24;
   return (
     <>

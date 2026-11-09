@@ -26,7 +26,20 @@ export type Clock = {
 
 // Colors/branding of the competition the scoreboard belongs to. clock null =
 // use the program's primary color (the original look, kept as "Padrão").
+// Scoreboard designs for the corner ("selo") style.
+export type ScoreboardVariant = "classic" | "br" | "ucl" | "conmebol";
+
+export const SCOREBOARD_VARIANTS: { variant: ScoreboardVariant; label: string }[] = [
+  { variant: "classic", label: "Clássico" },
+  { variant: "br", label: "Brasileirão" },
+  { variant: "ucl", label: "Champions" },
+  { variant: "conmebol", label: "Conmebol (cápsula)" },
+];
+
 export type CompetitionTheme = {
+  variant: ScoreboardVariant;
+  // Show team crests instead of the 3-letter abbreviations.
+  crests: boolean;
   name: string;
   logoUrl: string | null;
   // Decorative piece of the competition's identity (trophy, ball, symbol)
@@ -40,6 +53,8 @@ export type CompetitionTheme = {
 };
 
 export const DEFAULT_THEME: CompetitionTheme = {
+  variant: "classic",
+  crests: false,
   name: "",
   logoUrl: null,
   elementUrl: null,
@@ -54,12 +69,12 @@ export const DEFAULT_THEME: CompetitionTheme = {
 // editable; logos are uploaded by the team.
 export const THEME_PRESETS: { label: string; theme: CompetitionTheme }[] = [
   { label: "Padrão", theme: DEFAULT_THEME },
-  { label: "Brasileirão", theme: { name: "BRASILEIRÃO", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#062e1f", light: "#f4f1ea", accent: "#ffd400", clock: "#00a859" } },
-  { label: "Libertadores", theme: { name: "LIBERTADORES", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0b0b0b", light: "#f5f0e1", accent: "#d4af37", clock: "#b8902c" } },
-  { label: "Sul-Americana", theme: { name: "SUL-AMERICANA", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#1b1b3a", light: "#f4f1ea", accent: "#f2c94c", clock: "#2f6fd6" } },
-  { label: "Copa do Brasil", theme: { name: "COPA DO BRASIL", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0a2463", light: "#f4f6fb", accent: "#ffd60a", clock: "#1e6fd9" } },
-  { label: "Champions", theme: { name: "CHAMPIONS LEAGUE", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#0b1d51", light: "#eef2ff", accent: "#9fb4ff", clock: "#1f3fae" } },
-  { label: "Estadual", theme: { name: "ESTADUAL", logoUrl: null, elementUrl: null, elementOpacity: 0.18, dark: "#111111", light: "#ffffff", accent: "#e30613", clock: "#e30613" } },
+  { label: "Brasileirão", theme: { ...DEFAULT_THEME, variant: "br", crests: true, name: "BRASILEIRÃO", dark: "#5a6c9b", light: "#3aa6a0", accent: "#c8ff00", clock: "#0c1338" } },
+  { label: "Copa do Brasil", theme: { ...DEFAULT_THEME, variant: "br", crests: true, name: "COPA DO BRASIL", dark: "#0b3a8a", light: "#14904c", accent: "#ffd60a", clock: "#061638" } },
+  { label: "Champions", theme: { ...DEFAULT_THEME, variant: "ucl", name: "CHAMPIONS LEAGUE", dark: "#0b1a7a", light: "#e8edf5", accent: "#e11d48", clock: "#e8edf5" } },
+  { label: "Libertadores", theme: { ...DEFAULT_THEME, variant: "conmebol", name: "LIBERTADORES", dark: "#0b0b0b", light: "#ffffff", accent: "#d4af37", clock: "#0b0b0b" } },
+  { label: "Sul-Americana", theme: { ...DEFAULT_THEME, variant: "conmebol", name: "SUL-AMERICANA", dark: "#0b2a6f", light: "#ffffff", accent: "#d4af37", clock: "#0b2a6f" } },
+  { label: "Estadual", theme: { ...DEFAULT_THEME, name: "ESTADUAL", dark: "#111111", light: "#ffffff", accent: "#e30613", clock: "#e30613" } },
 ];
 
 export type WebPosition = "left" | "right" | "center" | "full";
@@ -142,10 +157,14 @@ function color(value: unknown, fallback: string): string {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
 }
 
+const VARIANT_SET = new Set<string>(SCOREBOARD_VARIANTS.map((v) => v.variant));
+
 export function normalizeTheme(input: unknown): CompetitionTheme {
   const t = obj(input);
   const d = DEFAULT_THEME;
   return {
+    variant: typeof t.variant === "string" && VARIANT_SET.has(t.variant) ? (t.variant as ScoreboardVariant) : d.variant,
+    crests: bool(t.crests, d.crests),
     name: str(t.name, 40, d.name),
     logoUrl: url(t.logoUrl),
     elementUrl: url(t.elementUrl),
