@@ -323,7 +323,7 @@ export type ProgramBranding = {
 
 // The program's transition between scenes: its own video (null = built-in wipe).
 export type TransitionConfig = { enabled: boolean; mediaUrl: string | null; cutMs: number };
-export const DEFAULT_TRANSITION: TransitionConfig = { enabled: true, mediaUrl: null, cutMs: 450 };
+export const DEFAULT_TRANSITION: TransitionConfig = { enabled: true, mediaUrl: null, cutMs: 520 };
 
 // sounds: quick-sound files every output keeps preloaded (pads play instantly).
 export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[]; transition?: TransitionConfig; sounds?: string[] };
