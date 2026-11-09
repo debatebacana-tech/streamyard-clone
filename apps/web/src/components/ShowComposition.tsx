@@ -362,25 +362,22 @@ function Crest({ team, size }: { team: Team; size: number }) {
   );
 }
 
-function Watermark({ theme, className }: { theme: CompetitionTheme; className: string }) {
-  const src = theme.elementUrl ?? theme.logoUrl;
-  if (!src || theme.elementOpacity <= 0) return null;
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" className={`pointer-events-none absolute object-contain ${className}`} style={{ opacity: theme.elementOpacity }} />
-  );
-}
-
 function CompetitionTab({ theme, className = "" }: { theme: CompetitionTheme; className?: string }) {
   if (!theme.name && !theme.logoUrl) return null;
   return (
     <div
-      className={`flex h-8 items-center gap-2 rounded-t-md px-3 text-lg whitespace-nowrap uppercase ${className}`}
+      className={`flex h-9 items-center gap-2 rounded-t-md px-3 text-lg whitespace-nowrap uppercase ${className}`}
       style={{ ...CONDENSED, fontWeight: 700, background: theme.dark, color: theme.accent }}
     >
       {theme.logoUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={theme.logoUrl} alt="" className="h-6 w-auto object-contain" />
+        <img
+          src={theme.logoUrl}
+          alt=""
+          className="h-[30px] w-auto object-contain"
+          // A thin light outline keeps dark logos readable on a dark tab.
+          style={{ filter: "drop-shadow(0 0 1px rgba(255,255,255,0.85)) drop-shadow(0 0 6px rgba(255,255,255,0.25))" }}
+        />
       )}
       {theme.name}
     </div>
@@ -485,10 +482,18 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
   return (
     <div className="absolute top-6 left-6 flex flex-col items-start">
       <CompetitionTab theme={theme} className="ml-2" />
-      <div className="relative flex h-14 items-stretch overflow-hidden rounded-lg shadow-2xl" style={{ background: theme.light, color: theme.dark, border: `3px solid ${theme.dark}` }}>
-        <Watermark theme={theme} className="top-1/2 left-1/2 h-[180%] -translate-x-1/2 -translate-y-1/2 -rotate-12" />
+      <div className="relative flex h-14 items-stretch rounded-lg shadow-2xl" style={{ background: theme.light, color: theme.dark, border: `3px solid ${theme.dark}` }}>
         {team(home)}
         <div className="relative z-10 flex items-center gap-2 px-4 text-4xl" style={{ ...DISPLAY, background: theme.dark, color: "#fff" }}>
+          {/* Two-legged tie: the aggregate hangs right under the score. */}
+          {aggregate && !st && (
+            <span
+              className="absolute top-full left-1/2 -translate-x-1/2 rounded-b-md px-2.5 pt-[3px] pb-0.5 text-[15px] leading-none whitespace-nowrap uppercase"
+              style={{ ...CONDENSED, fontWeight: 700, background: theme.dark, color: theme.accent }}
+            >
+              {aggregate}
+            </span>
+          )}
           <span>{home.score}</span>
           {st && <span className="text-2xl" style={{ color: theme.accent }}>({st.homeGoals})</span>}
           <span className="text-xl" style={{ color: theme.accent }}>x</span>
@@ -499,7 +504,7 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
         {clock.visible && (
           <div
             // Time and period stacked and centered inside the bar height.
-            className="relative z-10 flex min-w-[88px] flex-col items-center justify-center gap-[3px] px-3"
+            className="relative z-10 -my-[3px] -mr-[3px] flex min-w-[88px] flex-col items-center justify-center gap-[3px] rounded-r-lg px-3"
             style={{ background: theme.clock ?? branding.primaryColor, color: theme.clock ? "#fff" : branding.accentColor }}
           >
             {st ? (
@@ -518,11 +523,6 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
           </div>
         )}
       </div>
-      {aggregate && !st && (
-        <div className="ml-2 rounded-b-md px-3 py-0.5 text-lg uppercase" style={{ ...CONDENSED, fontWeight: 700, background: theme.dark, color: theme.accent }}>
-          {aggregate}
-        </div>
-      )}
       {st && (
         <div className="mt-2">
           <PenaltyStrip scene={scene} width={420} />
@@ -541,10 +541,6 @@ function ScoreboardBar({ scene, bottom }: { scene: Scene; bottom: number }) {
       className={`relative flex flex-1 items-center overflow-hidden px-8 text-5xl uppercase ${side === "away" ? "justify-end" : ""}`}
       style={{ ...DISPLAY, background: theme.light, color: theme.dark }}
     >
-      <Watermark
-        theme={theme}
-        className={`top-1/2 h-[190%] -translate-y-1/2 ${side === "home" ? "right-4 -rotate-12" : "left-4 rotate-12"}`}
-      />
       <span className={`relative z-10 flex items-center gap-3 ${side === "away" ? "flex-row-reverse" : ""}`}>
         {t.name}
         <RedCards n={t.redCards} size={26} />
@@ -566,7 +562,7 @@ function ScoreboardBar({ scene, bottom }: { scene: Scene; bottom: number }) {
     <div className="absolute right-6 left-6 flex items-center" style={{ bottom, height: BAR_H }}>
       {crest(home, "home")}
       <div className="relative flex h-[70px] flex-1 items-stretch rounded-md shadow-2xl" style={{ border: `4px solid ${theme.dark}` }}>
-        <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+        <div className="absolute -top-9 left-1/2 -translate-x-1/2">
           <CompetitionTab theme={theme} />
         </div>
         <div className="flex flex-1 items-stretch overflow-hidden rounded-[3px]">
@@ -949,11 +945,11 @@ export function ShowComposition({
   // Bottom-up stack: ticker, scoreboard bar, GC; the stage fills what's left.
   let y = tickerOn ? TICKER_H + 12 : 18;
   const barBottom = y;
-  if (barOn) y += BAR_H + (themeTab ? 36 : 14);
+  if (barOn) y += BAR_H + (themeTab ? 40 : 14);
   const gcBottom = y;
   if (gcOn || highlightOn) y += GC_H + 22;
   const headerOn = scene.showLogo;
-  const top = headerOn ? 128 : bugOn ? (themeTab ? 124 : 92) : 24;
+  const top = headerOn ? 128 : bugOn ? (themeTab ? 128 : 92) : 24;
   const box: Box = {
     top,
     left: tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : tweetSide === "left" ? 24 + TWEET_W + 16 : 24,
