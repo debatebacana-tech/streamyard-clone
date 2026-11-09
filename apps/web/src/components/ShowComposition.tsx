@@ -16,6 +16,7 @@ import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
 import { TWEET_W, TweetCardView } from "./TweetCard";
+import { ProjectedMediaView } from "./ProjectedMedia";
 import { CONDENSED, DISPLAY, FRAME } from "./showStyle";
 import {
   clockElapsedMs,
@@ -148,6 +149,54 @@ function pickFeatured(stage: TrackReferenceOrPlaceholder[], scene: Scene) {
 }
 
 type Box = { top: number; left: number; right: number; bottom: number };
+
+// A projected photo/video takes the stage: big with the cameras in a column
+// ("destaque"), or full screen with the cameras in small windows ("pip").
+function MediaStage({ stage, scene, branding, box, withSound }: {
+  stage: TrackReferenceOrPlaceholder[];
+  scene: Scene;
+  branding: ProgramBranding;
+  box: Box;
+  withSound: boolean;
+}) {
+  const key = (t: TrackReferenceOrPlaceholder) => `${t.participant.identity}-${t.source}`;
+  const cams = stage.filter((t) => t.source !== Track.Source.ScreenShare);
+  if (scene.media.mode === "pip") {
+    return (
+      <>
+        <div className="absolute inset-0 bg-black">
+          <ProjectedMediaView media={scene.media} withSound={withSound} />
+        </div>
+        <div className="absolute flex gap-4" style={{ right: 28, bottom: box.bottom }}>
+          {cams.slice(0, 3).map((t) => (
+            <div key={key(t)} style={{ width: 256, height: 144 }}>
+              <Tile trackRef={t} branding={branding} />
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+  return (
+    <div className="absolute flex gap-4" style={box}>
+      <div
+        className="min-w-0 flex-[2.6] overflow-hidden rounded-2xl bg-black"
+        style={{ border: `5px solid ${FRAME}`, boxShadow: "0 8px 24px rgba(0,0,0,.45)" }}
+      >
+        <ProjectedMediaView media={scene.media} withSound={withSound} />
+      </div>
+      {cams.length > 0 && (
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          {cams.slice(0, 3).map((t) => (
+            <div key={key(t)} className="min-h-0 flex-1">
+              <Tile trackRef={t} branding={branding} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Stage({ stage, scene, branding, box }: {
   stage: TrackReferenceOrPlaceholder[];
@@ -835,6 +884,7 @@ export function ShowComposition({
   const webSide = webOn && (scene.web.position === "left" || scene.web.position === "right") ? scene.web.position : null;
   const side = tierSplit && webSide ? "right" : webSide;
   const tweet = scene.tweet.visible ? scene.tweet.card : null;
+  const mediaOn = scene.media.visible && scene.media.url !== null;
   // Beside the cameras: left, or right when the tier list panel holds the left.
   const tweetSide = tweet && scene.tweet.mode === "side" ? (tierSplit || side === "left" ? "right" : "left") : null;
 
@@ -854,7 +904,7 @@ export function ShowComposition({
     bottom: Math.max(y, 24),
   };
   // Re-keys the stage when the arrangement changes, so a cut fades in.
-  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}`;
+  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
 
   return (
     <ScaledCanvas>
@@ -867,8 +917,17 @@ export function ShowComposition({
         }}
       >
         <div key={arrangement} className="scene-fade absolute inset-0">
-          <Stage stage={stage} scene={scene} branding={branding} box={box} />
+          {mediaOn && scene.media.mode !== "full" ? (
+            <MediaStage stage={stage} scene={scene} branding={branding} box={box} withSound={media === "play"} />
+          ) : (
+            <Stage stage={stage} scene={scene} branding={branding} box={box} />
+          )}
         </div>
+        {mediaOn && scene.media.mode === "full" && (
+          <div className="scene-fade absolute inset-0 z-[31] bg-black">
+            <ProjectedMediaView media={scene.media} withSound={media === "play"} />
+          </div>
+        )}
         {tierSplit && <TierPanel list={scene.tierList} top={box.top} bottom={box.bottom} />}
         {tweet && tweetSide && (
           <TweetCardView

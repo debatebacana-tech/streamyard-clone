@@ -1,7 +1,7 @@
 import path from "path";
 
 export const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "uploads");
-export const MAX_UPLOAD_BYTES = 60 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 150 * 1024 * 1024;
 
 export type AssetKind = "image" | "audio" | "video";
 

@@ -12,7 +12,7 @@ function present(asset: { id: string; kind: string; role: string; name: string; 
   return { id: asset.id, kind: asset.kind, role: asset.role, name: asset.name, url: mediaUrl(asset.fileName), size: asset.size };
 }
 
-const ROLES = new Set(["trilha", "efeito", "arte"]);
+const ROLES = new Set(["trilha", "efeito", "arte", "midia"]);
 
 export async function GET(_request: Request, { params }: Params) {
   const { program, error } = await hostProgram(params);
@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: "Arquivo maior que 60 MB" }, { status: 413 });
+    return NextResponse.json({ error: "Arquivo maior que 150 MB" }, { status: 413 });
   }
 
   const fileName = `${randomBytes(12).toString("hex")}.${type.ext}`;

@@ -212,6 +212,26 @@ export const DEFAULT_TIERS: Tier[] = [
   { label: "D", color: "#54a0ff" },
 ];
 
+// A photo or video projected during the show. Video plays for everyone from
+// startedAt (server time); pausedAt freezes it where it was.
+export type ProjectedMedia = {
+  visible: boolean;
+  url: string | null;
+  kind: "image" | "video";
+  // "destaque": big with the cameras in a column beside it; "full": whole
+  // screen; "pip": whole screen with the cameras in small windows.
+  mode: "destaque" | "full" | "pip";
+  startedAt: number | null;
+  pausedAt: number | null;
+  loop: boolean;
+  volume: number;
+};
+
+export function mediaElapsedMs(m: ProjectedMedia, now: number): number {
+  if (!m.startedAt) return 0;
+  return Math.max(0, (m.pausedAt ?? now) - m.startedAt);
+}
+
 // A post from X/Twitter shown as a card in the show's look.
 export type TweetCard = {
   id: string;
@@ -272,6 +292,7 @@ export type Scene = {
   // Full-screen round fixtures or standings (football).
   board: Board;
   tierList: TierList;
+  media: ProjectedMedia;
   // X/Twitter post on air: a tall card beside the cameras ("side") or big in the middle.
   tweet: { visible: boolean; mode: "side" | "center"; card: TweetCard | null };
   // When the last animated cut started (server time), so every output plays
@@ -327,6 +348,7 @@ export const DEFAULT_SCENE: Scene = {
   board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [] },
   tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true },
   tweet: { visible: false, mode: "side", card: null },
+  media: { visible: false, url: null, kind: "image", mode: "destaque", startedAt: null, pausedAt: null, loop: false, volume: 1 },
   transitionAt: null,
 };
 
@@ -618,6 +640,20 @@ export function normalizeScene(input: unknown): Scene {
     showLogo: bool(raw.showLogo, true),
     board: normalizeBoard(raw.board),
     tierList: normalizeTierList(raw.tierList),
+    media: (() => {
+      const m = obj(raw.media);
+      const mediaUrl = url(m.url);
+      return {
+        visible: bool(m.visible, false) && mediaUrl !== null,
+        url: mediaUrl,
+        kind: m.kind === "video" ? "video" : "image",
+        mode: m.mode === "full" || m.mode === "pip" ? m.mode : "destaque",
+        startedAt: typeof m.startedAt === "number" ? m.startedAt : null,
+        pausedAt: typeof m.pausedAt === "number" ? m.pausedAt : null,
+        loop: bool(m.loop, false),
+        volume: num(m.volume, 1, 0, 1),
+      } as ProjectedMedia;
+    })(),
     tweet: {
       visible: bool(obj(raw.tweet).visible, false),
       mode: obj(raw.tweet).mode === "center" ? "center" : "side",
@@ -646,6 +682,7 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     board: { ...current.board, ...obj(p.board) },
     tierList: { ...current.tierList, ...obj(p.tierList) },
     tweet: { ...current.tweet, ...obj(p.tweet) },
+    media: { ...current.media, ...obj(p.media) },
     // Only the server's animated cut sets this.
     transitionAt: current.transitionAt,
     scoreboard: {
