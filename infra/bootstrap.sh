@@ -60,8 +60,25 @@ if [ ! -f web.env ]; then
   chmod 600 web.env livekit.yaml egress.yaml
 fi
 
+echo ">> instalando atualização automática (puxa o branch a cada 2 min)"
+cat > /usr/local/bin/streamyard-update <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+export HOME=/root
+cd "$DIR"
+git fetch -q origin "$BRANCH"
+if [ "\$(git rev-parse HEAD)" != "\$(git rev-parse "origin/$BRANCH")" ]; then
+  echo "\$(date -Is) atualizando para \$(git rev-parse --short "origin/$BRANCH")"
+  git checkout -q -B "$BRANCH" "origin/$BRANCH"
+  cd infra && docker compose up -d --build --remove-orphans
+fi
+EOF
+chmod +x /usr/local/bin/streamyard-update
+echo '*/2 * * * * root flock -n /run/streamyard-update.lock /usr/local/bin/streamyard-update >> /var/log/streamyard-update.log 2>&1' \
+  > /etc/cron.d/streamyard-update
+
 echo ">> subindo os containers (o primeiro build leva uns 5-10 min)"
-docker compose up -d --build
+flock /run/streamyard-update.lock docker compose up -d --build
 
 echo
 echo "=============================================="
