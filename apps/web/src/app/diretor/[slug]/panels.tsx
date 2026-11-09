@@ -57,11 +57,19 @@ export function StagePanel() {
     });
   }
 
+  const everyone = participants.map((p) => p.identity);
+  const isOn = (scene: typeof draft, id: string) => scene.stageMode === "all" || scene.onStage.includes(id);
+
+  // In "everyone" mode, picking someone out switches the scene to a manual
+  // list starting from everyone, so the click does what it says.
   function toggleStage(identity: string) {
-    const onStage = draft.onStage.includes(identity)
-      ? draft.onStage.filter((id) => id !== identity)
-      : [...draft.onStage, identity];
-    return patch({ onStage, featured: onStage.includes(draft.featured ?? "") ? draft.featured : null });
+    const base = draft.stageMode === "all" ? everyone : draft.onStage;
+    const onStage = base.includes(identity) ? base.filter((id) => id !== identity) : [...base, identity];
+    return patch({
+      stageMode: "manual",
+      onStage,
+      featured: onStage.includes(draft.featured ?? "") ? draft.featured : null,
+    });
   }
 
   if (participants.length === 0) {
@@ -69,12 +77,27 @@ export function StagePanel() {
   }
 
   return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {draft.stageMode === "all" ? (
+          <span className="rounded bg-emerald-900/50 px-2 py-1 text-emerald-300">
+            Automático: todos que entrarem aparecem na tela
+          </span>
+        ) : (
+          <>
+            <span className="rounded bg-neutral-800 px-2 py-1 text-neutral-300">Manual: só quem você pôs em cena</span>
+            <button className="rounded bg-neutral-700 px-2 py-1 hover:bg-neutral-600" onClick={() => patch({ stageMode: "all" })}>
+              Voltar para todos
+            </button>
+          </>
+        )}
+      </div>
     <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {participants.map((p) => {
         const cam = cams.find((t) => t.participant.identity === p.identity);
         const mic = p.getTrackPublication(Track.Source.Microphone);
-        const inDraft = draft.onStage.includes(p.identity);
-        const onAir = live.onStage.includes(p.identity);
+        const inDraft = isOn(draft, p.identity);
+        const onAir = isOn(live, p.identity);
         const name = p.isLocal ? `${p.name || "Diretor"} (você)` : p.name || p.identity;
         return (
           <li key={p.identity} className={`overflow-hidden rounded-lg border ${onAir ? "border-red-600" : inDraft ? "border-emerald-600" : "border-neutral-800"} bg-neutral-950`}>
@@ -116,6 +139,7 @@ export function StagePanel() {
         );
       })}
     </ul>
+    </div>
   );
 }
 

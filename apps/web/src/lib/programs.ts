@@ -2,6 +2,7 @@ import type { Program } from "@prisma/client";
 import { prisma } from "./db";
 import { getRoomServiceClient } from "./livekit";
 import { normalizeProgramConfig, type ProgramConfig } from "./programConfig";
+import { chatMessages } from "./youtubeChat";
 import { normalizeScene, type ProgramBranding, type ProgramFormat, type Scene, type ShowMetadata } from "./scene";
 
 const ROOM_PREFIX = "prog-";
@@ -68,7 +69,11 @@ export function draftSceneOf(program: Program): Scene {
 }
 
 async function metadataFor(program: Program): Promise<string> {
-  const metadata: ShowMetadata = { program: brandingOf(program, await brandLogo()), scene: liveSceneOf(program) };
+  const metadata: ShowMetadata = {
+    program: brandingOf(program, await brandLogo()),
+    scene: liveSceneOf(program),
+    chat: chatMessages(program.slug).slice(-12),
+  };
   return JSON.stringify(metadata);
 }
 

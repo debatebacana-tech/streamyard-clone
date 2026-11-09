@@ -1,6 +1,13 @@
 // Per-program show rundown settings (shared client/server): the opening
 // stinger and tracks, and the texts of the institutional screens.
-import { SCREEN_DEFAULTS, type ScreenKind, type ScreenText } from "./scene";
+import {
+  DEFAULT_SAVED_SCENES,
+  SCREEN_DEFAULTS,
+  normalizeSavedScene,
+  type SavedScene,
+  type ScreenKind,
+  type ScreenText,
+} from "./scene";
 
 export type ProgramConfig = {
   openingVideoUrl: string | null;
@@ -16,6 +23,8 @@ export type ProgramConfig = {
   // Scoreboard tools in the director panel: always on for football programs,
   // an optional module elsewhere (null = follow the program's format).
   scoreboardModule: boolean | null;
+  // Saved arrangements for the scenes bar (defaults until the team edits them).
+  scenes: SavedScene[];
   screens: Record<Exclude<ScreenKind, "none">, ScreenText>;
 };
 
@@ -57,6 +66,9 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
     breakMediaUrl: media(c.breakMediaUrl),
     closingMediaUrl: media(c.closingMediaUrl),
     scoreboardModule: typeof c.scoreboardModule === "boolean" ? c.scoreboardModule : null,
+    scenes: Array.isArray(c.scenes)
+      ? c.scenes.map(normalizeSavedScene).filter((x): x is SavedScene => x !== null).slice(0, 12)
+      : DEFAULT_SAVED_SCENES,
     screens: {
       espera: screen(screens.espera, SCREEN_DEFAULTS.espera),
       intervalo: screen(screens.intervalo, SCREEN_DEFAULTS.intervalo),

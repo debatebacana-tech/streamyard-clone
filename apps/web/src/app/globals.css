@@ -22,6 +22,34 @@
   to { transform: translateX(-100%); }
 }
 
+/* A cut to a new arrangement fades the cameras in; new chat lines slide up. */
+.scene-fade {
+  animation: scene-fade 0.45s ease-out;
+}
+
+@keyframes scene-fade {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.chat-panel {
+  animation: chat-panel-in 0.4s ease-out;
+}
+
+@keyframes chat-panel-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: none; }
+}
+
+.chat-in {
+  animation: chat-in 0.35s ease-out;
+}
+
+@keyframes chat-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

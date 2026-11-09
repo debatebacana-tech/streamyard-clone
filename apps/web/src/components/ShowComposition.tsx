@@ -16,6 +16,7 @@ import {
   clockElapsedMs,
   formatClock,
   parseShowMetadata,
+  type ChatMessage,
   type Clock,
   type CompetitionTheme,
   type ProgramBranding,
@@ -456,6 +457,75 @@ function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBra
   );
 }
 
+const CHAT_W = 330;
+
+// Latest YouTube chat messages beside the cameras ("Todos + chat").
+function ChatPanel({ messages, branding, top, bottom }: { messages: ChatMessage[]; branding: ProgramBranding; top: number; bottom: number }) {
+  return (
+    <div
+      className="chat-panel absolute flex flex-col overflow-hidden rounded-2xl shadow-2xl"
+      style={{ right: 24, top, bottom, width: CHAT_W, background: "#f4f1ea", border: `5px solid ${FRAME}` }}
+    >
+      <span className="px-4 py-2 text-xl uppercase" style={{ ...CONDENSED, fontWeight: 700, background: branding.primaryColor, color: branding.accentColor }}>
+        Chat ao vivo
+      </span>
+      <div className="flex flex-1 flex-col justify-end gap-2 overflow-hidden p-3">
+        {messages.length === 0 && (
+          <span className="text-center text-lg text-neutral-500" style={CONDENSED}>
+            Mande sua mensagem no chat!
+          </span>
+        )}
+        {messages.slice(-7).map((m) => (
+          <div key={m.id} className="chat-in flex items-start gap-2">
+            {m.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={m.avatarUrl} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full" />
+            ) : (
+              <span className="mt-0.5 h-8 w-8 shrink-0 rounded-full" style={{ background: branding.primaryColor }} />
+            )}
+            <div className="min-w-0 leading-tight">
+              <span className="text-[15px] uppercase" style={{ ...CONDENSED, fontWeight: 700, color: FRAME }}>
+                {m.author}
+              </span>
+              <p className="line-clamp-3 text-[17px] text-neutral-800" style={{ ...CONDENSED, fontWeight: 500 }}>
+                {m.text}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// A chat message picked by the director, in the lower third slot.
+function HighlightBar({ scene, branding, bottom }: { scene: Scene; branding: ProgramBranding; bottom: number }) {
+  const h = scene.highlight;
+  return (
+    <div className="chat-in absolute right-6 left-6 flex items-stretch shadow-2xl" style={{ bottom, height: GC_H }}>
+      <div className="flex items-center justify-center rounded-l-md px-3" style={{ background: FRAME, minWidth: GC_H }}>
+        {h.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={h.avatarUrl} alt="" className="h-[60px] w-[60px] rounded-full" />
+        ) : (
+          <span className="text-4xl" style={{ ...DISPLAY, color: "#fff" }}>💬</span>
+        )}
+      </div>
+      <div className="relative flex flex-1 flex-col justify-center rounded-r-md px-8" style={{ background: "#f4f1ea", border: `4px solid ${FRAME}`, borderLeft: "none" }}>
+        <span
+          className="absolute -top-5 left-6 rounded px-3 py-0.5 text-xl uppercase"
+          style={{ ...CONDENSED, fontWeight: 700, background: branding.primaryColor, color: branding.accentColor }}
+        >
+          Pergunta do chat · {h.author}
+        </span>
+        <span className="line-clamp-2 text-[28px] leading-tight" style={{ ...CONDENSED, fontWeight: 700, color: FRAME }}>
+          {h.text}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Countdown({ to }: { to: number }) {
   const now = useNow(true);
   return <>{formatClock(Math.max(0, to - now))}</>;
@@ -583,13 +653,20 @@ export function ShowComposition({
 
   const branding = show.program;
   const scene = sceneOverride ?? show.scene;
-  const order = new Map(scene.onStage.map((id, i) => [id, i]));
-  const stage = dedupeTracks(tracks)
+  const all = dedupeTracks(tracks);
+  // "all": everyone in the room, in join order; otherwise the director's picks.
+  const onStageIds =
+    scene.stageMode === "all" ? [...new Set(all.map((t) => t.participant.identity))] : scene.onStage;
+  const order = new Map(onStageIds.map((id, i) => [id, i]));
+  const stage = all
     .filter((t) => order.has(t.participant.identity))
     .sort((a, b) => order.get(a.participant.identity)! - order.get(b.participant.identity)!);
 
   const tickerOn = scene.ticker.visible && scene.ticker.text.trim() !== "";
-  const gcOn = scene.gc.visible && scene.gc.title.trim() !== "";
+  const highlightOn = scene.highlight.visible && scene.highlight.text.trim() !== "";
+  // The highlighted chat question takes the lower third slot while it's up.
+  const gcOn = !highlightOn && scene.gc.visible && scene.gc.title.trim() !== "";
+  const chatOn = scene.chat.visible;
   const barOn = scene.scoreboard.visible && scene.scoreboard.style === "bar";
   const bugOn = scene.scoreboard.visible && scene.scoreboard.style === "bug";
   const themeTab = Boolean(scene.scoreboard.theme.name || scene.scoreboard.theme.logoUrl);
@@ -601,15 +678,17 @@ export function ShowComposition({
   const barBottom = y;
   if (barOn) y += BAR_H + (themeTab ? 36 : 14);
   const gcBottom = y;
-  if (gcOn) y += GC_H + 22;
+  if (gcOn || highlightOn) y += GC_H + 22;
   const headerOn = scene.showLogo;
   const top = headerOn ? 128 : bugOn ? (themeTab ? 124 : 92) : 24;
   const box: Box = {
     top,
     left: side === "left" ? 24 + SIDE_W + 16 : 24,
-    right: side === "right" ? 24 + SIDE_W + 16 : 24,
+    right: (side === "right" ? 24 + SIDE_W + 16 : 24) + (chatOn ? CHAT_W + 16 : 0),
     bottom: Math.max(y, 24),
   };
+  // Re-keys the stage when the arrangement changes, so a cut fades in.
+  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}`;
 
   return (
     <ScaledCanvas>
@@ -621,12 +700,16 @@ export function ShowComposition({
             : `radial-gradient(circle at 50% 0%, ${branding.primaryColor}, #0b0b0b 75%)`,
         }}
       >
-        <Stage stage={stage} scene={scene} branding={branding} box={box} />
+        <div key={arrangement} className="scene-fade absolute inset-0">
+          <Stage stage={stage} scene={scene} branding={branding} box={box} />
+        </div>
+        {chatOn && <ChatPanel messages={show.chat ?? []} branding={branding} top={box.top} bottom={box.bottom} />}
         {webOn && <WebOverlay scene={scene} box={box} />}
         <Header scene={scene} branding={branding} bugOn={bugOn} />
         {bugOn && <ScoreboardBug scene={scene} branding={branding} />}
         {barOn && <ScoreboardBar scene={scene} bottom={barBottom} />}
         {gcOn && <GcBar scene={scene} branding={branding} bottom={gcBottom} />}
+        {highlightOn && <HighlightBar scene={scene} branding={branding} bottom={gcBottom} />}
         {tickerOn && <Ticker scene={scene} branding={branding} />}
         {stage.length === 0 && emptyHint && (
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-3xl text-white/70" style={CONDENSED}>

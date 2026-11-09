@@ -26,6 +26,8 @@ import {
   WebPanel,
 } from "./panels";
 import { RundownBar, RundownSettings, useProgramConfig } from "./rundown";
+import { ScenesBar } from "./scenes";
+import { ChatTab } from "./chat";
 
 function clientId(): string {
   const key = "studio-client-id";
@@ -137,7 +139,7 @@ function Workspace() {
   );
 }
 
-type TabId = "cena" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
+type TabId = "cena" | "chat" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
 
 // Everything below the provider: header, rundown, monitors and the tabs.
 function Desk() {
@@ -150,6 +152,7 @@ function Desk() {
   const tabs: { id: TabId; label: string }[] = [
     ...(football ? [{ id: "placar" as const, label: "Placar" }] : []),
     { id: "cena", label: "Cena" },
+    { id: "chat", label: "Chat" },
     { id: "grafismos", label: "Textos e grafismos" },
     ...(!football && scoreboard ? [{ id: "placar" as const, label: "Placar" }] : []),
     { id: "audio", label: "Áudio" },
@@ -174,6 +177,7 @@ function Desk() {
       </header>
 
       <RundownBar />
+      <ScenesBar />
       <Workspace />
       {football && <QuickScore />}
 
@@ -205,6 +209,12 @@ function Desk() {
             </Panel>
           </div>
         </div>
+      )}
+
+      {active === "chat" && (
+        <Panel title="Chat do YouTube">
+          <ChatTab />
+        </Panel>
       )}
 
       {active === "grafismos" && (

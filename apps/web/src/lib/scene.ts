@@ -111,7 +111,17 @@ export const WEB_POSITIONS: { position: WebPosition; label: string }[] = [
   { position: "full", label: "Tela cheia" },
 ];
 
+// One YouTube live chat message, as shown on screen.
+export type ChatMessage = { id: string; author: string; text: string; avatarUrl: string | null };
+
 export type Scene = {
+  // "all": everyone in the room is on stage automatically (join order);
+  // "manual": only the identities in onStage.
+  stageMode: "all" | "manual";
+  // Side panel with the latest YouTube chat messages.
+  chat: { visible: boolean };
+  // A chat message picked by the director, shown big in the lower third slot.
+  highlight: { visible: boolean; author: string; text: string; avatarUrl: string | null };
   // Scene title in the header, next to the program name (e.g. "CENTRAL DA PARTIDA").
   title: string;
   layout: LayoutMode;
@@ -148,11 +158,14 @@ export type ProgramBranding = {
   backgroundUrl: string | null;
 };
 
-export type ShowMetadata = { program: ProgramBranding; scene: Scene };
+export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[] };
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A" };
 
 export const DEFAULT_SCENE: Scene = {
+  stageMode: "manual",
+  chat: { visible: false },
+  highlight: { visible: false, author: "", text: "", avatarUrl: null },
   title: "",
   layout: "auto",
   onStage: [],
@@ -255,9 +268,19 @@ export function normalizeScene(input: unknown): Scene {
   const music = obj(raw.music);
   const screen = obj(raw.screen);
   const d = DEFAULT_SCENE;
+  const chat = obj(raw.chat);
+  const highlight = obj(raw.highlight);
   const screenKind = typeof screen.kind === "string" && SCREEN_KINDS.has(screen.kind) ? (screen.kind as ScreenKind) : "none";
 
   return {
+    stageMode: raw.stageMode === "all" ? "all" : "manual",
+    chat: { visible: bool(chat.visible, false) },
+    highlight: {
+      visible: bool(highlight.visible, false),
+      author: str(highlight.author, 80),
+      text: str(highlight.text, 300),
+      avatarUrl: url(highlight.avatarUrl),
+    },
     title: str(raw.title, 60),
     layout: typeof raw.layout === "string" && LAYOUT_MODES.has(raw.layout) ? (raw.layout as LayoutMode) : d.layout,
     onStage: Array.isArray(raw.onStage)
@@ -327,6 +350,8 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     sponsor: { ...current.sponsor, ...obj(p.sponsor) },
     web: { ...current.web, ...obj(p.web) },
     music: { ...current.music, ...obj(p.music) },
+    chat: { ...current.chat, ...obj(p.chat) },
+    highlight: { ...current.highlight, ...obj(p.highlight) },
     screen: { ...current.screen, ...obj(p.screen) },
     scoreboard: {
       ...current.scoreboard,
@@ -355,8 +380,68 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
   try {
     const parsed = JSON.parse(raw) as Partial<ShowMetadata>;
     if (!parsed.program) return null;
-    return { program: { ...parsed.program, format: parsed.program.format ?? "debate" }, scene: normalizeScene(parsed.scene) };
+    return {
+      program: { ...parsed.program, format: parsed.program.format ?? "debate" },
+      scene: normalizeScene(parsed.scene),
+      chat: Array.isArray(parsed.chat) ? parsed.chat.slice(-12) : [],
+    };
   } catch {
     return null;
   }
+}
+
+// A saved arrangement ("cena") the director switches to with one click. It
+// sets who is on stage and how they're arranged; GC, scoreboard, ticker and
+// music stay as they are.
+export type SavedScene = {
+  id: string;
+  name: string;
+  layout: LayoutMode;
+  stageMode: "all" | "manual";
+  onStage: string[];
+  featured: string | null;
+  chat: boolean;
+};
+
+export const DEFAULT_SAVED_SCENES: SavedScene[] = [
+  { id: "todos-chat", name: "Todos + chat", layout: "auto", stageMode: "all", onStage: [], featured: null, chat: true },
+  { id: "todos", name: "Todos", layout: "auto", stageMode: "all", onStage: [], featured: null, chat: false },
+  { id: "projecao", name: "Janelas + projeção", layout: "spotlight", stageMode: "all", onStage: [], featured: null, chat: false },
+  { id: "destaque", name: "Destaque", layout: "spotlight", stageMode: "all", onStage: [], featured: null, chat: false },
+];
+
+export function normalizeSavedScene(input: unknown): SavedScene | null {
+  const s = obj(input);
+  const name = str(s.name, 40).trim();
+  if (!name) return null;
+  return {
+    id: str(s.id, 40) || Math.random().toString(36).slice(2, 10),
+    name,
+    layout: typeof s.layout === "string" && LAYOUT_MODES.has(s.layout) ? (s.layout as LayoutMode) : "auto",
+    stageMode: s.stageMode === "manual" ? "manual" : "all",
+    onStage: Array.isArray(s.onStage) ? s.onStage.filter((x): x is string => typeof x === "string").slice(0, 16) : [],
+    featured: typeof s.featured === "string" ? s.featured.slice(0, 64) : null,
+    chat: bool(s.chat, false),
+  };
+}
+
+// The scene patch that switches to a saved arrangement.
+export function savedScenePatch(saved: SavedScene) {
+  return {
+    layout: saved.layout,
+    stageMode: saved.stageMode,
+    ...(saved.stageMode === "manual" && { onStage: saved.onStage }),
+    featured: saved.featured,
+    chat: { visible: saved.chat },
+  };
+}
+
+// Whether the scene on screen matches a saved arrangement (to light its button).
+export function matchesSavedScene(scene: Scene, saved: SavedScene): boolean {
+  return (
+    scene.layout === saved.layout &&
+    scene.stageMode === saved.stageMode &&
+    scene.chat.visible === saved.chat &&
+    (saved.stageMode === "all" || JSON.stringify(scene.onStage) === JSON.stringify(saved.onStage))
+  );
 }
