@@ -270,28 +270,39 @@ function Stage({ stage, scene, branding, box }: {
     );
   }
 
-  // Window in the middle, presenters around it (half on each side).
+  // Window in the middle, presenters stacked on both sides: one edge-to-edge
+  // band (TV-panel style), tiles touching with thin dividers.
   if (scene.layout === "center") {
-    const half = Math.ceil(others.length / 2);
-    const column = (list: TrackReferenceOrPlaceholder[]) =>
-      list.length > 0 && (
-        <div className="flex h-full min-w-0 flex-1 flex-col justify-center gap-4">
-          {list.map((t) => (
-            <div key={key(t)} className="aspect-video w-full min-h-0">
-              <Tile trackRef={t} branding={branding} />
-            </div>
-          ))}
-        </div>
-      );
-    return (
-      <div className="absolute flex items-center gap-4" style={box}>
-        {column(others.slice(0, half))}
-        <div className="flex h-full min-w-0 items-center" style={{ flex: others.length ? 2.4 : 1 }}>
-          <div className="aspect-video max-h-full w-full">
-            <Tile trackRef={featured} branding={branding} />
+    const left = box.left > 24 ? box.left : 0;
+    const right = box.right > 24 ? box.right : 0;
+    const width = CANVAS_W - left - right;
+    const cams = others.slice(0, 4);
+    // Side tiles ~1.45:1 next to a 16:9 window fill the width exactly.
+    const sides = cams.length ? 2 : 0;
+    let h = Math.floor(width / (16 / 9 + sides * 0.725));
+    h = Math.min(h, CANVAS_H - box.top - box.bottom);
+    const sideW = cams.length ? Math.floor((width - (h * 16) / 9) / 2) : 0;
+    const top = box.top + Math.max(0, Math.floor((CANVAS_H - box.top - box.bottom - h) / 2));
+    const half = Math.ceil(cams.length / 2);
+    const column = (list: TrackReferenceOrPlaceholder[]) => (
+      <div className="flex shrink-0 flex-col gap-[3px]" style={{ width: sideW }}>
+        {list.map((t) => (
+          <div key={key(t)} className="min-h-0 flex-1">
+            <Tile trackRef={t} branding={branding} framed={false} />
           </div>
+        ))}
+      </div>
+    );
+    return (
+      <div
+        className="absolute flex gap-[3px] p-[3px] shadow-2xl"
+        style={{ top, left, width, height: h, background: FRAME, justifyContent: "center" }}
+      >
+        {cams.length > 0 && column(cams.slice(0, half))}
+        <div className="min-w-0 flex-1">
+          <Tile trackRef={featured} branding={branding} framed={false} />
         </div>
-        {column(others.slice(half, 6))}
+        {cams.length > 1 && column(cams.slice(half))}
       </div>
     );
   }
