@@ -83,6 +83,27 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
         <span className="text-xs text-neutral-500">controle · verde = entrou no ar</span>
       </header>
 
+      {config && sounds.length === 0 && effects.length === 0 && !game.some((g) => g.club?.vinhetaUrl || g.club?.anthemUrl) && (
+        <div className="space-y-2 rounded-2xl border border-dashed border-neutral-600 p-4 text-sm text-neutral-300">
+          <p className="font-bold text-white">Nenhum áudio cadastrado ainda</p>
+          <p>Os botões aparecem aqui assim que os áudios forem enviados no painel do computador:</p>
+          <ul className="list-disc space-y-1 pl-5 text-neutral-400">
+            <li>
+              Barra <b>DESTAQUES</b> (embaixo do placar): clique em <b>enviar áudio</b> no Gol Bacana e no Eduardo Pires
+            </li>
+            <li>
+              Aba <b>Áudio → Efeitos e vinhetas</b>: <b>＋ Efeito/vinheta</b>
+            </li>
+            <li>
+              Aba <b>Placar → Clubes</b>: <b>＋ Vinheta</b> e <b>＋ Hino</b> de cada time
+            </li>
+          </ul>
+          <button onClick={() => location.reload()} className="w-full rounded-xl bg-neutral-800 py-3 font-bold">
+            ↻ Já enviei, atualizar
+          </button>
+        </div>
+      )}
+
       {sounds.length > 0 && (
         <section className="space-y-2">
           <p className="text-xs font-bold tracking-widest text-neutral-500">DESTAQUES</p>
