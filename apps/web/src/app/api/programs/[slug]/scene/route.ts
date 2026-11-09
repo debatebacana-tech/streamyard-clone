@@ -99,6 +99,8 @@ function arrangementChanged(a: Scene, b: Scene): boolean {
     a.chat.visible !== b.chat.visible ||
     a.board.kind !== b.board.kind ||
     a.web.visible !== b.web.visible ||
+    a.tierList.visible !== b.tierList.visible ||
+    a.tierList.mode !== b.tierList.mode ||
     (a.stageMode === "manual" && a.onStage.join() !== b.onStage.join())
   );
 }

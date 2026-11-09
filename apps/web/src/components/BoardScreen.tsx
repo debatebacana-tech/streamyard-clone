@@ -8,7 +8,7 @@ import { CONDENSED, DISPLAY } from "./showStyle";
 // black with lime, the brand logo, a spaced competition name over a heavy
 // title, the competition logo, and dark cards with crests.
 
-const LIME = "#DFFF00";
+export const LIME = "#DFFF00";
 const CARD = "#141414";
 const LINE = "#2b2b2b";
 const TZ = "America/Sao_Paulo";
@@ -26,7 +26,7 @@ function Crest({ team, size }: { team: BoardTeam; size: number }) {
 const delay = (i: number): CSSProperties => ({ animationDelay: `${150 + i * 45}ms` });
 
 // Lime slashes in the corners, as in the team's board art.
-function Corners() {
+export function Corners() {
   const bars = (style: CSSProperties, flip: boolean) => (
     <div className="absolute" style={style}>
       {[0, 1, 2].map((i) => (
@@ -76,17 +76,30 @@ function Title({ text, size }: { text: string; size: number }) {
 function Header({ board, branding }: { board: Board; branding: ProgramBranding }) {
   const tabela = board.kind === "tabela";
   const spaced = board.subtitle || "CAMPEONATO";
-  let over: ReactNode = <span style={{ letterSpacing: "0.42em" }}>{spaced}</span>;
-  let big = board.title || "JOGOS DA RODADA";
-  if (tabela) {
-    over = (
-      <span style={{ letterSpacing: "0.22em" }}>
-        {spaced}
-        {board.title && <span style={{ color: LIME }}> • {board.title}</span>}
-      </span>
-    );
-    big = "CLASSIFICAÇÃO";
-  }
+  if (!tabela) return <BrandHeader branding={branding} over={<span style={{ letterSpacing: "0.42em" }}>{spaced}</span>} big={board.title || "JOGOS DA RODADA"} logo={board.logo} />;
+  const over = (
+    <span style={{ letterSpacing: "0.22em" }}>
+      {spaced}
+      {board.title && <span style={{ color: LIME }}> • {board.title}</span>}
+    </span>
+  );
+  return <BrandHeader branding={branding} over={over} big="CLASSIFICAÇÃO" size={84} logo={board.logo} />;
+}
+
+// The board header: brand logo | spaced line over a heavy title | logo on the right.
+export function BrandHeader({
+  branding,
+  over,
+  big,
+  size = 92,
+  logo,
+}: {
+  branding: ProgramBranding;
+  over: ReactNode;
+  big: string;
+  size?: number;
+  logo?: string | null;
+}) {
   return (
     <>
       <div className="absolute flex items-center justify-center" style={{ top: 14, left: 150, width: 230, height: 140 }}>
@@ -100,17 +113,21 @@ function Header({ board, branding }: { board: Board; branding: ProgramBranding }
         )}
       </div>
       <span className="absolute" style={{ top: 30, left: 470, width: 3, height: 122, background: "#fff" }} />
-      <div className="absolute flex flex-col justify-center" style={{ top: 18, left: 498, height: 140, width: 500 }}>
+      <div className="absolute flex flex-col justify-center" style={{ top: 18, left: 498, height: 140, width: 620 }}>
         <span className="text-[27px] leading-none text-white uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>
           {over}
         </span>
-        <Title text={big} size={tabela ? 84 : 92} />
+        <Title text={big} size={size} />
       </div>
-      {board.logo && (
+      {logo && (
         <div className="absolute flex items-center justify-center" style={{ top: 20, left: 1000, width: 130, height: 130 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={board.logo} alt="" className="max-h-full max-w-full object-contain"
-            style={{ filter: "drop-shadow(0 0 1px rgba(255,255,255,0.9)) drop-shadow(0 0 12px rgba(255,255,255,0.35))" }} />
+          <img
+            src={logo}
+            alt=""
+            className="max-h-full max-w-full object-contain"
+            style={{ filter: "drop-shadow(0 0 1px rgba(255,255,255,0.9)) drop-shadow(0 0 12px rgba(255,255,255,0.35))" }}
+          />
         </div>
       )}
       <span className="absolute inset-x-0" style={{ top: 166, height: 3, background: LIME }} />

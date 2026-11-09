@@ -14,6 +14,7 @@ import { MediaLayer } from "./MediaLayer";
 import { MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
+import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
 import { CONDENSED, DISPLAY, FRAME } from "./showStyle";
 import {
   clockElapsedMs,
@@ -671,7 +672,11 @@ export function ShowComposition({
   const bugOn = scene.scoreboard.visible && scene.scoreboard.style === "bug";
   const themeTab = Boolean(scene.scoreboard.theme.name || scene.scoreboard.theme.logoUrl);
   const webOn = scene.web.visible && scene.web.url !== "";
-  const side = webOn && (scene.web.position === "left" || scene.web.position === "right") ? scene.web.position : null;
+  const tierOn = scene.tierList.visible;
+  const tierSplit = tierOn && scene.tierList.mode === "split";
+  // The tier list panel takes the left side; a side web widget then goes right.
+  const webSide = webOn && (scene.web.position === "left" || scene.web.position === "right") ? scene.web.position : null;
+  const side = tierSplit && webSide ? "right" : webSide;
 
   // Bottom-up stack: ticker, scoreboard bar, GC; the stage fills what's left.
   let y = tickerOn ? TICKER_H + 12 : 18;
@@ -683,12 +688,12 @@ export function ShowComposition({
   const top = headerOn ? 128 : bugOn ? (themeTab ? 124 : 92) : 24;
   const box: Box = {
     top,
-    left: side === "left" ? 24 + SIDE_W + 16 : 24,
+    left: tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : 24,
     right: (side === "right" ? 24 + SIDE_W + 16 : 24) + (chatOn ? CHAT_W + 16 : 0),
     bottom: Math.max(y, 24),
   };
   // Re-keys the stage when the arrangement changes, so a cut fades in.
-  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}`;
+  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}`;
 
   return (
     <ScaledCanvas>
@@ -703,6 +708,7 @@ export function ShowComposition({
         <div key={arrangement} className="scene-fade absolute inset-0">
           <Stage stage={stage} scene={scene} branding={branding} box={box} />
         </div>
+        {tierSplit && <TierPanel list={scene.tierList} top={box.top} bottom={box.bottom} />}
         {chatOn && <ChatPanel messages={show.chat ?? []} branding={branding} top={box.top} bottom={box.bottom} />}
         {webOn && <WebOverlay scene={scene} box={box} />}
         <Header scene={scene} branding={branding} bugOn={bugOn} />
@@ -716,6 +722,7 @@ export function ShowComposition({
             {emptyHint}
           </div>
         )}
+        {tierOn && !tierSplit && <TierScreen list={scene.tierList} branding={branding} />}
         {scene.board.kind !== "none" && <BoardScreen board={scene.board} branding={branding} />}
         {scene.screen.kind !== "none" &&
           (scene.screen.mediaUrl ? (

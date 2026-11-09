@@ -28,6 +28,7 @@ import {
 import { RundownBar, RundownSettings, useProgramConfig } from "./rundown";
 import { ScenesBar, TransitionPanel } from "./scenes";
 import { BoardAutoRefresh, BoardPanel } from "./board";
+import { TierListPanel } from "./tierlist";
 import { ChatTab } from "./chat";
 
 function clientId(): string {
@@ -140,7 +141,7 @@ function Workspace() {
   );
 }
 
-type TabId = "rodada" | "cena" | "chat" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
+type TabId = "tier" | "rodada" | "cena" | "chat" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
 
 // Everything below the provider: header, rundown, monitors and the tabs.
 function Desk() {
@@ -155,6 +156,7 @@ function Desk() {
     { id: "cena", label: "Cena" },
     { id: "chat", label: "Chat" },
     { id: "grafismos", label: "Textos e grafismos" },
+    { id: "tier", label: "Tier list" },
     ...(!football && scoreboard
       ? [
           { id: "placar" as const, label: "Placar" },
@@ -219,6 +221,12 @@ function Desk() {
             <TransitionPanel />
           </Panel>
         </div>
+      )}
+
+      {active === "tier" && (
+        <Panel title="Tier list">
+          <TierListPanel />
+        </Panel>
       )}
 
       {active === "rodada" && (

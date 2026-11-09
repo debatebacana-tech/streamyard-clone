@@ -146,6 +146,29 @@ export type Board = {
   matches: BoardMatch[];
 };
 
+// Tier list game: items (team crests, photos or text) placed live in tiers.
+export type TierItem = { id: string; label: string; imageUrl: string | null; tier: number; placedAt: number | null };
+export type Tier = { label: string; color: string };
+export type TierList = {
+  visible: boolean;
+  // "full": whole screen; "split": board on the left, cameras on the right.
+  mode: "full" | "split";
+  title: string;
+  tiers: Tier[];
+  // tier = index in tiers, -1 = not ranked yet.
+  items: TierItem[];
+  // Show the not-yet-ranked items under the board.
+  showPool: boolean;
+};
+
+export const DEFAULT_TIERS: Tier[] = [
+  { label: "S", color: "#ff4d4d" },
+  { label: "A", color: "#ff9f43" },
+  { label: "B", color: "#feca57" },
+  { label: "C", color: "#1dd1a1" },
+  { label: "D", color: "#54a0ff" },
+];
+
 // One YouTube live chat message, as shown on screen.
 export type ChatMessage = { id: string; author: string; text: string; avatarUrl: string | null };
 
@@ -181,6 +204,7 @@ export type Scene = {
   showLogo: boolean;
   // Full-screen round fixtures or standings (football).
   board: Board;
+  tierList: TierList;
   // When the last animated cut started (server time), so every output plays
   // the transition together.
   transitionAt: number | null;
@@ -230,6 +254,7 @@ export const DEFAULT_SCENE: Scene = {
   sponsor: { visible: false, imageUrl: null },
   showLogo: true,
   board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [] },
+  tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true },
   transitionAt: null,
 };
 
@@ -349,6 +374,38 @@ export function normalizeBoard(input: unknown): Board {
   };
 }
 
+export function normalizeTierList(input: unknown): TierList {
+  const t = obj(input);
+  const tiers = Array.isArray(t.tiers)
+    ? t.tiers.slice(0, 8).map((raw, i) => {
+        const tier = obj(raw);
+        return { label: str(tier.label, 14, "?"), color: color(tier.color, DEFAULT_TIERS[i % DEFAULT_TIERS.length].color) };
+      })
+    : DEFAULT_TIERS;
+  const seen = new Set<string>();
+  const items = (Array.isArray(t.items) ? t.items.slice(0, 48) : [])
+    .map((raw) => {
+      const item = obj(raw);
+      const tier = Math.round(num(item.tier, -1, -1, tiers.length - 1));
+      return {
+        id: str(item.id, 40),
+        label: str(item.label, 40),
+        imageUrl: url(item.imageUrl),
+        tier,
+        placedAt: tier >= 0 && typeof item.placedAt === "number" ? item.placedAt : null,
+      };
+    })
+    .filter((item) => item.id && !seen.has(item.id) && (seen.add(item.id), true));
+  return {
+    visible: bool(t.visible, false),
+    mode: t.mode === "full" ? "full" : "split",
+    title: str(t.title, 60),
+    tiers: tiers.length ? tiers : DEFAULT_TIERS,
+    items,
+    showPool: bool(t.showPool, true),
+  };
+}
+
 export function normalizeTransition(input: unknown): TransitionConfig {
   const t = obj(input);
   const mediaUrl = url(t.mediaUrl);
@@ -453,6 +510,7 @@ export function normalizeScene(input: unknown): Scene {
     sponsor: { visible: bool(sponsor.visible, false), imageUrl: url(sponsor.imageUrl) },
     showLogo: bool(raw.showLogo, true),
     board: normalizeBoard(raw.board),
+    tierList: normalizeTierList(raw.tierList),
     transitionAt: typeof raw.transitionAt === "number" ? raw.transitionAt : null,
   };
 }
@@ -474,6 +532,7 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     highlight: { ...current.highlight, ...obj(p.highlight) },
     screen: { ...current.screen, ...obj(p.screen) },
     board: { ...current.board, ...obj(p.board) },
+    tierList: { ...current.tierList, ...obj(p.tierList) },
     // Only the server's animated cut sets this.
     transitionAt: current.transitionAt,
     scoreboard: {
