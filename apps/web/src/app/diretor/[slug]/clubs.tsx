@@ -46,7 +46,7 @@ const isVideo = (url: string) => /\.(mp4|webm)$/i.test(url);
 export function ClubMediaButtons({ club, labels = false }: { club: Club; labels?: boolean }) {
   const sendCue = useMediaCues();
   const play = (url: string | null) =>
-    url && sendCue({ type: "play", id: crypto.randomUUID(), url, kind: isVideo(url) ? "video" : "audio", volume: 1 });
+    url && sendCue({ type: "play", id: crypto.randomUUID(), url, kind: isVideo(url) ? "video" : "audio", volume: 1, toggle: true });
   return (
     <span className="inline-flex gap-1">
       <button className={small} disabled={!club.vinhetaUrl} title={club.vinhetaUrl ? `Vinheta do ${club.name}` : "Sem vinheta cadastrada"} onClick={() => play(club.vinhetaUrl)}>
@@ -70,7 +70,7 @@ export function ClubPads() {
   const extra = clubs.find((c) => c.id === other);
   const list = [...game, ...(extra && !game.includes(extra) ? [extra] : [])];
   const play = (url: string | null) =>
-    url && sendCue({ type: "play", id: crypto.randomUUID(), url, kind: isVideo(url) ? "video" : "audio", volume: 1 });
+    url && sendCue({ type: "play", id: crypto.randomUUID(), url, kind: isVideo(url) ? "video" : "audio", volume: 1, toggle: true });
 
   return (
     <div className="space-y-3">

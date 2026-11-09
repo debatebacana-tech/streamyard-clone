@@ -10,9 +10,55 @@ import { useDataChannel } from "@livekit/components-react";
 
 export const MEDIA_TOPIC = "media";
 
+// toggle: pressing a pad again while its sound is playing stops it.
 export type MediaCue =
-  | { type: "play"; id: string; url: string; kind: "audio" | "video"; volume: number }
+  | { type: "play"; id: string; url: string; kind: "audio" | "video"; volume: number; toggle?: boolean }
   | { type: "stop" };
+
+// Quick sounds stay in memory: each file is downloaded once into a local
+// blob and kept in its own audio element, so a pad plays the instant it's
+// pressed instead of fetching and buffering first.
+const pool = new Map<string, HTMLAudioElement>();
+const loading = new Map<string, Promise<void>>();
+
+function warm(url: string): Promise<void> {
+  let job = loading.get(url);
+  if (!job) {
+    job = fetch(url)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+      .then((blob) => {
+        const el = new Audio(URL.createObjectURL(blob));
+        el.preload = "auto";
+        el.load();
+        pool.set(url, el);
+      })
+      .catch(() => {
+        loading.delete(url);
+      });
+    loading.set(url, job);
+  }
+  return job;
+}
+
+// The in-memory element when ready; otherwise stream it this once (and
+// keep loading it for the next press).
+const fallback = new Map<string, HTMLAudioElement>();
+function audioFor(url: string): HTMLAudioElement {
+  const ready = pool.get(url);
+  if (ready) return ready;
+  void warm(url);
+  let el = fallback.get(url);
+  if (!el) {
+    el = new Audio(url);
+    fallback.set(url, el);
+  }
+  return el;
+}
+
+export function preloadSounds(urls: string[]) {
+  if (typeof window === "undefined") return;
+  for (const url of urls) if (url.startsWith("/media/") && !/\.(mp4|webm)$/i.test(url)) void warm(url);
+}
 
 const localBus = typeof window !== "undefined" ? new EventTarget() : null;
 const encoder = new TextEncoder();
@@ -40,27 +86,46 @@ function parseCue(payload: Uint8Array): MediaCue | null {
 
 // Renders inside the composition canvas. `silent` shows stingers without
 // playing sound (preview monitors).
-export function MediaLayer({ silent = false }: { silent?: boolean }) {
+export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean; preload?: string[] }) {
   const [video, setVideo] = useState<Extract<MediaCue, { type: "play" }> | null>(null);
-  const audios = useRef(new Set<HTMLAudioElement>());
+  const playing = useRef(new Map<string, HTMLAudioElement>());
+
+  const preloadKey = silent ? "" : preload.join("|");
+  useEffect(() => {
+    if (preloadKey) preloadSounds(preloadKey.split("|"));
+  }, [preloadKey]);
 
   const handle = useCallback(
     (cue: MediaCue) => {
       if (cue.type === "stop") {
-        audios.current.forEach((a) => a.pause());
-        audios.current.clear();
+        playing.current.forEach((a) => {
+          a.pause();
+          a.currentTime = 0;
+        });
+        playing.current.clear();
         setVideo(null);
         return;
       }
       if (cue.kind === "video") {
-        setVideo(cue);
+        setVideo((current) => (cue.toggle && current?.url === cue.url ? null : cue));
         return;
       }
       if (silent) return;
-      const audio = new Audio(cue.url);
+      // Second press while it plays: stop it.
+      const current = playing.current.get(cue.url);
+      if (cue.toggle && current && !current.paused) {
+        current.pause();
+        current.currentTime = 0;
+        playing.current.delete(cue.url);
+        return;
+      }
+      const audio = audioFor(cue.url);
       audio.volume = Math.min(1, Math.max(0, cue.volume));
-      audios.current.add(audio);
-      audio.addEventListener("ended", () => audios.current.delete(audio));
+      audio.currentTime = 0;
+      playing.current.set(cue.url, audio);
+      audio.onended = () => {
+        if (playing.current.get(cue.url) === audio) playing.current.delete(cue.url);
+      };
       audio.play().catch((err) => console.warn("audio cue failed", err));
     },
     [silent],
@@ -79,8 +144,8 @@ export function MediaLayer({ silent = false }: { silent?: boolean }) {
   }, [handle]);
 
   useEffect(() => {
-    const playing = audios.current;
-    return () => playing.forEach((a) => a.pause());
+    const current = playing.current;
+    return () => current.forEach((a) => a.pause());
   }, []);
 
   if (!video) return null;

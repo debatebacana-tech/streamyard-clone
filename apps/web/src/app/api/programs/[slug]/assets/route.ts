@@ -5,6 +5,7 @@ import path from "path";
 import { ALLOWED_TYPES, MAX_UPLOAD_BYTES, UPLOAD_DIR, mediaUrl } from "@/lib/assets";
 import { prisma } from "@/lib/db";
 import { hostProgram } from "@/lib/hostProgram";
+import { syncProgramRoom } from "@/lib/programs";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -53,6 +54,8 @@ export async function POST(request: Request, { params }: Params) {
   const asset = await prisma.asset.create({
     data: { programId: program.id, kind: type.kind, role, name, fileName, mimeType: file.type, size: file.size },
   });
+  // New effect pads get preloaded on every output.
+  if (asset.role === "efeito") await syncProgramRoom(program).catch(() => {});
   return NextResponse.json({ asset: present(asset) });
 }
 

@@ -64,7 +64,7 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
   }
 
   const sound = (key: string, url: string | null) =>
-    url && send(key, "cue", { type: "play", url, kind: /\.(mp4|webm)$/i.test(url) ? "video" : "audio", volume: 1 });
+    url && send(key, "cue", { type: "play", url, kind: /\.(mp4|webm)$/i.test(url) ? "video" : "audio", volume: 1, toggle: true });
   const air = (key: string, patch: unknown) => send(key, "scene", { action: "patch", target: "both", patch });
 
   const ring = (key: string) => (flash[key] === "ok" ? "ring-4 ring-emerald-400" : flash[key] === "err" ? "ring-4 ring-red-500" : "");

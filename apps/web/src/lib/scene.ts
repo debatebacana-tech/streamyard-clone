@@ -325,7 +325,8 @@ export type ProgramBranding = {
 export type TransitionConfig = { enabled: boolean; mediaUrl: string | null; cutMs: number };
 export const DEFAULT_TRANSITION: TransitionConfig = { enabled: true, mediaUrl: null, cutMs: 450 };
 
-export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[]; transition?: TransitionConfig };
+// sounds: quick-sound files every output keeps preloaded (pads play instantly).
+export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[]; transition?: TransitionConfig; sounds?: string[] };
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A", redCards: 0 };
 
@@ -731,6 +732,9 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
       scene: normalizeScene(parsed.scene),
       chat: Array.isArray(parsed.chat) ? parsed.chat.slice(-12) : [],
       transition: normalizeTransition(parsed.transition),
+      sounds: Array.isArray(parsed.sounds)
+        ? parsed.sounds.filter((u): u is string => typeof u === "string" && u.startsWith("/media/")).slice(0, 80)
+        : [],
     };
   } catch {
     return null;

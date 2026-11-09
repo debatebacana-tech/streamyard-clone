@@ -22,6 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       url: body.url,
       kind: body.kind === "video" ? "video" : "audio",
       volume: typeof body.volume === "number" ? Math.min(1, Math.max(0, body.volume)) : 1,
+      toggle: body.toggle === true,
     };
   } else {
     return NextResponse.json({ error: "Cue inválida" }, { status: 400 });

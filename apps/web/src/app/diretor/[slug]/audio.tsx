@@ -109,7 +109,7 @@ export function EffectsPanel() {
   const pads = assets.filter((a) => (a.kind === "audio" || a.kind === "video") && a.role === "efeito").reverse();
 
   const play = (pad: AssetItem) =>
-    sendCue({ type: "play", id: crypto.randomUUID(), url: pad.url, kind: pad.kind === "video" ? "video" : "audio", volume });
+    sendCue({ type: "play", id: crypto.randomUUID(), url: pad.url, kind: pad.kind === "video" ? "video" : "audio", volume, toggle: true });
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -119,7 +119,7 @@ export function EffectsPanel() {
       const n = Number(e.key);
       if (n >= 1 && n <= 9 && pads[n - 1]) {
         const pad = pads[n - 1];
-        sendCue({ type: "play", id: crypto.randomUUID(), url: pad.url, kind: pad.kind === "video" ? "video" : "audio", volume });
+        sendCue({ type: "play", id: crypto.randomUUID(), url: pad.url, kind: pad.kind === "video" ? "video" : "audio", volume, toggle: true });
       }
     }
     window.addEventListener("keydown", onKey);

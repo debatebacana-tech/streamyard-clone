@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireHostSession } from "@/lib/auth";
 import { clubFields } from "@/lib/clubs";
 import { prisma } from "@/lib/db";
+import { listPrograms, syncProgramRoom } from "@/lib/programs";
 
 // Club library for match days (crest, color, stinger, anthem), shared by all programs.
 
@@ -38,6 +39,10 @@ export async function PATCH(request: Request) {
   const found = id && (await prisma.club.findUnique({ where: { id } }));
   if (!found) return NextResponse.json({ error: "Clube não encontrado" }, { status: 404 });
   const club = await prisma.club.update({ where: { id }, data: clubFields(body), select });
+  // A new vinheta/hino gets preloaded wherever this club is on the scoreboard.
+  if ("vinhetaUrl" in body || "anthemUrl" in body) {
+    for (const program of await listPrograms()) await syncProgramRoom(program).catch(() => {});
+  }
   return NextResponse.json({ club });
 }
 

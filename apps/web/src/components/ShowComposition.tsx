@@ -1028,7 +1028,7 @@ export function ShowComposition({
           ) : (
             <InstitutionalScreen scene={scene} branding={branding} />
           ))}
-        {media !== "off" && <MediaLayer silent={media === "silent"} />}
+        {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} />}
         {!sceneOverride && media !== "off" && (
           <TransitionLayer at={scene.transitionAt} config={show.transition} branding={branding} withSound={media === "play"} />
         )}

@@ -29,7 +29,7 @@ export function HotSoundsBar({ always }: { always: boolean }) {
     .filter((g) => g.club && (g.club.vinhetaUrl || g.club.anthemUrl));
   const playUrl = (url: string | null, flashId: string) => {
     if (!url) return;
-    sendCue({ type: "play", id: crypto.randomUUID(), url, kind: /\.(mp4|webm)$/i.test(url) ? "video" : "audio", volume: 1 });
+    sendCue({ type: "play", id: crypto.randomUUID(), url, kind: /\.(mp4|webm)$/i.test(url) ? "video" : "audio", volume: 1, toggle: true });
     setFlash(flashId);
     setTimeout(() => setFlash((f) => (f === flashId ? null : f)), 600);
   };
@@ -41,7 +41,7 @@ export function HotSoundsBar({ always }: { always: boolean }) {
 
   const play = (s: HotSound) => {
     if (!s.url) return;
-    sendCue({ type: "play", id: crypto.randomUUID(), url: s.url, kind: /\.(mp4|webm)$/i.test(s.url) ? "video" : "audio", volume: 1 });
+    sendCue({ type: "play", id: crypto.randomUUID(), url: s.url, kind: /\.(mp4|webm)$/i.test(s.url) ? "video" : "audio", volume: 1, toggle: true });
     setFlash(s.id);
     setTimeout(() => setFlash((f) => (f === s.id ? null : f)), 600);
   };

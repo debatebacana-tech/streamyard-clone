@@ -68,12 +68,32 @@ export function draftSceneOf(program: Program): Scene {
   return parseScene(program.draftSceneJson);
 }
 
+// Quick sounds to keep preloaded on every output: the signature sounds, the
+// effect pads and today's clubs' vinheta/hino.
+async function quickSounds(program: Program, scene: Scene): Promise<string[]> {
+  const config = configOf(program);
+  const [effects, clubs] = await Promise.all([
+    prisma.asset.findMany({ where: { programId: program.id, role: "efeito", kind: "audio" }, select: { fileName: true } }),
+    prisma.club.findMany({
+      where: { name: { in: [scene.scoreboard.home.name, scene.scoreboard.away.name].filter(Boolean) } },
+      select: { vinhetaUrl: true, anthemUrl: true },
+    }),
+  ]);
+  const urls = [
+    ...config.hotSounds.map((s) => s.url),
+    ...effects.map((a) => `/media/${a.fileName}`),
+    ...clubs.flatMap((c) => [c.vinhetaUrl, c.anthemUrl]),
+  ];
+  return [...new Set(urls.filter((u): u is string => typeof u === "string" && u.startsWith("/media/")))].slice(0, 80);
+}
+
 async function metadataFor(program: Program): Promise<string> {
   const metadata: ShowMetadata = {
     program: brandingOf(program, await brandLogo()),
     scene: liveSceneOf(program),
     chat: chatMessages(program.slug).slice(-12),
     transition: configOf(program).transition,
+    sounds: await quickSounds(program, liveSceneOf(program)).catch(() => []),
   };
   return JSON.stringify(metadata);
 }

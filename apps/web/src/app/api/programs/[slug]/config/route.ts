@@ -24,6 +24,6 @@ export async function PATCH(request: Request, { params }: Params) {
   const config = mergeProgramConfig(configOf(program), patch, program.name);
   const updated = await prisma.program.update({ where: { id: program.id }, data: { configJson: JSON.stringify(config) } });
   // The outputs preload the transition video from the room metadata.
-  if ("transition" in patch) await syncProgramRoom(updated).catch((err) => console.error("config sync failed", err));
+  if ("transition" in patch || "hotSounds" in patch) await syncProgramRoom(updated).catch((err) => console.error("config sync failed", err));
   return NextResponse.json({ config });
 }
