@@ -2,6 +2,8 @@
 # Deploy de um comando numa VPS Ubuntu nova (rodar como root).
 # Idempotente: rodar de novo só atualiza o código e reconstrói, sem trocar as chaves.
 set -euo pipefail
+# cloud-init runs this without HOME, which git needs.
+export HOME="${HOME:-/root}"
 
 REPO_URL="${REPO_URL:-https://github.com/debatebacana-tech/streamyard-clone.git}"
 BRANCH="${BRANCH:-main-2g0cpk}"
@@ -41,7 +43,7 @@ if [ ! -f web.env ]; then
   echo ">> gerando chaves e senha"
   API_KEY="API$(openssl rand -hex 8)"
   API_SECRET="$(openssl rand -hex 32)"
-  HOST_PASSWORD="$(openssl rand -hex 6)"
+  HOST_PASSWORD="${HOST_PASSWORD:-$(openssl rand -hex 6)}"
 
   printf 'APP_DOMAIN=%s\nLIVEKIT_DOMAIN=%s\n' "$APP_DOMAIN" "$LIVEKIT_DOMAIN" > .env
 
