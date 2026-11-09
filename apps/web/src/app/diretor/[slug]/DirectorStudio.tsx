@@ -235,6 +235,11 @@ function Desk() {
             {branding.name}
           </h1>
         </div>
+        {/* The program's own logo (e.g. Sábado Bacana) next to the brand. */}
+        {branding.logoUrl && !branding.logoUrl.includes("debate") && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={branding.logoUrl} alt="" className="h-12 w-auto object-contain" />
+        )}
         <span className="hidden items-center gap-[3px] md:flex">
           <span className="h-1 w-6 rounded-full bg-[var(--db-lime)]" />
           <span className="h-1 w-1 rounded-full bg-[var(--db-lime)]" />
