@@ -4,13 +4,14 @@
 // composition renders from.
 
 // "auto" is the grid: one row up to four, two rows beyond.
-export type LayoutMode = "auto" | "spotlight" | "solo" | "pip";
+export type LayoutMode = "auto" | "spotlight" | "solo" | "pip" | "vertical";
 
 export const LAYOUTS: { mode: LayoutMode; label: string; hint: string }[] = [
   { mode: "auto", label: "Grade", hint: "Todos lado a lado (até 4 numa fila, depois duas fileiras)" },
   { mode: "spotlight", label: "Destaque", hint: "Uma pessoa grande e as outras ao lado" },
   { mode: "pip", label: "PiP", hint: "Destaque em tela cheia com as outras em janelinhas" },
   { mode: "solo", label: "Só um", hint: "Apenas a pessoa em destaque" },
+  { mode: "vertical", label: "Tela vertical", hint: "A tela compartilhada (Twitter, celular) numa moldura em pé, recortada no meio, com as câmeras ao lado" },
 ];
 
 // Institutional full screens from the brand manual.
@@ -211,6 +212,20 @@ export const DEFAULT_TIERS: Tier[] = [
   { label: "D", color: "#54a0ff" },
 ];
 
+// A post from X/Twitter shown as a card in the show's look.
+export type TweetCard = {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string | null;
+  verified: boolean;
+  text: string;
+  photo: string | null;
+  date: number;
+  likes: number;
+  replies: number;
+};
+
 // One YouTube live chat message, as shown on screen.
 export type ChatMessage = { id: string; author: string; text: string; avatarUrl: string | null };
 
@@ -257,6 +272,8 @@ export type Scene = {
   // Full-screen round fixtures or standings (football).
   board: Board;
   tierList: TierList;
+  // X/Twitter post on air: a tall card beside the cameras ("side") or big in the middle.
+  tweet: { visible: boolean; mode: "side" | "center"; card: TweetCard | null };
   // When the last animated cut started (server time), so every output plays
   // the transition together.
   transitionAt: number | null;
@@ -309,6 +326,7 @@ export const DEFAULT_SCENE: Scene = {
   showLogo: true,
   board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [] },
   tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true },
+  tweet: { visible: false, mode: "side", card: null },
   transitionAt: null,
 };
 
@@ -460,6 +478,28 @@ export function normalizeTierList(input: unknown): TierList {
   };
 }
 
+export function normalizeTweetCard(input: unknown): TweetCard | null {
+  const c = obj(input);
+  const id = str(c.id, 25);
+  if (!/^\d+$/.test(id)) return null;
+  const https = (v: unknown) => {
+    const u = url(v);
+    return u?.startsWith("https://") ? u : null;
+  };
+  return {
+    id,
+    name: str(c.name, 60),
+    handle: str(c.handle, 30),
+    avatar: https(c.avatar),
+    verified: bool(c.verified, false),
+    text: str(c.text, 600),
+    photo: https(c.photo),
+    date: num(c.date, 0, 0, 1e14),
+    likes: Math.round(num(c.likes, 0, 0, 1e10)),
+    replies: Math.round(num(c.replies, 0, 0, 1e10)),
+  };
+}
+
 export function normalizeTransition(input: unknown): TransitionConfig {
   const t = obj(input);
   const mediaUrl = url(t.mediaUrl);
@@ -578,6 +618,11 @@ export function normalizeScene(input: unknown): Scene {
     showLogo: bool(raw.showLogo, true),
     board: normalizeBoard(raw.board),
     tierList: normalizeTierList(raw.tierList),
+    tweet: {
+      visible: bool(obj(raw.tweet).visible, false),
+      mode: obj(raw.tweet).mode === "center" ? "center" : "side",
+      card: normalizeTweetCard(obj(raw.tweet).card),
+    },
     transitionAt: typeof raw.transitionAt === "number" ? raw.transitionAt : null,
   };
 }
@@ -600,6 +645,7 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     screen: { ...current.screen, ...obj(p.screen) },
     board: { ...current.board, ...obj(p.board) },
     tierList: { ...current.tierList, ...obj(p.tierList) },
+    tweet: { ...current.tweet, ...obj(p.tweet) },
     // Only the server's animated cut sets this.
     transitionAt: current.transitionAt,
     scoreboard: {

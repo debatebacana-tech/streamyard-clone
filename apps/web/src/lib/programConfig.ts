@@ -5,6 +5,8 @@ import {
   SCREEN_DEFAULTS,
   normalizeSavedScene,
   normalizeTransition,
+  normalizeTweetCard,
+  type TweetCard,
   type TransitionConfig,
   type SavedScene,
   type ScreenKind,
@@ -29,6 +31,8 @@ export type ProgramConfig = {
   scenes: SavedScene[];
   // Animation between scenes on a cut.
   transition: TransitionConfig;
+  // X/Twitter posts lined up for the show (newest first).
+  tweets: TweetCard[];
   screens: Record<Exclude<ScreenKind, "none">, ScreenText>;
 };
 
@@ -74,6 +78,7 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
       ? c.scenes.map(normalizeSavedScene).filter((x): x is SavedScene => x !== null).slice(0, 12)
       : DEFAULT_SAVED_SCENES,
     transition: normalizeTransition(c.transition),
+    tweets: (Array.isArray(c.tweets) ? c.tweets : []).map(normalizeTweetCard).filter((x): x is TweetCard => x !== null).slice(0, 30),
     screens: {
       espera: screen(screens.espera, SCREEN_DEFAULTS.espera),
       intervalo: screen(screens.intervalo, SCREEN_DEFAULTS.intervalo),

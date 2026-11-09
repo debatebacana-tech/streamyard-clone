@@ -29,6 +29,7 @@ import { RundownBar, RundownSettings, useProgramConfig } from "./rundown";
 import { ScenesBar, TransitionPanel } from "./scenes";
 import { BoardAutoRefresh, BoardPanel } from "./board";
 import { TierListPanel } from "./tierlist";
+import { TwitterPanel } from "./twitter";
 import { ChatTab } from "./chat";
 
 function clientId(): string {
@@ -141,7 +142,7 @@ function Workspace() {
   );
 }
 
-type TabId = "tier" | "rodada" | "cena" | "chat" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
+type TabId = "twitter" | "tier" | "rodada" | "cena" | "chat" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
 
 // Everything below the provider: header, rundown, monitors and the tabs.
 function Desk() {
@@ -155,6 +156,7 @@ function Desk() {
     ...(football ? [{ id: "placar" as const, label: "Placar" }, { id: "rodada" as const, label: "Rodada e tabela" }] : []),
     { id: "cena", label: "Cena" },
     { id: "chat", label: "Chat" },
+    { id: "twitter", label: "Twitter" },
     { id: "grafismos", label: "Textos e grafismos" },
     { id: "tier", label: "Tier list" },
     ...(!football && scoreboard
@@ -221,6 +223,12 @@ function Desk() {
             <TransitionPanel />
           </Panel>
         </div>
+      )}
+
+      {active === "twitter" && (
+        <Panel title="Twitter / X">
+          <TwitterPanel />
+        </Panel>
       )}
 
       {active === "tier" && (

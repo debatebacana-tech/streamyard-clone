@@ -15,6 +15,7 @@ import { MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
+import { TWEET_W, TweetCardView } from "./TweetCard";
 import { CONDENSED, DISPLAY, FRAME } from "./showStyle";
 import {
   clockElapsedMs,
@@ -81,10 +82,13 @@ function Tile({
   trackRef,
   branding,
   framed = true,
+  crop = false,
 }: {
   trackRef: TrackReferenceOrPlaceholder;
   branding: ProgramBranding;
   framed?: boolean;
+  // Fill the frame (cutting the sides) instead of letterboxing a screen share.
+  crop?: boolean;
 }) {
   const isScreen = trackRef.source === Track.Source.ScreenShare;
   const name = trackRef.participant.name || trackRef.participant.identity;
@@ -98,7 +102,7 @@ function Tile({
       {hasVideo ? (
         <VideoTrack
           trackRef={trackRef}
-          className={`h-full w-full ${isScreen ? "bg-black object-contain" : "object-cover"}`}
+          className={`h-full w-full ${isScreen && !crop ? "bg-black object-contain" : "object-cover"}`}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-neutral-800">
@@ -170,6 +174,30 @@ function Stage({ stage, scene, branding, box }: {
           ))}
         </div>
       </>
+    );
+  }
+
+  // Tall frame for a shared phone/Twitter screen (center of the share), cameras beside it.
+  if (scene.layout === "vertical") {
+    const height = CANVAS_H - box.top - box.bottom;
+    const width = Math.round(height * 0.6);
+    const cols = others.length <= 2 ? 1 : 2;
+    return (
+      <div className="absolute flex gap-4" style={box}>
+        <div className="shrink-0" style={{ width, height }}>
+          <Tile trackRef={featured} branding={branding} crop />
+        </div>
+        {others.length > 0 && (
+          <div
+            className="grid min-w-0 flex-1 gap-4"
+            style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridAutoRows: "minmax(0, 1fr)" }}
+          >
+            {others.slice(0, 6).map((t) => (
+              <Tile key={key(t)} trackRef={t} branding={branding} />
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -806,6 +834,9 @@ export function ShowComposition({
   // The tier list panel takes the left side; a side web widget then goes right.
   const webSide = webOn && (scene.web.position === "left" || scene.web.position === "right") ? scene.web.position : null;
   const side = tierSplit && webSide ? "right" : webSide;
+  const tweet = scene.tweet.visible ? scene.tweet.card : null;
+  // Beside the cameras: left, or right when the tier list panel holds the left.
+  const tweetSide = tweet && scene.tweet.mode === "side" ? (tierSplit || side === "left" ? "right" : "left") : null;
 
   // Bottom-up stack: ticker, scoreboard bar, GC; the stage fills what's left.
   let y = tickerOn ? TICKER_H + 12 : 18;
@@ -817,12 +848,13 @@ export function ShowComposition({
   const top = headerOn ? 128 : bugOn ? (themeTab ? 124 : 92) : 24;
   const box: Box = {
     top,
-    left: tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : 24,
-    right: (side === "right" ? 24 + SIDE_W + 16 : 24) + (chatOn ? CHAT_W + 16 : 0),
+    left: tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : tweetSide === "left" ? 24 + TWEET_W + 16 : 24,
+    right:
+      (side === "right" ? 24 + SIDE_W + 16 : 24) + (chatOn ? CHAT_W + 16 : 0) + (tweetSide === "right" ? TWEET_W + 16 : 0),
     bottom: Math.max(y, 24),
   };
   // Re-keys the stage when the arrangement changes, so a cut fades in.
-  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}`;
+  const arrangement = `${scene.layout}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}`;
 
   return (
     <ScaledCanvas>
@@ -838,6 +870,31 @@ export function ShowComposition({
           <Stage stage={stage} scene={scene} branding={branding} box={box} />
         </div>
         {tierSplit && <TierPanel list={scene.tierList} top={box.top} bottom={box.bottom} />}
+        {tweet && tweetSide && (
+          <TweetCardView
+            key={tweet.id}
+            card={tweet}
+            style={{
+              top: box.top,
+              height: CANVAS_H - box.top - box.bottom,
+              width: TWEET_W,
+              ...(tweetSide === "left" ? { left: 24 } : { right: 24 + (chatOn ? CHAT_W + 16 : 0) }),
+            }}
+          />
+        )}
+        {tweet && !tweetSide && (
+          <>
+            <div className="scene-fade absolute inset-0 z-[33] bg-black/55" />
+            <div className="absolute inset-0 z-[33] flex items-center justify-center">
+              <TweetCardView
+                key={tweet.id}
+                big
+                card={tweet}
+                style={{ position: "relative", width: tweet.photo ? 700 : 800, height: tweet.photo ? 648 : undefined, maxHeight: 648 }}
+              />
+            </div>
+          </>
+        )}
         {chatOn && <ChatPanel messages={show.chat ?? []} branding={branding} top={box.top} bottom={box.bottom} />}
         {webOn && <WebOverlay scene={scene} box={box} />}
         <Header scene={scene} branding={branding} bugOn={bugOn} />

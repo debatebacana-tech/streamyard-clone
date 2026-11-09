@@ -151,7 +151,7 @@ export function LayoutPanel() {
   const { draft } = scenes;
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2 xl:grid-cols-5">
         {LAYOUTS.map((l) => (
           <button key={l.mode} title={l.hint} onClick={() => patch({ layout: l.mode })} className={draft.layout === l.mode ? btnOn : btn}>
             {l.label}
