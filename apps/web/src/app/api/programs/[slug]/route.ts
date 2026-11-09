@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hostProgram } from "@/lib/hostProgram";
-import { brandingOf, syncProgramRoom } from "@/lib/programs";
+import { brandLogo, brandingOf, syncProgramRoom } from "@/lib/programs";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -32,5 +32,5 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
 
   const updated = await prisma.program.update({ where: { id: program.id }, data });
   await syncProgramRoom(updated);
-  return NextResponse.json({ program: brandingOf(updated) });
+  return NextResponse.json({ program: brandingOf(updated, await brandLogo()) });
 }

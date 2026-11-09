@@ -8,9 +8,11 @@ import { hostProgram } from "@/lib/hostProgram";
 
 type Params = { params: Promise<{ slug: string }> };
 
-function present(asset: { id: string; kind: string; name: string; fileName: string; size: number }) {
-  return { id: asset.id, kind: asset.kind, name: asset.name, url: mediaUrl(asset.fileName), size: asset.size };
+function present(asset: { id: string; kind: string; role: string; name: string; fileName: string; size: number }) {
+  return { id: asset.id, kind: asset.kind, role: asset.role, name: asset.name, url: mediaUrl(asset.fileName), size: asset.size };
 }
+
+const ROLES = new Set(["trilha", "efeito"]);
 
 export async function GET(_request: Request, { params }: Params) {
   const { program, error } = await hostProgram(params);
@@ -46,8 +48,10 @@ export async function POST(request: Request, { params }: Params) {
 
   const rawName = form?.get("name");
   const name = (typeof rawName === "string" && rawName.trim() ? rawName : file.name).trim().slice(0, 80);
+  const rawRole = form?.get("role");
+  const role = typeof rawRole === "string" && ROLES.has(rawRole) ? rawRole : type.kind === "image" ? "" : "efeito";
   const asset = await prisma.asset.create({
-    data: { programId: program.id, kind: type.kind, name, fileName, mimeType: file.type, size: file.size },
+    data: { programId: program.id, kind: type.kind, role, name, fileName, mimeType: file.type, size: file.size },
   });
   return NextResponse.json({ asset: present(asset) });
 }

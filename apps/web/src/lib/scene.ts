@@ -3,14 +3,55 @@
 // on-air scene is mirrored into the LiveKit room metadata that the
 // composition renders from.
 
-export type LayoutMode = "grid" | "spotlight" | "pip" | "solo";
+// "auto" follows the brand manual's grid for the number of people on stage
+// (1 to 5 cameras, or shared screen + cameras).
+export type LayoutMode = "auto" | "spotlight" | "solo" | "pip";
 
-export const LAYOUTS: { mode: LayoutMode; label: string }[] = [
-  { mode: "grid", label: "Grade" },
-  { mode: "spotlight", label: "Destaque" },
-  { mode: "pip", label: "PiP" },
-  { mode: "solo", label: "Só um" },
+export const LAYOUTS: { mode: LayoutMode; label: string; hint: string }[] = [
+  { mode: "auto", label: "Mesa", hint: "Grade do manual pelo número de pessoas em cena" },
+  { mode: "spotlight", label: "Destaque", hint: "Uma pessoa grande e as outras ao lado" },
+  { mode: "solo", label: "Só um", hint: "Apenas a pessoa em destaque" },
+  { mode: "pip", label: "Tela cheia", hint: "Destaque em tela cheia com as outras em janelinhas" },
 ];
+
+// Institutional full screens from the brand manual.
+export type ScreenKind = "none" | "espera" | "intervalo" | "encerramento";
+
+export type ScreenText = {
+  label: string;
+  title: string;
+  subtitle: string;
+  panelLabel: string;
+  panelTitle: string;
+  panelText: string;
+};
+
+export const SCREEN_DEFAULTS: Record<Exclude<ScreenKind, "none">, ScreenText> = {
+  espera: {
+    label: "SINAL DE ABERTURA",
+    title: "COMEÇAMOS EM INSTANTES",
+    subtitle: "A resenha vai começar.",
+    panelLabel: "CONTAGEM",
+    panelTitle: "",
+    panelText: "MINUTOS / SEGUNDOS",
+  },
+  intervalo: {
+    label: "PAUSA NA PROGRAMAÇÃO",
+    title: "JÁ VOLTAMOS",
+    subtitle: "A seguir, análise e resenha.",
+    panelLabel: "A SEGUIR",
+    panelTitle: "PÓS-JOGO",
+    panelText: "Análise e comentários",
+  },
+  encerramento: {
+    label: "FIM DE TRANSMISSÃO",
+    title: "ATÉ A PRÓXIMA!",
+    subtitle: "Valeu por acompanhar a resenha.",
+    panelLabel: "ENCONTRE A GENTE",
+    panelTitle: "YOUTUBE",
+    panelText: "Instagram • TikTok",
+  },
+};
 
 export type Team = { name: string; score: number; crestUrl: string | null; color: string };
 
@@ -72,13 +113,21 @@ export const WEB_POSITIONS: { position: WebPosition; label: string }[] = [
 ];
 
 export type Scene = {
+  // Scene title in the header, next to the program name (e.g. "CENTRAL DA PARTIDA").
+  title: string;
   layout: LayoutMode;
   // Participants shown in the output; everyone else stays backstage (not seen or heard).
   onStage: string[];
   // Featured participant for spotlight/pip/solo; falls back to a screen share, then the first on stage.
   featured: string | null;
+  // Lower third: subtitle is the lime label ("PAUTA DA MESA"), title the line.
   gc: { visible: boolean; title: string; subtitle: string; imageUrl: string | null };
+  // Text running in the footer band.
   ticker: { visible: boolean; text: string };
+  // Background track, synced for every viewer via startedAt (null = stopped).
+  music: { url: string | null; title: string; volume: number; loop: boolean; startedAt: number | null };
+  // Full-screen institutional screen; countdownTo drives the "espera" timer.
+  screen: { kind: ScreenKind; countdownTo: number | null } & ScreenText;
   // "bar": full-width bottom bar (Hospício style); "bug": compact top-left corner, TV style.
   scoreboard: { visible: boolean; style: "bar" | "bug"; theme: CompetitionTheme; home: Team; away: Team; clock: Clock };
   // Embedded web page (e.g. a live pitch widget); zoom scales its content to fit.
@@ -87,9 +136,12 @@ export type Scene = {
   showLogo: boolean;
 };
 
+export type ProgramFormat = "debate" | "futebol" | "especial";
+
 export type ProgramBranding = {
   slug: string;
   name: string;
+  format: ProgramFormat;
   primaryColor: string;
   accentColor: string;
   logoUrl: string | null;
@@ -101,11 +153,14 @@ export type ShowMetadata = { program: ProgramBranding; scene: Scene };
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A" };
 
 export const DEFAULT_SCENE: Scene = {
-  layout: "grid",
+  title: "",
+  layout: "auto",
   onStage: [],
   featured: null,
   gc: { visible: false, title: "", subtitle: "", imageUrl: null },
   ticker: { visible: false, text: "" },
+  music: { url: null, title: "", volume: 0.5, loop: true, startedAt: null },
+  screen: { kind: "none", countdownTo: null, ...SCREEN_DEFAULTS.espera },
   scoreboard: {
     visible: false,
     style: "bug",
@@ -120,6 +175,7 @@ export const DEFAULT_SCENE: Scene = {
 };
 
 const LAYOUT_MODES = new Set<string>(LAYOUTS.map((l) => l.mode));
+const SCREEN_KINDS = new Set<string>(["none", "espera", "intervalo", "encerramento"]);
 
 function obj(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -196,9 +252,13 @@ export function normalizeScene(input: unknown): Scene {
   const clock = obj(sb.clock);
   const sponsor = obj(raw.sponsor);
   const web = obj(raw.web);
+  const music = obj(raw.music);
+  const screen = obj(raw.screen);
   const d = DEFAULT_SCENE;
+  const screenKind = typeof screen.kind === "string" && SCREEN_KINDS.has(screen.kind) ? (screen.kind as ScreenKind) : "none";
 
   return {
+    title: str(raw.title, 60),
     layout: typeof raw.layout === "string" && LAYOUT_MODES.has(raw.layout) ? (raw.layout as LayoutMode) : d.layout,
     onStage: Array.isArray(raw.onStage)
       ? [...new Set(raw.onStage.filter((id): id is string => typeof id === "string" && id.length <= 64))].slice(0, 16)
@@ -211,6 +271,23 @@ export function normalizeScene(input: unknown): Scene {
       imageUrl: url(gc.imageUrl),
     },
     ticker: { visible: bool(ticker.visible, false), text: str(ticker.text, 400) },
+    music: {
+      url: url(music.url),
+      title: str(music.title, 80),
+      volume: num(music.volume, d.music.volume, 0, 1),
+      loop: bool(music.loop, true),
+      startedAt: typeof music.startedAt === "number" ? music.startedAt : null,
+    },
+    screen: {
+      kind: screenKind,
+      countdownTo: typeof screen.countdownTo === "number" ? screen.countdownTo : null,
+      label: str(screen.label, 40, d.screen.label),
+      title: str(screen.title, 60, d.screen.title),
+      subtitle: str(screen.subtitle, 120, d.screen.subtitle),
+      panelLabel: str(screen.panelLabel, 40, d.screen.panelLabel),
+      panelTitle: str(screen.panelTitle, 40, d.screen.panelTitle),
+      panelText: str(screen.panelText, 120, d.screen.panelText),
+    },
     scoreboard: {
       visible: bool(sb.visible, false),
       style: sb.style === "bar" ? "bar" : "bug",
@@ -248,6 +325,8 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     ticker: { ...current.ticker, ...obj(p.ticker) },
     sponsor: { ...current.sponsor, ...obj(p.sponsor) },
     web: { ...current.web, ...obj(p.web) },
+    music: { ...current.music, ...obj(p.music) },
+    screen: { ...current.screen, ...obj(p.screen) },
     scoreboard: {
       ...current.scoreboard,
       ...sb,
@@ -275,7 +354,7 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
   try {
     const parsed = JSON.parse(raw) as Partial<ShowMetadata>;
     if (!parsed.program) return null;
-    return { program: parsed.program, scene: normalizeScene(parsed.scene) };
+    return { program: { ...parsed.program, format: parsed.program.format ?? "debate" }, scene: normalizeScene(parsed.scene) };
   } catch {
     return null;
   }

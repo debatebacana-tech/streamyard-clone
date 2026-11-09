@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireHostSession } from "@/lib/auth";
-import { brandingOf, draftSceneOf, getProgram, liveSceneOf } from "@/lib/programs";
+import { brandLogo, brandingOf, draftSceneOf, getProgram, liveSceneOf } from "@/lib/programs";
 import { DirectorStudio } from "./DirectorStudio";
 
 export default async function DirectorProgramPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -12,7 +12,7 @@ export default async function DirectorProgramPage({ params }: { params: Promise<
 
   return (
     <DirectorStudio
-      program={brandingOf(program)}
+      program={brandingOf(program, await brandLogo())}
       initialScenes={{ live: liveSceneOf(program), draft: draftSceneOf(program) }}
     />
   );

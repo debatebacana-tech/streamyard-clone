@@ -31,6 +31,11 @@ model Program {
   // next scene being prepared in the preview monitor.
   sceneJson      String   @default("{}")
   draftSceneJson String   @default("{}")
+  // debate | futebol | especial: which tools the director sees (e.g. the
+  // scoreboard only for futebol).
+  format         String   @default("debate")
+  // ProgramConfig (lib/programConfig.ts): opening stinger, tracks, screen texts.
+  configJson     String   @default("{}")
   sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -45,6 +50,9 @@ model Asset {
   programId String
   program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
   kind      String   // image | audio | video
+  // Where the director filed it: "trilha" (background track) or "efeito"
+  // (sound pad / stinger); empty for images and legacy uploads.
+  role      String   @default("")
   name      String
   fileName  String   @unique
   mimeType  String

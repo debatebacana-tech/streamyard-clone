@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { VideoTrack, isTrackReference, useParticipants, useTracks } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { useMediaCues } from "@/components/MediaLayer";
 import { dedupeTracks } from "@/components/ShowComposition";
 import {
   LAYOUTS,
@@ -15,7 +14,7 @@ import {
   type CompetitionTheme,
   type Team,
 } from "@/lib/scene";
-import { ImagePicker, UploadButton } from "./assets";
+import { ImagePicker } from "./assets";
 import { useDirector } from "./context";
 
 const input = "rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-neutral-500";
@@ -125,18 +124,31 @@ export function StagePanel() {
 export function LayoutPanel() {
   const { scenes, patch } = useDirector();
   const { draft } = scenes;
+  const [title, setTitle] = useState(draft.title);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-4 gap-2">
         {LAYOUTS.map((l) => (
-          <button key={l.mode} onClick={() => patch({ layout: l.mode })} className={draft.layout === l.mode ? btnOn : btn}>
+          <button key={l.mode} title={l.hint} onClick={() => patch({ layout: l.mode })} className={draft.layout === l.mode ? btnOn : btn}>
             {l.label}
           </button>
         ))}
       </div>
+      <p className="text-[11px] text-neutral-500">{LAYOUTS.find((l) => l.mode === draft.layout)?.hint}</p>
+      <label className="block space-y-1">
+        <span className="text-xs text-neutral-400">Título da cena (no cabeçalho, ao lado do nome do programa)</span>
+        <input
+          className={`${input} w-full uppercase`}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={() => title !== draft.title && patch({ title })}
+          onKeyDown={(e) => e.key === "Enter" && patch({ title })}
+          placeholder="Ex: A RODADA EM PAUTA, CENTRAL DA PARTIDA"
+        />
+      </label>
       <label className="flex items-center gap-2 text-sm text-neutral-300">
         <input type="checkbox" checked={draft.showLogo} onChange={(e) => patch({ showLogo: e.target.checked })} />
-        Mostrar logo do programa no topo
+        Mostrar logo no canto superior direito
       </label>
     </div>
   );
@@ -291,8 +303,8 @@ export function ScoreboardPanel() {
       <div className="flex flex-wrap items-center gap-2">
         <Toggle on={draft.scoreboard.visible} onClick={() => patch({ scoreboard: { visible: !draft.scoreboard.visible } })} labels={["Mostrar placar", "Ocultar placar"]} />
         <select className={input} value={draft.scoreboard.style} onChange={(e) => patch({ scoreboard: { style: e.target.value } })}>
-          <option value="bug">Estilo selo (canto)</option>
-          <option value="bar">Estilo barra (embaixo)</option>
+          <option value="bug">No topo (central da partida)</option>
+          <option value="bar">Embaixo (ao lado do GC)</option>
         </select>
         <label className="flex items-center gap-1 text-sm text-neutral-300">
           <input type="checkbox" checked={draft.scoreboard.clock.visible} onChange={(e) => patch({ scoreboard: { clock: { visible: e.target.checked } } }, { air: true })} />
@@ -358,81 +370,25 @@ export function TickerSponsorPanel() {
   );
 }
 
-// ----------------------------------------------------------------- sound pads
-
-export function SoundPanel() {
-  const { slug, assets, addAsset, removeAsset } = useDirector();
-  const sendCue = useMediaCues();
-  const [volume, setVolume] = useState(0.8);
-  // Oldest first, so keyboard shortcuts stay put as new pads are added.
-  const pads = assets.filter((a) => a.kind === "audio" || a.kind === "video").reverse();
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      if (target.closest("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === "Escape") sendCue({ type: "stop" });
-      const n = Number(e.key);
-      if (n >= 1 && n <= 9 && pads[n - 1]) {
-        const pad = pads[n - 1];
-        sendCue({ type: "play", id: crypto.randomUUID(), url: pad.url, kind: pad.kind === "video" ? "video" : "audio", volume });
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pads, sendCue, volume]);
-
-  return (
-    <div className="space-y-3">
-      {pads.length === 0 ? (
-        <p className="text-sm text-neutral-500">Envie áudios (MP3/WAV) e vinhetas em vídeo (MP4/WEBM) para criar os botões.</p>
-      ) : (
-        <div className="grid grid-cols-3 gap-2">
-          {pads.map((pad, i) => (
-            <div key={pad.id} className="group relative">
-              <button
-                onClick={() => sendCue({ type: "play", id: crypto.randomUUID(), url: pad.url, kind: pad.kind === "video" ? "video" : "audio", volume })}
-                className={`flex h-16 w-full flex-col items-start justify-between rounded-md p-2 text-left text-xs font-semibold active:scale-95 ${pad.kind === "video" ? "bg-indigo-800 hover:bg-indigo-700" : "bg-neutral-700 hover:bg-neutral-600"}`}
-              >
-                <span className="text-[10px] text-white/60">{i < 9 ? `tecla ${i + 1}` : ""} {pad.kind === "video" ? "· vinheta" : ""}</span>
-                <span className="line-clamp-2">{pad.name}</span>
-              </button>
-              <button
-                onClick={() => confirm(`Apagar "${pad.name}"?`) && removeAsset(pad.id)}
-                className="absolute top-1 right-1 hidden rounded bg-black/60 px-1 text-[10px] text-red-300 group-hover:block"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="flex items-center gap-3">
-        <button className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-bold hover:bg-red-600" onClick={() => sendCue({ type: "stop" })} title="Tecla Esc">
-          ■ PARAR
-        </button>
-        <label className="flex flex-1 items-center gap-2 text-xs text-neutral-400">
-          Volume
-          <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="flex-1" />
-        </label>
-        <UploadButton slug={slug} accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/x-m4a,video/mp4,video/webm" label="Áudio/vinheta" onUploaded={addAsset} />
-      </div>
-    </div>
-  );
-}
-
 // -------------------------------------------------------------------- identity
 
 export function IdentityPanel() {
   const { slug, branding, setBranding, assets, addAsset } = useDirector();
-  const [form, setForm] = useState(branding);
+  const [name, setName] = useState(branding.name);
+  const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  async function save() {
+  useEffect(() => {
+    fetch("/api/settings/brand")
+      .then((r) => r.json())
+      .then((d) => setBrandLogo(d.logoUrl ?? null));
+  }, []);
+
+  async function patchProgram(body: Record<string, unknown>) {
     const res = await fetch(`/api/programs/${slug}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       setBranding((await res.json()).program);
@@ -441,32 +397,38 @@ export function IdentityPanel() {
     }
   }
 
+  async function saveBrandLogo(logoUrl: string | null) {
+    setBrandLogo(logoUrl);
+    await fetch("/api/settings/brand", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logoUrl }),
+    });
+    await patchProgram({});
+  }
+
   return (
-    <div className="space-y-3">
-      <input className={`${input} w-full`} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-      <div className="flex gap-4 text-xs text-neutral-400">
-        <label className="flex items-center gap-2">
-          Cor principal
-          <input type="color" value={form.primaryColor} onChange={(e) => setForm({ ...form, primaryColor: e.target.value })} className="h-8 w-10 cursor-pointer bg-transparent" />
-        </label>
-        <label className="flex items-center gap-2">
-          Cor do texto
-          <input type="color" value={form.accentColor} onChange={(e) => setForm({ ...form, accentColor: e.target.value })} className="h-8 w-10 cursor-pointer bg-transparent" />
-        </label>
-      </div>
+    <div className="space-y-4">
+      <label className="block space-y-1">
+        <span className="text-xs text-neutral-400">Nome do programa (aparece no cabeçalho e no rodapé)</span>
+        <div className="flex gap-2">
+          <input className={`${input} flex-1`} value={name} onChange={(e) => setName(e.target.value)} />
+          <button className={btn} disabled={!name.trim() || name === branding.name} onClick={() => patchProgram({ name })}>
+            {saved ? "Salvo ✓" : "Salvar"}
+          </button>
+        </div>
+      </label>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <p className="text-xs text-neutral-400">Logo (topo da tela)</p>
-          <ImagePicker slug={slug} assets={assets} value={form.logoUrl} onChange={(url) => setForm({ ...form, logoUrl: url })} onUploaded={addAsset} />
+          <p className="text-xs text-neutral-400">Logo Debate Bacana (vale para todos os programas)</p>
+          <ImagePicker slug={slug} assets={assets} value={brandLogo} onChange={saveBrandLogo} onUploaded={addAsset} />
+          <p className="text-[11px] text-neutral-500">Use o PNG com fundo transparente do manual.</p>
         </div>
         <div className="space-y-1">
-          <p className="text-xs text-neutral-400">Fundo (1280×720 ou maior)</p>
-          <ImagePicker slug={slug} assets={assets} value={form.backgroundUrl} onChange={(url) => setForm({ ...form, backgroundUrl: url })} onUploaded={addAsset} />
+          <p className="text-xs text-neutral-400">Fundo (opcional — o manual pede grafite liso)</p>
+          <ImagePicker slug={slug} assets={assets} value={branding.backgroundUrl} onChange={(url) => patchProgram({ backgroundUrl: url })} onUploaded={addAsset} />
         </div>
       </div>
-      <button className={btnOn} onClick={save}>
-        {saved ? "Salvo ✓" : "Salvar identidade"}
-      </button>
     </div>
   );
 }
@@ -624,7 +586,6 @@ export function ThemePanel() {
   const theme = scenes.draft.scoreboard.theme;
   const [saved, setSaved] = useState<SavedTheme[]>([]);
   const [name, setName] = useState(theme.name);
-  const [opacity, setOpacity] = useState(theme.elementOpacity);
   const setTheme = (t: Partial<CompetitionTheme>) => patch({ scoreboard: { theme: t } });
 
   useEffect(() => {
@@ -635,7 +596,6 @@ export function ThemePanel() {
 
   function apply(t: CompetitionTheme) {
     setName(t.name);
-    setOpacity(t.elementOpacity);
     return patch({ scoreboard: { theme: t } });
   }
 
@@ -687,47 +647,19 @@ export function ThemePanel() {
         placeholder="Nome da competição no placar (ex: BRASILEIRÃO)"
       />
 
-      <div className="flex flex-wrap gap-3">
-        <ColorField label="Fundo" value={theme.dark} onChange={(v) => setTheme({ dark: v })} />
-        <ColorField label="Faixas" value={theme.light} onChange={(v) => setTheme({ light: v })} />
-        <ColorField label="Destaque" value={theme.accent} onChange={(v) => setTheme({ accent: v })} />
-        {theme.clock ? (
-          <span className="flex items-center gap-1">
-            <ColorField label="Cronômetro" value={theme.clock} onChange={(v) => setTheme({ clock: v })} />
-            <button onClick={() => setTheme({ clock: null })} className="text-[10px] text-neutral-500 hover:text-neutral-300" title="Usar a cor do programa">↺</button>
-          </span>
-        ) : (
-          <button onClick={() => setTheme({ clock: theme.accent })} className="text-xs text-neutral-500 hover:text-neutral-300">
-            cronômetro: cor do programa (trocar)
+      <div className="flex flex-wrap items-center gap-3">
+        <ColorField label="Cor da competição (linha e × do placar)" value={theme.clock ?? "#DFFF00"} onChange={(v) => setTheme({ clock: v })} />
+        {theme.clock && (
+          <button onClick={() => setTheme({ clock: null })} className="text-xs text-neutral-500 hover:text-neutral-300" title="Voltar ao limão da marca">
+            ↺ limão da marca
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <p className="text-xs text-neutral-400">Logo da competição</p>
-          <ImagePicker slug={slug} assets={assets} value={theme.logoUrl} onChange={(url) => setTheme({ logoUrl: url })} onUploaded={addAsset} />
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs text-neutral-400">Elemento no placar (taça, bola, símbolo)</p>
-          <ImagePicker slug={slug} assets={assets} value={theme.elementUrl} onChange={(url) => setTheme({ elementUrl: url })} onUploaded={addAsset} />
-        </div>
+      <div className="space-y-1">
+        <p className="text-xs text-neutral-400">Logo da competição (ao lado do placar)</p>
+        <ImagePicker slug={slug} assets={assets} value={theme.logoUrl} onChange={(url) => setTheme({ logoUrl: url })} onUploaded={addAsset} />
       </div>
-      <label className="flex items-center gap-2 text-xs text-neutral-400">
-        Intensidade do elemento
-        <input
-          type="range"
-          min={0}
-          max={0.6}
-          step={0.02}
-          value={opacity}
-          onChange={(e) => setOpacity(Number(e.target.value))}
-          onPointerUp={() => setTheme({ elementOpacity: opacity })}
-          onKeyUp={() => setTheme({ elementOpacity: opacity })}
-          className="flex-1"
-        />
-      </label>
-      <p className="text-[11px] text-neutral-500">Sem elemento enviado, o próprio logo vira a marca d&apos;água.</p>
       <button className={btn} onClick={save}>Salvar como tema</button>
     </div>
   );
@@ -799,6 +731,71 @@ export function WebPanel() {
       <p className="text-[11px] text-neutral-500">
         Use o link de &quot;widget&quot; ou &quot;incorporar&quot; do site. Alguns sites bloqueiam aparecer dentro de outra página e ficam em branco. Confira na prévia antes de cortar pro ar.
       </p>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------- quick score
+
+// Always-visible scoreboard strip for football programs: goals, clock and
+// on/off without leaving the current tab. Everything here hits air at once.
+export function QuickScore() {
+  const { scenes, patch, sceneRequest } = useDirector();
+  const sb = scenes.live.scoreboard;
+  const goal = (side: "home" | "away", delta: number) =>
+    patch({ scoreboard: { [side]: { score: Math.max(0, sb[side].score + delta) } } }, { air: true });
+  const team = (side: "home" | "away") => (
+    <div className={`flex items-center gap-2 ${side === "away" ? "flex-row-reverse" : ""}`}>
+      <span className="max-w-[9rem] truncate text-sm font-bold uppercase">{sb[side].name || (side === "home" ? "Casa" : "Visitante")}</span>
+      <button className="rounded bg-neutral-800 px-2 py-1 text-sm hover:bg-neutral-700" onClick={() => goal(side, -1)} title="Tirar gol">
+        −
+      </button>
+      <span className="w-8 text-center text-3xl font-black tabular-nums">{sb[side].score}</span>
+      <button className="rounded bg-[#DFFF00] px-3 py-1 text-sm font-bold text-black hover:brightness-110" onClick={() => goal(side, 1)}>
+        ＋ GOL
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-[#DFFF00]/40 bg-neutral-900 px-4 py-2">
+      <span className="text-xs font-bold tracking-widest text-[#DFFF00]">PLACAR</span>
+      {team("home")}
+      <div className="flex items-center gap-2">
+        <LiveClock />
+        {sb.clock.running ? (
+          <button className={btn} onClick={() => sceneRequest({ action: "clock", op: "pause" })}>⏸</button>
+        ) : (
+          <button className={btnOn} onClick={() => sceneRequest({ action: "clock", op: "start" })}>▶</button>
+        )}
+        <span className="rounded bg-neutral-800 px-2 py-1 text-xs">{sb.clock.period}</span>
+      </div>
+      {team("away")}
+      <Toggle
+        on={sb.visible}
+        onClick={() => patch({ scoreboard: { visible: !sb.visible } }, { air: true })}
+        labels={["Mostrar no ar", "Tirar do ar"]}
+      />
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------- modules
+
+export function ModulesPanel({ scoreboardOn, onChange, football }: { scoreboardOn: boolean; onChange: (on: boolean) => void; football: boolean }) {
+  return (
+    <div className="space-y-2 text-sm">
+      {football ? (
+        <p className="text-neutral-400">No Futebol Bacana o placar e o cronômetro são parte principal e ficam sempre à vista.</p>
+      ) : (
+        <label className="flex items-start gap-2">
+          <input type="checkbox" className="mt-1" checked={scoreboardOn} onChange={(e) => onChange(e.target.checked)} />
+          <span>
+            <b>Placar e cronômetro</b>
+            <span className="block text-xs text-neutral-500">Mostra a aba Placar neste programa (para um jogo comentado no debate, por exemplo).</span>
+          </span>
+        </label>
+      )}
     </div>
   );
 }

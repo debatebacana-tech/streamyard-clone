@@ -2,11 +2,20 @@
 
 import { useRef, useState } from "react";
 
-export type AssetItem = { id: string; kind: "image" | "audio" | "video"; name: string; url: string; size: number };
+export type AssetItem = {
+  id: string;
+  kind: "image" | "audio" | "video";
+  // "trilha" (background track) or "efeito" (sound pad / stinger).
+  role: string;
+  name: string;
+  url: string;
+  size: number;
+};
 
-export async function uploadAsset(slug: string, file: File): Promise<AssetItem> {
+export async function uploadAsset(slug: string, file: File, role?: "trilha" | "efeito"): Promise<AssetItem> {
   const form = new FormData();
   form.append("file", file);
+  if (role) form.append("role", role);
   form.append("name", file.name.replace(/\.[^.]+$/, ""));
   const res = await fetch(`/api/programs/${slug}/assets`, { method: "POST", body: form });
   const data = await res.json();
@@ -18,11 +27,13 @@ export function UploadButton({
   slug,
   accept,
   label = "Enviar arquivo",
+  role,
   onUploaded,
 }: {
   slug: string;
   accept: string;
   label?: string;
+  role?: "trilha" | "efeito";
   onUploaded: (asset: AssetItem) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -34,7 +45,7 @@ export function UploadButton({
     setBusy(true);
     setError(null);
     try {
-      for (const file of Array.from(files)) onUploaded(await uploadAsset(slug, file));
+      for (const file of Array.from(files)) onUploaded(await uploadAsset(slug, file, role));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha no envio");
     } finally {

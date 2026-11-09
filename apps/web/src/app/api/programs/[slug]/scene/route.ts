@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hostProgram } from "@/lib/hostProgram";
-import { draftSceneOf, liveSceneOf, saveScenes } from "@/lib/programs";
+import { configOf, draftSceneOf, liveSceneOf, saveScenes } from "@/lib/programs";
+import type { ProgramConfig } from "@/lib/programConfig";
 import { clockElapsedMs, mergeScene, type Scene } from "@/lib/scene";
 
 type SceneRequest =
@@ -9,7 +10,67 @@ type SceneRequest =
   // Send the prepared preview to air.
   | { action: "take" }
   // Clock operations run on server time so every viewer agrees.
-  | { action: "clock"; op: "start" | "pause" | "reset" | "set"; ms?: number };
+  | { action: "clock"; op: "start" | "pause" | "reset" | "set"; ms?: number }
+  // Background track (straight to air, synced by server time).
+  | { action: "music"; op: "play"; url: string; title?: string; loop?: boolean; volume?: number }
+  | { action: "music"; op: "stop" }
+  | { action: "music"; op: "volume"; volume: number }
+  // Show rundown: institutional screen + its track, straight to air.
+  | { action: "rundown"; step: RundownStep; countdownMs?: number };
+
+type RundownStep = "espera" | "abertura" | "aovivo" | "intervalo" | "encerramento";
+
+function startMusic(scene: Scene, url: string | null, now: number, loop: boolean, title = ""): Scene {
+  if (!url) return { ...scene, music: { ...scene.music, startedAt: null } };
+  return { ...scene, music: { ...scene.music, url, title, loop, startedAt: now } };
+}
+
+function applyRundown(scene: Scene, step: RundownStep, config: ProgramConfig, now: number, countdownMs?: number): Scene {
+  switch (step) {
+    case "espera":
+      return startMusic(
+        {
+          ...scene,
+          screen: {
+            ...config.screens.espera,
+            kind: "espera",
+            countdownTo: countdownMs && countdownMs > 0 ? now + countdownMs : null,
+          },
+        },
+        config.waitingTrackUrl,
+        now,
+        true,
+        "Trilha de espera",
+      );
+    case "abertura":
+      // The opening stinger itself is cued by the director's client.
+      return startMusic({ ...scene, screen: { ...scene.screen, kind: "none" } }, config.openingTrackUrl, now, false, "Trilha de abertura");
+    case "aovivo":
+      return { ...scene, screen: { ...scene.screen, kind: "none" } };
+    case "intervalo":
+      return startMusic(
+        { ...scene, screen: { ...config.screens.intervalo, kind: "intervalo", countdownTo: null } },
+        config.breakTrackUrl,
+        now,
+        true,
+        "Trilha de intervalo",
+      );
+    case "encerramento":
+      return startMusic(
+        { ...scene, screen: { ...config.screens.encerramento, kind: "encerramento", countdownTo: null } },
+        config.closingTrackUrl,
+        now,
+        false,
+        "Trilha de encerramento",
+      );
+  }
+}
+
+// Air-only parts (music, screen, clock) are mirrored into the preview so a
+// later "take" doesn't undo them.
+function withAirState(draft: Scene, live: Scene): Scene {
+  return { ...draft, music: live.music, screen: live.screen, scoreboard: { ...draft.scoreboard, clock: live.scoreboard.clock } };
+}
 
 function applyClock(scene: Scene, op: string, ms: number | undefined, now: number): Scene {
   const clock = scene.scoreboard.clock;
@@ -45,16 +106,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       if (body.target === "live" || body.target === "both") live = mergeScene(live, body.patch);
       break;
     case "take":
-      // The clock keeps running on air; the preview's copy may be stale.
-      live = { ...draft, scoreboard: { ...draft.scoreboard, clock: live.scoreboard.clock } };
+      // Clock, track and screen keep running on air; the preview's copy may be stale.
+      live = withAirState(draft, live);
       draft = live;
       break;
-    case "clock": {
+    case "clock":
+      live = applyClock(live, body.op, body.ms, Date.now());
+      draft = withAirState(draft, live);
+      break;
+    case "music": {
       const now = Date.now();
-      live = applyClock(live, body.op, body.ms, now);
-      draft = { ...draft, scoreboard: { ...draft.scoreboard, clock: live.scoreboard.clock } };
+      if (body.op === "play") {
+        // mergeScene validates the URL (only /media uploads play).
+        const started = startMusic(live, body.url, now, body.loop ?? true, body.title ?? "");
+        live = mergeScene(started, { music: { volume: body.volume ?? live.music.volume } });
+      } else if (body.op === "stop") {
+        live = { ...live, music: { ...live.music, startedAt: null } };
+      } else {
+        live = mergeScene(live, { music: { volume: body.volume } });
+      }
+      draft = withAirState(draft, live);
       break;
     }
+    case "rundown":
+      live = mergeScene(applyRundown(live, body.step, configOf(program), Date.now(), body.countdownMs), {});
+      draft = withAirState(draft, live);
+      break;
     default:
       return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
   }

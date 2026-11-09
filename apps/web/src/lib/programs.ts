@@ -1,7 +1,8 @@
 import type { Program } from "@prisma/client";
 import { prisma } from "./db";
 import { getRoomServiceClient } from "./livekit";
-import { normalizeScene, type ProgramBranding, type Scene, type ShowMetadata } from "./scene";
+import { normalizeProgramConfig, type ProgramConfig } from "./programConfig";
+import { normalizeScene, type ProgramBranding, type ProgramFormat, type Scene, type ShowMetadata } from "./scene";
 
 const ROOM_PREFIX = "prog-";
 
@@ -21,15 +22,33 @@ export function getProgram(slug: string) {
   return prisma.program.findUnique({ where: { slug } });
 }
 
-export function brandingOf(program: Program): ProgramBranding {
+const FORMATS = new Set(["debate", "futebol", "especial"]);
+
+// The Debate Bacana signature (ShowSettings.logoUrl) is shared by every
+// program; a program-specific logo overrides it.
+export async function brandLogo(): Promise<string | null> {
+  const settings = await prisma.showSettings.findUnique({ where: { id: "default" } });
+  return settings?.logoUrl ?? null;
+}
+
+export function brandingOf(program: Program, sharedLogo: string | null = null): ProgramBranding {
   return {
     slug: program.slug,
     name: program.name,
+    format: (FORMATS.has(program.format) ? program.format : "debate") as ProgramFormat,
     primaryColor: program.primaryColor,
     accentColor: program.accentColor,
-    logoUrl: program.logoUrl,
+    logoUrl: program.logoUrl ?? sharedLogo,
     backgroundUrl: program.backgroundUrl,
   };
+}
+
+export function configOf(program: Program): ProgramConfig {
+  try {
+    return normalizeProgramConfig(JSON.parse(program.configJson), program.name);
+  } catch {
+    return normalizeProgramConfig({}, program.name);
+  }
 }
 
 function parseScene(json: string): Scene {
@@ -48,8 +67,8 @@ export function draftSceneOf(program: Program): Scene {
   return parseScene(program.draftSceneJson);
 }
 
-function metadataFor(program: Program): string {
-  const metadata: ShowMetadata = { program: brandingOf(program), scene: liveSceneOf(program) };
+async function metadataFor(program: Program): Promise<string> {
+  const metadata: ShowMetadata = { program: brandingOf(program, await brandLogo()), scene: liveSceneOf(program) };
   return JSON.stringify(metadata);
 }
 
@@ -58,7 +77,7 @@ function metadataFor(program: Program): string {
 export async function syncProgramRoom(program: Program) {
   const roomService = getRoomServiceClient();
   const name = roomForProgram(program.slug);
-  const metadata = metadataFor(program);
+  const metadata = await metadataFor(program);
   await roomService.createRoom({ name, emptyTimeout: 10 * 60, metadata });
   await roomService.updateRoomMetadata(name, metadata);
 }

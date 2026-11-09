@@ -8,20 +8,24 @@ import { ShowComposition } from "@/components/ShowComposition";
 import type { ProgramBranding } from "@/lib/scene";
 import type { AssetItem } from "./assets";
 import { DirectorContext, useDirector, type DirectorCtx, type SceneRequest, type Scenes } from "./context";
+import { scoreboardEnabled } from "@/lib/programConfig";
+import { EffectsPanel, MusicPanel } from "./audio";
 import {
   GcPanel,
   IdentityPanel,
   InvitePanel,
   LayoutPanel,
+  ModulesPanel,
   ObsPanel,
   Panel,
+  QuickScore,
   ScoreboardPanel,
-  SoundPanel,
   StagePanel,
   ThemePanel,
   TickerSponsorPanel,
   WebPanel,
 } from "./panels";
+import { RundownBar, RundownSettings, useProgramConfig } from "./rundown";
 
 function clientId(): string {
   const key = "studio-client-id";
@@ -133,6 +137,137 @@ function Workspace() {
   );
 }
 
+type TabId = "cena" | "grafismos" | "placar" | "audio" | "roteiro" | "ajustes";
+
+// Everything below the provider: header, rundown, monitors and the tabs.
+function Desk() {
+  const { slug, branding } = useDirector();
+  const { config, save } = useProgramConfig();
+  const football = branding.format === "futebol";
+  const scoreboard = scoreboardEnabled(config, branding.format);
+  const [tab, setTab] = useState<TabId>(football ? "placar" : "cena");
+
+  const tabs: { id: TabId; label: string }[] = [
+    ...(football ? [{ id: "placar" as const, label: "Placar" }] : []),
+    { id: "cena", label: "Cena" },
+    { id: "grafismos", label: "Textos e grafismos" },
+    ...(!football && scoreboard ? [{ id: "placar" as const, label: "Placar" }] : []),
+    { id: "audio", label: "Áudio" },
+    { id: "roteiro", label: "Roteiro" },
+    { id: "ajustes", label: "Ajustes" },
+  ];
+  const active = tabs.some((t) => t.id === tab) ? tab : "cena";
+
+  return (
+    <div className="mx-auto w-full max-w-[1500px] flex-1 space-y-4 p-4">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/diretor" className="text-sm text-neutral-400 hover:text-neutral-200">← Programas</Link>
+          <span className="flex items-center gap-[3px]">
+            <span className="h-1 w-5 bg-[#DFFF00]" />
+            <span className="h-1 w-1 bg-[#DFFF00]" />
+            <span className="h-1 w-1 bg-[#DFFF00]" />
+          </span>
+          <h1 className="text-xl font-bold">{branding.name}</h1>
+        </div>
+        <LiveControl slug={slug} />
+      </header>
+
+      <RundownBar />
+      <Workspace />
+      {football && <QuickScore />}
+
+      <nav className="flex flex-wrap gap-1 border-b border-neutral-800">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${
+              active === t.id ? "border-[#DFFF00] text-white" : "border-transparent text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {active === "cena" && (
+        <div className="space-y-4">
+          <Panel title="Participantes">
+            <StagePanel />
+          </Panel>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Panel title="Layout e título">
+              <LayoutPanel />
+            </Panel>
+            <Panel title="Página web (widget)">
+              <WebPanel />
+            </Panel>
+          </div>
+        </div>
+      )}
+
+      {active === "grafismos" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Panel title="GC — pauta da mesa">
+            <GcPanel />
+          </Panel>
+          <Panel title="Letreiro e apoio">
+            <TickerSponsorPanel />
+          </Panel>
+        </div>
+      )}
+
+      {active === "placar" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Panel title="Placar e cronômetro">
+            <ScoreboardPanel />
+          </Panel>
+          <Panel title="Competição">
+            <ThemePanel />
+          </Panel>
+        </div>
+      )}
+
+      {active === "audio" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Panel title="Trilha de fundo" right={<span className="text-[10px] text-neutral-500">uma por vez · em loop</span>}>
+            <MusicPanel />
+          </Panel>
+          <Panel title="Efeitos e vinhetas" right={<span className="text-[10px] text-neutral-500">teclas 1–9 · Esc para parar</span>}>
+            <EffectsPanel />
+          </Panel>
+        </div>
+      )}
+
+      {active === "roteiro" && (
+        <Panel title="Abertura, espera, intervalo e encerramento">
+          <RundownSettings />
+        </Panel>
+      )}
+
+      {active === "ajustes" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Panel title="Identidade">
+            <IdentityPanel />
+          </Panel>
+          <div className="space-y-4">
+            <Panel title="Módulos">
+              <ModulesPanel football={football} scoreboardOn={scoreboard} onChange={(on) => save({ scoreboardModule: on })} />
+            </Panel>
+            <Panel title="Convidados">
+              <InvitePanel />
+            </Panel>
+            <Panel title="OBS">
+              <ObsPanel />
+            </Panel>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DirectorStudio({ program, initialScenes }: { program: ProgramBranding; initialScenes: Scenes }) {
   const slug = program.slug;
   const [credentials, setCredentials] = useState<{ token: string; wsUrl: string } | null>(null);
@@ -206,61 +341,7 @@ export function DirectorStudio({ program, initialScenes }: { program: ProgramBra
         className="flex flex-1 flex-col"
       >
         <RoomAudioRenderer />
-        <div className="mx-auto w-full max-w-[1500px] flex-1 space-y-4 p-4">
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Link href="/diretor" className="text-sm text-neutral-400 hover:text-neutral-200">← Programas</Link>
-              <span className="h-6 w-1.5 rounded" style={{ background: branding.primaryColor }} />
-              <h1 className="text-xl font-bold">{branding.name}</h1>
-            </div>
-            <LiveControl slug={slug} />
-          </header>
-
-          <Workspace />
-
-          <Panel title="Participantes">
-            <StagePanel />
-          </Panel>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="space-y-4">
-              <Panel title="Layout">
-                <LayoutPanel />
-              </Panel>
-              <Panel title="GC (gerador de caracteres)">
-                <GcPanel />
-              </Panel>
-            </div>
-            <div className="space-y-4">
-              <Panel title="Placar e cronômetro">
-                <ScoreboardPanel />
-              </Panel>
-              <Panel title="Tema da competição (placar)">
-                <ThemePanel />
-              </Panel>
-              <Panel title="Página web (campinho ao vivo)">
-                <WebPanel />
-              </Panel>
-              <Panel title="Letreiro e patrocínio">
-                <TickerSponsorPanel />
-              </Panel>
-            </div>
-            <div className="space-y-4">
-              <Panel title="Central de áudio e vinhetas" right={<span className="text-[10px] text-neutral-500">teclas 1–9 · Esc para parar</span>}>
-                <SoundPanel />
-              </Panel>
-              <Panel title="Identidade do programa">
-                <IdentityPanel />
-              </Panel>
-              <Panel title="Convidados">
-                <InvitePanel />
-              </Panel>
-              <Panel title="OBS">
-                <ObsPanel />
-              </Panel>
-            </div>
-          </div>
-        </div>
+        <Desk />
       </LiveKitRoom>
     </DirectorContext.Provider>
   );

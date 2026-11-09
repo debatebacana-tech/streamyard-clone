@@ -9,7 +9,11 @@ export type Scenes = { live: Scene; draft: Scene };
 export type SceneRequest =
   | { action: "patch"; target: "draft" | "live" | "both"; patch: unknown }
   | { action: "take" }
-  | { action: "clock"; op: "start" | "pause" | "reset" | "set"; ms?: number };
+  | { action: "clock"; op: "start" | "pause" | "reset" | "set"; ms?: number }
+  | { action: "music"; op: "play"; url: string; title?: string; loop?: boolean; volume?: number }
+  | { action: "music"; op: "stop" }
+  | { action: "music"; op: "volume"; volume: number }
+  | { action: "rundown"; step: "espera" | "abertura" | "aovivo" | "intervalo" | "encerramento"; countdownMs?: number };
 
 export type DirectorCtx = {
   slug: string;
