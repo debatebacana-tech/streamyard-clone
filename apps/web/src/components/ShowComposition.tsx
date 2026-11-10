@@ -7,6 +7,7 @@ import {
   isTrackReference,
   useRoomContext,
   useTracks,
+  type TrackReference,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { RoomEvent, Track } from "livekit-client";
@@ -87,10 +88,40 @@ const SwapContext = createContext<((from: string, to: string) => void) | null>(n
 // then fits the window like a whole video would).
 const CropContext = createContext<Scene["screenCrop"] | null>(null);
 
-export function cropViewBox(c: Scene["screenCrop"]): string {
-  const pct = (v: number) => `${(Math.max(0, v) * 100).toFixed(2)}%`;
-  return `inset(${pct(c.y)} ${pct(1 - c.x - c.w)} ${pct(1 - c.y - c.h)} ${pct(c.x)})`;
+// Shows only the marked part of a shared screen, fitted to the window like a
+// whole video would be. Done with plain positioning (the video is enlarged and
+// shifted inside a clipping box) so every browser, the stream renderer
+// included, shows exactly the area the director drew.
+function CroppedScreen({ trackRef, crop, cover }: { trackRef: TrackReferenceOrPlaceholder; crop: Scene["screenCrop"]; cover: boolean }) {
+  const dims = isTrackReference(trackRef) ? trackRef.publication.dimensions : undefined;
+  const vw = dims?.width || 1920;
+  const vh = dims?.height || 1080;
+  const ratio = (crop.w * vw) / (crop.h * vh);
+  return (
+    <div className="flex h-full w-full items-center justify-center overflow-hidden bg-black" style={{ containerType: "size" }}>
+      <div
+        className="relative shrink-0 overflow-hidden"
+        style={
+          cover
+            ? { width: "100%", height: "100%" }
+            : { width: `min(100cqw, ${ratio} * 100cqh)`, height: `min(100cqh, 100cqw / ${ratio})` }
+        }
+      >
+        <VideoTrack
+          trackRef={trackRef as TrackReference}
+          className="absolute max-w-none object-fill"
+          style={{
+            width: `${100 / crop.w}%`,
+            height: `${100 / crop.h}%`,
+            left: `${(-crop.x / crop.w) * 100}%`,
+            top: `${(-crop.y / crop.h) * 100}%`,
+          }}
+        />
+      </div>
+    </div>
+  );
 }
+
 const DRAG_TYPE = "application/x-studio-identity";
 
 function Tile({
@@ -140,12 +171,10 @@ function Tile({
       className={`relative h-full w-full overflow-hidden bg-neutral-900 ${framed ? "rounded-2xl" : ""} ${swap ? "cursor-grab active:cursor-grabbing" : ""} ${over ? "outline outline-[6px] outline-[#aedf02]" : ""}`}
       style={framed ? { border: `5px solid ${FRAME}`, boxShadow: "0 8px 24px rgba(0,0,0,.45)" } : undefined}
     >
-      {hasVideo ? (
-        <VideoTrack
-          trackRef={trackRef}
-          className={`h-full w-full ${isScreen && !crop ? "bg-black object-contain" : "object-cover"}`}
-          style={isScreen && screenCrop?.enabled ? ({ objectViewBox: cropViewBox(screenCrop) } as React.CSSProperties) : undefined}
-        />
+      {hasVideo && isScreen && screenCrop?.enabled ? (
+        <CroppedScreen trackRef={trackRef} crop={screenCrop} cover={crop} />
+      ) : hasVideo ? (
+        <VideoTrack trackRef={trackRef} className={`h-full w-full ${isScreen && !crop ? "bg-black object-contain" : "object-cover"}`} />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-neutral-800">
           <span
