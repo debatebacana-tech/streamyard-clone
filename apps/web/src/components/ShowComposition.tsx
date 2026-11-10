@@ -974,7 +974,15 @@ export function ShowComposition({
   const showsVideo = (t: TrackReferenceOrPlaceholder) => isTrackReference(t) && !t.publication.isMuted;
   const onStageIds =
     scene.stageMode === "all"
-      ? [...new Set(all.filter((t) => !t.participant.identity.startsWith("host-") || showsVideo(t)).map((t) => t.participant.identity))]
+      ? [
+          ...new Set(
+            all
+              // The stream's own renderer (Egress) is in the room too: never a window.
+              .filter((t) => !t.participant.identity.startsWith("layout-viewer"))
+              .filter((t) => !t.participant.identity.startsWith("host-") || showsVideo(t))
+              .map((t) => t.participant.identity),
+          ),
+        ]
       : scene.onStage;
   // "all" follows the order the director arranged by dragging; newcomers go last.
   const ranked =
