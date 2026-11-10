@@ -56,7 +56,10 @@ async function get(path: string): Promise<unknown[]> {
 async function league(comp: Competition) {
   const known = store.leagues.get(comp.id);
   if (known) return known;
-  const found = (await get(`/leagues?country=Brazil&search=${encodeURIComponent(comp.search ?? comp.short)}`)).map(o);
+  // The API refuses country + search together: search by name, keep Brazil's.
+  const found = (await get(`/leagues?search=${encodeURIComponent(comp.search ?? comp.short)}`))
+    .map(o)
+    .filter((l) => !s(o(l.country).name) || /brazil|brasil/i.test(s(o(l.country).name)));
   const second = (name: string) => /\b(2|B|II|Série B|Serie B|Segunda)\b/i.test(name);
   const pick = found.find((l) => (comp.division === 2 ? second(s(o(l.league).name)) : !second(s(o(l.league).name))));
   if (!pick) {
