@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMediaCues } from "@/components/MediaLayer";
 import type { HotSound } from "@/lib/programConfig";
 import { UploadButton } from "./assets";
@@ -18,6 +18,57 @@ const CLUB_KEYS = { home: ["a", "s"], away: ["d", "f"] } as const;
 function typing(e: KeyboardEvent) {
   const el = e.target as HTMLElement;
   return Boolean(el.closest("input, textarea, select, [contenteditable]")) || e.ctrlKey || e.metaKey || e.altKey;
+}
+
+// The background track at hand while the signature sounds play: volume, a
+// quick "baixar" to talk over it (and back), stop.
+function TrackControl() {
+  const { scenes, sceneRequest } = useDirector();
+  const music = scenes.live.music;
+  const playing = Boolean(music.url && music.startedAt);
+  const [volume, setVolume] = useState(music.volume);
+  const [seen, setSeen] = useState(music.volume);
+  if (music.volume !== seen) {
+    setSeen(music.volume);
+    setVolume(music.volume);
+  }
+  // Volume before "Baixar" (null = not lowered).
+  const [before, setBefore] = useState<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const send = (v: number) => {
+    setVolume(v);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => sceneRequest({ action: "music", op: "volume", volume: v }), 120);
+  };
+  const ducked = before !== null;
+  if (!playing) {
+    return <span className="rounded-md bg-neutral-900 px-2 py-1.5 text-xs text-neutral-500">🎵 sem trilha tocando</span>;
+  }
+  return (
+    <span className="flex items-center gap-2 rounded-md bg-neutral-900 px-2 py-1" title={music.title}>
+      <span className="max-w-36 truncate text-xs font-semibold">🎵 {music.title || "Trilha"}</span>
+      <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => send(Number(e.target.value))} className="w-28 accent-[#DFFF00]" />
+      <span className="w-8 text-right text-xs tabular-nums">{Math.round(volume * 100)}%</span>
+      <button
+        onClick={() => {
+          if (before !== null) {
+            send(before);
+            setBefore(null);
+          } else {
+            setBefore(volume);
+            send(Math.min(volume, 0.15));
+          }
+        }}
+        className={`rounded px-2 py-1 text-xs font-bold ${ducked ? "bg-[#DFFF00] text-black" : "bg-neutral-700 hover:bg-neutral-600"}`}
+        title="Abaixa a trilha para falar por cima; aperte de novo para voltar"
+      >
+        {ducked ? "🔊 Voltar" : "🔉 Baixar"}
+      </button>
+      <button onClick={() => sceneRequest({ action: "music", op: "stop" })} className="rounded bg-neutral-700 px-2 py-1 text-xs hover:bg-neutral-600" title="Parar a trilha (com fade)">
+        ⏹
+      </button>
+    </span>
+  );
 }
 
 export function HotSoundsBar({ always }: { always: boolean }) {
@@ -75,7 +126,8 @@ export function HotSoundsBar({ always }: { always: boolean }) {
 
   const update = (id: string, patch: Partial<HotSound>) => save({ hotSounds: sounds.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
 
-  if (!config || (!always && !sounds.some((s) => s.url) && !game.length && !editing)) return null;
+  const trackOn = Boolean(scenes.live.music.url && scenes.live.music.startedAt);
+  if (!config || (!always && !sounds.some((s) => s.url) && !game.length && !editing && !trackOn)) return null;
 
   return (
     <div className="studio-bar flex flex-wrap items-center gap-2 p-2">
@@ -174,7 +226,10 @@ export function HotSoundsBar({ always }: { always: boolean }) {
       <button onClick={() => setEditing((e) => !e)} className="text-xs text-neutral-500 hover:text-neutral-300">
         {editing ? "pronto" : "editar"}
       </button>
-      <button className="ml-auto rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700" onClick={() => sendCue({ type: "stop" })}>
+      <span className="ml-auto">
+        <TrackControl />
+      </span>
+      <button className="rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700" onClick={() => sendCue({ type: "stop" })}>
         ⏹ Parar (Esc)
       </button>
     </div>
