@@ -1,7 +1,7 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
-import type { Board, BoardGroup, BoardMatch, BoardRow, BoardTeam, ProgramBranding } from "@/lib/scene";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import type { Board, BoardGroup, BoardMatch, BoardRow, BoardTeam, BracketRound, BracketSide, BracketTie, ProgramBranding } from "@/lib/scene";
 import { CONDENSED, DISPLAY } from "./showStyle";
 
 // Full-screen round fixtures / standings in the Debate Bacana board look:
@@ -57,11 +57,31 @@ export function Corners() {
   );
 }
 
-// "33ª RODADA": the leading number in lime.
+// "33ª RODADA": the leading number in lime. Shrinks to fit its box, so it
+// never runs under the competition logo.
 function Title({ text, size }: { text: string; size: number }) {
   const m = /^(\S*\d\S*)\s+(.*)$/.exec(text);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [fit, setFit] = useState(size);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const box = el?.parentElement;
+    if (!el || !box) return;
+    const measure = () => {
+      const room = box.clientWidth;
+      const natural = el.scrollWidth * (size / (parseFloat(getComputedStyle(el).fontSize) || size));
+      setFit(natural > room ? Math.floor((size * room) / natural) : size);
+    };
+    measure();
+    // Again once the display font has loaded (its width differs from the fallback).
+    let alive = true;
+    document.fonts?.ready.then(() => alive && measure());
+    return () => {
+      alive = false;
+    };
+  }, [text, size]);
   return (
-    <span className="leading-none whitespace-nowrap text-white uppercase" style={{ ...DISPLAY, fontSize: size, paddingTop: 6 }}>
+    <span ref={ref} className="block leading-none whitespace-nowrap text-white uppercase" style={{ ...DISPLAY, fontSize: fit, paddingTop: 4 }}>
       {m ? (
         <>
           <span style={{ color: LIME }}>{m[1]}</span> {m[2]}
@@ -74,16 +94,15 @@ function Title({ text, size }: { text: string; size: number }) {
 }
 
 function Header({ board, branding }: { board: Board; branding: ProgramBranding }) {
-  const tabela = board.kind === "tabela";
   const spaced = board.subtitle || "CAMPEONATO";
-  if (!tabela) return <BrandHeader branding={branding} over={<span style={{ letterSpacing: "0.42em" }}>{spaced}</span>} big={board.title || "JOGOS DA RODADA"} logo={board.logo} />;
+  if (board.kind === "jogos") return <BrandHeader branding={branding} over={<span style={{ letterSpacing: "0.42em" }}>{spaced}</span>} big={board.title || "JOGOS DA RODADA"} logo={board.logo} />;
   const over = (
     <span style={{ letterSpacing: "0.22em" }}>
       {spaced}
       {board.title && <span style={{ color: LIME }}> • {board.title}</span>}
     </span>
   );
-  return <BrandHeader branding={branding} over={over} big="CLASSIFICAÇÃO" size={84} logo={board.logo} />;
+  return <BrandHeader branding={branding} over={over} big={board.kind === "chave" ? "CHAVEAMENTO" : "CLASSIFICAÇÃO"} size={84} logo={board.logo} />;
 }
 
 // The board header: brand logo | spaced line over a heavy title | logo on the right.
@@ -113,24 +132,137 @@ export function BrandHeader({
         )}
       </div>
       <span className="absolute" style={{ top: 30, left: 470, width: 3, height: 122, background: "#fff" }} />
-      <div className="absolute flex flex-col justify-center" style={{ top: 18, left: 498, height: 140, width: 620 }}>
-        <span className="text-[27px] leading-none text-white uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>
-          {over}
-        </span>
-        <Title text={big} size={size} />
-      </div>
-      {logo && (
-        <div className="absolute flex items-center justify-center" style={{ top: 20, left: 1000, width: 130, height: 130 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logo}
-            alt=""
-            className="max-h-full max-w-full object-contain"
-            style={{ filter: "drop-shadow(0 0 1px rgba(255,255,255,0.9)) drop-shadow(0 0 12px rgba(255,255,255,0.35))" }}
-          />
+      {/* Text, then the competition logo beside it (never on top of it). */}
+      <div className="absolute flex items-center gap-6" style={{ top: 4, left: 498, right: 150, height: 150 }}>
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          {/* Room between the two lines so accents (Ç, Ã) never touch the line above. */}
+          <span className="mb-3 text-[27px] leading-none whitespace-nowrap text-white uppercase" style={{ ...CONDENSED, fontWeight: 700 }}>
+            {over}
+          </span>
+          <Title text={big} size={size} />
         </div>
-      )}
+        {logo && <CompetitionLogo src={logo} />}
+      </div>
       <span className="absolute inset-x-0" style={{ top: 166, height: 3, background: LIME }} />
+    </>
+  );
+}
+
+// The team's own logos are made for dark backgrounds; ESPN's (often dark
+// text, e.g. Libertadores, Champions) go on a light badge to be readable.
+function CompetitionLogo({ src }: { src: string }) {
+  const own = src.startsWith("/brand/") || src.startsWith("/media/");
+  return own ? (
+    <div className="flex h-[130px] w-[130px] shrink-0 items-center justify-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" className="max-h-full max-w-full object-contain" style={{ filter: "drop-shadow(0 0 10px rgba(255,255,255,0.25))" }} />
+    </div>
+  ) : (
+    <div className="flex h-[124px] w-[124px] shrink-0 items-center justify-center rounded-2xl p-3 shadow-[0_0_18px_rgba(223,255,0,0.25)]" style={{ background: "#f4f1ea", border: `3px solid ${LIME}` }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" className="max-h-full max-w-full object-contain" />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- bracket
+
+function BracketCard({ tie, top, left, width, height, final }: { tie: BracketTie; top: number; left: number; width: number; height: number; final?: boolean }) {
+  // "pên. 5-4" is winner-loser: shown TV style next to each score, "2 (5)".
+  const pens = /(\d+)-(\d+)/.exec(tie.note);
+  const pen = (me: "a" | "b") => {
+    if (!pens || !tie.winner) return null;
+    const hi = Math.max(+pens[1], +pens[2]);
+    const lo = Math.min(+pens[1], +pens[2]);
+    return tie.winner === me ? hi : lo;
+  };
+  const row = (side: BracketSide | null, me: "a" | "b") => {
+    const lost = tie.winner !== null && tie.winner !== me;
+    const won = tie.winner === me;
+    const crest = Math.round(height * (final ? 0.36 : 0.34));
+    return (
+      <div className="flex min-h-0 flex-1 items-center gap-2 px-2" style={{ opacity: lost ? 0.42 : 1 }}>
+        {side ? <Crest team={side} size={crest} /> : <span style={{ width: crest, height: crest }} className="shrink-0 rounded-full border-2 border-dashed border-neutral-600" />}
+        <span className="min-w-0 flex-1 truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: Math.min(final ? 30 : 24, height * 0.3) }}>
+          {side ? side.abbr || side.name : "A definir"}
+        </span>
+        {side?.agg !== null && side?.agg !== undefined && (
+          <span className="flex items-baseline gap-1 tabular-nums" style={{ ...DISPLAY, fontSize: Math.min(final ? 34 : 28, height * 0.34), color: won ? LIME : "#fff" }}>
+            {side.agg}
+            {pen(me) !== null && <span style={{ fontSize: "0.62em", opacity: 0.85 }}>({pen(me)})</span>}
+          </span>
+        )}
+      </div>
+    );
+  };
+  return (
+    <div
+      className="board-row absolute flex flex-col overflow-hidden rounded-lg"
+      style={{ top, left, width, height, background: CARD, border: `2px solid ${final ? LIME : LINE}`, boxShadow: final ? "0 0 24px rgba(223,255,0,0.25)" : undefined }}
+    >
+      {row(tie.a, "a")}
+      <span className="h-px shrink-0" style={{ background: LINE }} />
+      {row(tie.b, "b")}
+    </div>
+  );
+}
+
+// Two-sided bracket: the first rounds split left and right, the final in the middle.
+function Bracket({ rounds }: { rounds: BracketRound[] }) {
+  const sideRounds = rounds.slice(0, -1);
+  const final = rounds[rounds.length - 1];
+  const n = sideRounds.length;
+  const gap = 18;
+  const cols = 2 * n + 1;
+  const colW = Math.min(230, Math.floor((BODY.right - BODY.left - gap * (cols - 1)) / cols));
+  const totalW = colW * cols + gap * (cols - 1);
+  const x0 = BODY.left + Math.floor((BODY.right - BODY.left - totalW) / 2);
+  const labelH = 36;
+  const top = BODY.top + labelH;
+  const H = BODY.bottom - top;
+  const first = Math.max(1, sideRounds[0]?.ties.length ?? 1) / 2;
+  const cardH = Math.min(96, Math.floor((H / Math.max(1, first)) * 0.72));
+  const lines: ReactNode[] = [];
+  const cards: ReactNode[] = [];
+  const labels: ReactNode[] = [];
+  const centerY = (count: number, i: number) => top + (H / count) * (i + 0.5);
+
+  const label = (text: string, x: number, key: string, lime = false) =>
+    labels.push(
+      <span key={key} className="absolute text-center text-[22px] uppercase" style={{ ...CONDENSED, fontWeight: 700, top: BODY.top, left: x, width: colW, color: lime ? LIME : "#bdbdbd", letterSpacing: "0.12em" }}>
+        {text}
+      </span>,
+    );
+
+  sideRounds.forEach((round, r) => {
+    const half = round.ties.length / 2;
+    for (const side of ["left", "right"] as const) {
+      const col = side === "left" ? r : cols - 1 - r;
+      const x = x0 + col * (colW + gap);
+      label(round.name, x, `${side}-${r}`);
+      const ties = side === "left" ? round.ties.slice(0, half) : round.ties.slice(half);
+      ties.forEach((tie, i) => {
+        const cy = centerY(ties.length, i);
+        cards.push(<BracketCard key={`${side}-${r}-${i}`} tie={tie} top={cy - cardH / 2} left={x} width={colW} height={cardH} />);
+        // Elbow to the next round (or to the final).
+        const toNext = r + 1 < n ? centerY(ties.length / 2, Math.floor(i / 2)) : centerY(1, 0);
+        const xEdge = side === "left" ? x + colW : x;
+        const xMid = side === "left" ? x + colW + gap / 2 : x - gap / 2;
+        lines.push(<path key={`l-${side}-${r}-${i}`} d={`M${xEdge} ${cy} H${xMid} V${toNext} H${side === "left" ? xMid + gap / 2 : xMid - gap / 2}`} fill="none" stroke={LIME} strokeOpacity={0.55} strokeWidth={2} />);
+      });
+    }
+  });
+  const fx = x0 + n * (colW + gap);
+  const finalH = Math.round(cardH * 1.25);
+  label(final.name, fx, "final", true);
+  cards.push(<BracketCard key="final" tie={final.ties[0]} top={centerY(1, 0) - finalH / 2} left={fx} width={colW} height={finalH} final />);
+  return (
+    <>
+      <svg className="pointer-events-none absolute inset-0" width={1280} height={720}>
+        {lines}
+      </svg>
+      {labels}
+      {cards}
     </>
   );
 }
@@ -340,15 +472,17 @@ function Standings({ groups }: { groups: BoardGroup[] }) {
 }
 
 export function BoardScreen({ board, branding }: { board: Board; branding: ProgramBranding }) {
-  const empty = board.kind === "tabela" ? board.groups.length === 0 : board.matches.length === 0;
+  const empty = board.kind === "tabela" ? board.groups.length === 0 : board.kind === "chave" ? board.bracket.length === 0 : board.matches.length === 0;
   return (
     <div className="absolute inset-0 z-[35] overflow-hidden" style={{ background: "radial-gradient(ellipse at 50% 35%, #161616, #050505 75%)" }}>
       <Corners />
       <Header board={board} branding={branding} />
       {empty ? (
         <span className="absolute inset-x-0 text-center text-4xl text-white/80 uppercase" style={{ ...CONDENSED, fontWeight: 700, top: 400 }}>
-          {board.kind === "tabela" ? "Tabela indisponível" : "Sem jogos nesse período"}
+          {board.kind === "tabela" ? "Tabela indisponível" : board.kind === "chave" ? "Chaveamento indisponível" : "Sem jogos nesse período"}
         </span>
+      ) : board.kind === "chave" ? (
+        <Bracket rounds={board.bracket} />
       ) : board.kind === "tabela" ? (
         <Standings groups={board.groups} />
       ) : (

@@ -1,5 +1,5 @@
 import { competition, zoneColor } from "./competitions";
-import type { BoardGroup, BoardMatch, BoardTeam } from "./scene";
+import type { BoardGroup, BoardMatch, BoardTeam, BracketRound, BracketSide, BracketTie } from "./scene";
 
 export { COMPETITIONS } from "./competitions";
 
@@ -89,6 +89,8 @@ export async function fetchStandings(id: string): Promise<{ groups: BoardGroup[]
 }
 
 async function leagueLogo(id: string): Promise<string | null> {
+  const own = competition(id)?.logo;
+  if (own) return own;
   try {
     const page = o(await getJson(`/site/v2/sports/soccer/${id}/scoreboard`));
     return httpsUrl(o(a(o(a(page.leagues)[0]).logos)[0]).href);
@@ -149,5 +151,151 @@ export async function fetchMatches(id: string, from: string, to: string): Promis
     }
   }
   const matches = [...byId.values()].sort((x, y) => x.date - y.date).slice(0, 20);
-  return { matches, logo };
+  return { matches, logo: competition(id)?.logo ?? logo };
+}
+
+// ------------------------------------------------------------ knockout bracket
+
+// ESPN round slugs/labels → the names used on air.
+const ROUND_NAMES: [RegExp, string, number][] = [
+  [/round[\s-]of[\s-]32/i, "16 AVOS", 16],
+  [/round[\s-]of[\s-]16/i, "OITAVAS", 8],
+  [/quarter/i, "QUARTAS", 4],
+  [/semi/i, "SEMIFINAL", 2],
+  [/^final$|(^|[\s-])final$/i, "FINAL", 1],
+];
+
+function roundOf(label: string): { name: string; size: number } | null {
+  if (/third|3rd/i.test(label)) return null;
+  for (const [re, name, size] of ROUND_NAMES) if (re.test(label)) return { name, size };
+  return null;
+}
+
+type Leg = { home: BoardTeam & { score: number | null }; away: BoardTeam & { score: number | null }; state: string; date: number; note: string };
+
+function winnerFromNote(note: string, a: BoardTeam, b: BoardTeam): "a" | "b" | null {
+  const m = /\b([A-Z]{2,5})\s+(win|advance)/.exec(note);
+  if (!m) return null;
+  if (m[1] === a.abbr) return "a";
+  if (m[1] === b.abbr) return "b";
+  return null;
+}
+
+// The last rounds of a cup (up to oitavas → final), each tie with its
+// aggregate and who went through, ordered so every tie feeds the next one.
+export async function fetchBracket(id: string): Promise<{ bracket: BracketRound[]; logo: string | null }> {
+  const comp = competition(id);
+  if (!comp?.knockout) throw new Error("Essa competição não tem mata-mata");
+  const page = o(await getJson(`/site/v2/sports/soccer/${id}/scoreboard`));
+  const league = o(a(page.leagues)[0]);
+  const entries = a(o(a(league.calendar)[0]).entries).map(o);
+  const rounds = entries
+    .map((e) => ({ label: s(e.label), start: Date.parse(s(e.startDate)), end: Date.parse(s(e.endDate)), round: roundOf(s(e.label)) }))
+    .filter((r) => r.round && Number.isFinite(r.start) && Number.isFinite(r.end))
+    // Up to the oitavas: four rounds fit the screen.
+    .slice(-4);
+  if (!rounds.length) throw new Error("A ESPN ainda não tem o mata-mata dessa competição");
+
+  // One request per day (the API refuses ranges); a round spans a few weeks at most.
+  const days = new Set<string>();
+  for (const r of rounds) {
+    const from = Math.max(r.start, r.end - 28 * DAY_MS);
+    for (let t = from; t <= r.end; t += DAY_MS) days.add(ymd(t));
+  }
+  const list = [...days];
+  const pages: unknown[] = [];
+  for (let i = 0; i < list.length; i += 10) {
+    pages.push(...(await Promise.all(list.slice(i, i + 10).map((d) => getJson(`/site/v2/sports/soccer/${id}/scoreboard?dates=${d}`).catch(() => ({}))))));
+  }
+
+  // Legs grouped by round (event season slug) and by the pair of teams.
+  const legs = new Map<string, Map<string, Leg[]>>();
+  const seen = new Set<string>();
+  for (const p of pages) {
+    for (const event of a(o(p).events)) {
+      const ev = o(event);
+      if (seen.has(s(ev.id))) continue;
+      seen.add(s(ev.id));
+      const round = roundOf(s(o(ev.season).slug).replace(/-/g, " "));
+      if (!round) continue;
+      const c = o(a(ev.competitions)[0]);
+      const sides = a(c.competitors).map(o);
+      const home = sides.find((x) => x.homeAway === "home") ?? sides[0];
+      const away = sides.find((x) => x.homeAway === "away") ?? sides[1];
+      if (!home || !away) continue;
+      const state = s(o(o(ev.status).type).state);
+      const score = (x: Raw) => (state === "pre" ? null : Number.parseInt(s(x.score), 10) || 0);
+      const leg: Leg = {
+        home: { ...team(home.team), score: score(home) },
+        away: { ...team(away.team), score: score(away) },
+        state,
+        date: Date.parse(s(ev.date)) || 0,
+        note: a(c.notes).map((n) => s(o(n).headline)).join(" "),
+      };
+      const pair = [leg.home.name, leg.away.name].sort().join("|");
+      const byPair = legs.get(round.name) ?? new Map<string, Leg[]>();
+      byPair.set(pair, [...(byPair.get(pair) ?? []), leg]);
+      legs.set(round.name, byPair);
+    }
+  }
+
+  const tiesOf = (name: string): BracketTie[] =>
+    [...(legs.get(name)?.values() ?? [])]
+      .map((list) => list.sort((x, y) => x.date - y.date))
+      .sort((x, y) => x[0].date - y[0].date)
+      .map((list) => {
+        const first = list[0];
+        const A: BoardTeam = { name: first.home.name, abbr: first.home.abbr, logo: first.home.logo };
+        const B: BoardTeam = { name: first.away.name, abbr: first.away.abbr, logo: first.away.logo };
+        const played = list.filter((l) => l.state !== "pre");
+        const goals = (t: BoardTeam) =>
+          played.length ? played.reduce((sum, l) => sum + ((l.home.name === t.name ? l.home.score : l.away.score) ?? 0), 0) : null;
+        const ga = goals(A);
+        const gb = goals(B);
+        const last = list[list.length - 1];
+        let winner = winnerFromNote(list.map((l) => l.note).join(" "), A, B);
+        const done = played.length === list.length && last.state === "post";
+        if (!winner && done && ga !== null && gb !== null && ga !== gb && (list.length >= 2 || name === "FINAL")) winner = ga > gb ? "a" : "b";
+        const pens = /(\d+)-(\d+) on penalties/i.exec(list.map((l) => l.note).join(" "));
+        const sideA: BracketSide = { ...A, agg: ga };
+        const sideB: BracketSide = { ...B, agg: gb };
+        return { a: sideA, b: sideB, winner, note: pens ? `pên. ${pens[1]}-${pens[2]}` : "" };
+      });
+
+  // From the final back: each earlier tie goes where its teams play next.
+  const names = rounds.map((r) => r.round!.name);
+  const sizes = rounds.map((r) => r.round!.size);
+  const result: BracketTie[][] = names.map(tiesOf);
+  for (let r = names.length - 2; r >= 0; r--) {
+    const next = result[r + 1];
+    const pool = [...result[r]];
+    const ordered: (BracketTie | null)[] = [];
+    for (let i = 0; i < sizes[r + 1]; i++) {
+      const tie = next[i];
+      for (const t of [tie?.a, tie?.b]) {
+        const k = t ? pool.findIndex((p) => p.a?.name === t.name || p.b?.name === t.name) : -1;
+        ordered.push(k >= 0 ? pool.splice(k, 1)[0] : null);
+      }
+    }
+    // Ties whose next match isn't known yet fill the free slots in date order.
+    result[r] = ordered.map((t) => t ?? pool.shift() ?? { a: null, b: null, winner: null, note: "" });
+  }
+  const bracket = names.map((name, i) => ({
+    name,
+    ties: Array.from({ length: sizes[i] }, (_, k) => result[i][k] ?? { a: null, b: null, winner: null, note: "" }),
+  }));
+  // A next-round tie not scheduled yet shows whoever already went through.
+  for (let r = 1; r < bracket.length; r++) {
+    bracket[r].ties = bracket[r].ties.map((tie, i) => {
+      const through = (t: BracketTie | undefined): BracketSide | null =>
+        t?.winner ? { ...(t.winner === "a" ? t.a! : t.b!), agg: null } : null;
+      return {
+        ...tie,
+        a: tie.a ?? through(bracket[r - 1].ties[2 * i]),
+        b: tie.b ?? through(bracket[r - 1].ties[2 * i + 1]),
+      };
+    });
+  }
+  if (!bracket.some((r) => r.ties.some((t) => t.a || t.b))) throw new Error("O mata-mata dessa competição ainda não começou");
+  return { bracket, logo: await leagueLogo(id) };
 }

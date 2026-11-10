@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { COMPETITIONS } from "@/lib/competitions";
-import type { Board, BoardGroup, BoardMatch } from "@/lib/scene";
+import type { Board, BoardGroup, BoardMatch, BracketRound } from "@/lib/scene";
 import { useDirector } from "./context";
 
 // Round fixtures and standings pulled automatically (ESPN) and shown full
@@ -13,8 +13,8 @@ const btn = "rounded-md bg-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-600 
 const btnOn = "rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-500 disabled:opacity-40";
 const btnGo = "rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium hover:bg-emerald-500 disabled:opacity-40";
 
-type Kind = "tabela" | "jogos";
-type Data = { groups?: BoardGroup[]; matches?: BoardMatch[]; logo: string | null; round?: number | null };
+type Kind = "tabela" | "jogos" | "chave";
+type Data = { groups?: BoardGroup[]; matches?: BoardMatch[]; bracket?: BracketRound[]; logo: string | null; round?: number | null };
 
 const isoDay = (offsetDays: number) => new Date(Date.now() + offsetDays * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 
@@ -35,11 +35,13 @@ function boardPatch(kind: Kind, competition: string, title: string, subtitle: st
     logo: data.logo,
     groups: kind === "tabela" ? (data.groups ?? []) : [],
     matches: kind === "jogos" ? (data.matches ?? []) : [],
+    bracket: kind === "chave" ? (data.bracket ?? []) : [],
   };
 }
 
 const label = (id: string) => COMPETITIONS.find((c) => c.id === id)?.label ?? "";
 const short = (id: string) => COMPETITIONS.find((c) => c.id === id)?.short ?? "";
+const comp = (id: string) => COMPETITIONS.find((c) => c.id === id);
 
 export function BoardPanel() {
   const { scenes, patch, direct } = useDirector();
@@ -61,7 +63,7 @@ export function BoardPanel() {
       const data = await fetchBoard(competition, kind, from, to);
       setData({ kind, data });
       // Suggest the round from the table (leagues only); the director can edit it.
-      if (!title.trim()) {
+      if (!title.trim() && kind !== "chave") {
         const table = kind === "tabela" ? data : await fetchBoard(competition, "tabela", from, to).catch(() => null);
         const played = table?.round;
         const ahead = kind === "jogos" && (data.matches ?? []).some((m) => m.state === "pre");
@@ -110,12 +112,24 @@ export function BoardPanel() {
           </label>
         </div>
 
-        <div className="space-y-2 rounded-md bg-neutral-950 p-3">
-          <p className="text-sm font-semibold">Classificação</p>
-          <button className={btn} disabled={busy !== null} onClick={() => load("tabela")}>
-            {busy === "tabela" ? "Buscando..." : "Buscar tabela atualizada"}
-          </button>
-        </div>
+        {comp(competition)?.knockout && (
+          <div className="space-y-2 rounded-md bg-neutral-950 p-3">
+            <p className="text-sm font-semibold">Chaveamento (mata-mata)</p>
+            <button className={btn} disabled={busy !== null} onClick={() => load("chave")}>
+              {busy === "chave" ? "Buscando..." : "Buscar chaveamento atualizado"}
+            </button>
+            <p className="text-[11px] text-neutral-500">Das quartas (ou oitavas) até a final, com o placar agregado e os pênaltis.</p>
+          </div>
+        )}
+
+        {!comp(competition)?.cup && (
+          <div className="space-y-2 rounded-md bg-neutral-950 p-3">
+            <p className="text-sm font-semibold">Classificação</p>
+            <button className={btn} disabled={busy !== null} onClick={() => load("tabela")}>
+              {busy === "tabela" ? "Buscando..." : "Buscar tabela atualizada"}
+            </button>
+          </div>
+        )}
 
         <div className="space-y-2 rounded-md bg-neutral-950 p-3">
           <p className="text-sm font-semibold">Jogos da rodada</p>
@@ -134,7 +148,7 @@ export function BoardPanel() {
         <div className="space-y-2 rounded-md bg-neutral-950 p-3 text-sm">
           <p>
             <span className="text-neutral-400">No ar: </span>
-            {live.kind === "none" ? "nenhuma" : live.kind === "tabela" ? "Classificação" : "Jogos da rodada"}
+            {live.kind === "none" ? "nenhuma" : live.kind === "tabela" ? "Classificação" : live.kind === "chave" ? "Chaveamento" : "Jogos da rodada"}
             {live.kind !== "none" && <span className="text-neutral-500"> · {label(live.competition)}</span>}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -155,7 +169,7 @@ export function BoardPanel() {
       <div className="flex max-h-[520px] flex-col overflow-hidden rounded-md border border-neutral-800">
         <div className="flex items-center gap-2 border-b border-neutral-800 px-3 py-2">
           <p className="flex-1 text-xs font-semibold text-neutral-400">
-            {data ? (data.kind === "tabela" ? "CLASSIFICAÇÃO" : "JOGOS") : "PRÉVIA DOS DADOS"}
+            {data ? (data.kind === "tabela" ? "CLASSIFICAÇÃO" : data.kind === "chave" ? "CHAVEAMENTO" : "JOGOS") : "PRÉVIA DOS DADOS"}
           </p>
           {data && !direct && (
             <button className={btnGo} onClick={() => show(false)}>
@@ -180,6 +194,20 @@ export function BoardPanel() {
                     <span className="flex-1">{r.team.name}</span>
                     <span className="w-10 text-right text-neutral-500">{r.played}j</span>
                     <span className="w-10 text-right font-bold">{r.points}</span>
+                  </p>
+                ))}
+              </div>
+            ))}
+          {data?.kind === "chave" &&
+            (data.data.bracket ?? []).map((r) => (
+              <div key={r.name} className="mb-2">
+                <p className="px-1 text-xs font-bold text-neutral-400">{r.name}</p>
+                {r.ties.map((t, i) => (
+                  <p key={i} className="flex gap-2 px-1 py-0.5">
+                    <span className={`flex-1 text-right ${t.winner === "a" ? "font-bold text-emerald-300" : ""}`}>{t.a?.name ?? "A definir"}</span>
+                    <span className="w-14 text-center font-bold">{t.a?.agg ?? "–"} × {t.b?.agg ?? "–"}</span>
+                    <span className={`flex-1 ${t.winner === "b" ? "font-bold text-emerald-300" : ""}`}>{t.b?.name ?? "A definir"}</span>
+                    {t.note && <span className="text-xs text-neutral-500">{t.note}</span>}
                   </p>
                 ))}
               </div>

@@ -221,14 +221,21 @@ export type BoardMatch = {
   home: BoardTeam & { score: number | null };
   away: BoardTeam & { score: number | null };
 };
+// Knockout bracket ("chaveamento"): rounds from the earliest shown to the
+// final; a = top team of the tie, b = bottom; agg = aggregate (null = not played).
+export type BracketSide = BoardTeam & { agg: number | null };
+export type BracketTie = { a: BracketSide | null; b: BracketSide | null; winner: "a" | "b" | null; note: string };
+export type BracketRound = { name: string; ties: BracketTie[] };
+
 export type Board = {
-  kind: "none" | "jogos" | "tabela";
+  kind: "none" | "jogos" | "tabela" | "chave";
   competition: string;
   title: string;
   subtitle: string;
   logo: string | null;
   groups: BoardGroup[];
   matches: BoardMatch[];
+  bracket: BracketRound[];
 };
 
 // Tier list game: items (team crests, photos or text) placed live in tiers.
@@ -411,7 +418,7 @@ export const DEFAULT_SCENE: Scene = {
   web: { visible: false, url: "", position: "left", zoom: 1 },
   sponsor: { visible: false, imageUrl: null },
   showLogo: true,
-  board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [] },
+  board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [], bracket: [] },
   tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true, labelWidth: 0, itemScale: 1 },
   tweet: { visible: false, mode: "side", card: null },
   media: { visible: false, url: null, kind: "image", mode: "destaque", startedAt: null, pausedAt: null, loop: false, volume: 1 },
@@ -437,7 +444,7 @@ function num(value: unknown, fallback: number, min: number, max: number): number
 // Only our own uploads (/media/...) or https images are rendered.
 function url(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 500) return null;
-  return value.startsWith("/media/") || value.startsWith("https://") ? value : null;
+  return value.startsWith("/media/") || value.startsWith("https://") || value.startsWith("/brand/") ? value : null;
 }
 function color(value: unknown, fallback: string): string {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
@@ -489,7 +496,7 @@ function boardScore(value: unknown): number | null {
 
 export function normalizeBoard(input: unknown): Board {
   const b = obj(input);
-  const kind = b.kind === "jogos" || b.kind === "tabela" ? b.kind : "none";
+  const kind = b.kind === "jogos" || b.kind === "tabela" || b.kind === "chave" ? b.kind : "none";
   const groups = Array.isArray(b.groups) ? b.groups.slice(0, 8) : [];
   const matches = Array.isArray(b.matches) ? b.matches.slice(0, 20) : [];
   return {
@@ -498,6 +505,21 @@ export function normalizeBoard(input: unknown): Board {
     title: str(b.title, 60),
     subtitle: str(b.subtitle, 80),
     logo: url(b.logo),
+    bracket: (Array.isArray(b.bracket) ? b.bracket.slice(0, 5) : []).map((raw) => {
+      const r = obj(raw);
+      const side = (v: unknown): BracketSide | null => {
+        if (!v || typeof v !== "object") return null;
+        const t = obj(v);
+        return { ...boardTeam(t), agg: boardScore(t.agg) };
+      };
+      return {
+        name: str(r.name, 24),
+        ties: (Array.isArray(r.ties) ? r.ties.slice(0, 16) : []).map((tie) => {
+          const t = obj(tie);
+          return { a: side(t.a), b: side(t.b), winner: t.winner === "a" || t.winner === "b" ? t.winner : null, note: str(t.note, 40) };
+        }),
+      };
+    }),
     groups: groups.map((raw) => {
       const g = obj(raw);
       const rows = Array.isArray(g.rows) ? g.rows.slice(0, 24) : [];
