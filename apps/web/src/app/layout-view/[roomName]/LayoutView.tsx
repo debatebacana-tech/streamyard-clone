@@ -1,17 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { LiveKitRoom } from "@livekit/components-react";
+import { useCallback, useEffect, useState } from "react";
+import { LiveKitRoom, useRoomContext } from "@livekit/components-react";
+import { RoomEvent } from "livekit-client";
 import "@livekit/components-styles";
 import { ShowComposition } from "@/components/ShowComposition";
+
+// Inside the stream host: tells it when this version is connected and has
+// drawn the show (then it can take over), and listens for "activate".
+function ReadySignal({ onActivate }: { onActivate: () => void }) {
+  const room = useRoomContext();
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const ready = () => {
+      // A few seconds for the cameras to arrive and the first frames to draw.
+      timer ??= setTimeout(() => window.parent?.postMessage({ type: "layout-ready" }, window.location.origin), 5000);
+    };
+    if (room.metadata) ready();
+    room.on(RoomEvent.Connected, ready).on(RoomEvent.RoomMetadataChanged, ready);
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.type === "layout-activate") onActivate();
+    };
+    window.addEventListener("message", onMessage);
+    return () => {
+      if (timer) clearTimeout(timer);
+      room.off(RoomEvent.Connected, ready).off(RoomEvent.RoomMetadataChanged, ready);
+      window.removeEventListener("message", onMessage);
+    };
+  }, [room, onActivate]);
+  return null;
+}
 
 export function LayoutView({
   roomName,
   layoutViewToken,
+  standby = false,
 }: {
   roomName: string;
   layoutViewToken: string;
+  // A new version warming up behind the live one: silent until activated.
+  standby?: boolean;
 }) {
+  const [active, setActive] = useState(!standby);
   const [credentials, setCredentials] = useState<{ token: string; wsUrl: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +67,8 @@ export function LayoutView({
     };
   }, [layoutViewToken]);
 
+  const activate = useCallback(() => setActive(true), []);
+
   if (error) {
     return <div className="flex h-screen items-center justify-center bg-black text-red-400">{error}</div>;
   }
@@ -57,7 +89,8 @@ export function LayoutView({
       // would otherwise beat Tailwind and collapse the canvas to 0px.
       style={{ position: "fixed", inset: 0, background: "#000" }}
     >
-      <ShowComposition withAudio media="play" />
+      <ShowComposition withAudio={active} media={active ? "play" : "silent"} />
+      {standby && <ReadySignal onActivate={activate} />}
     </LiveKitRoom>
   );
 }

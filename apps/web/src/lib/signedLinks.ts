@@ -34,9 +34,9 @@ export async function verifyGuestInvite(token: string): Promise<GuestInvitePaylo
   return { room: payload.room, role: "guest" };
 }
 
-// Short-lived: only needs to live long enough for the headless browser
-// Egress spins up to load the layout-view page and join the room.
-export async function signLayoutViewToken(payload: LayoutViewPayload, ttl = "15m"): Promise<string> {
+// Lasts the whole show: the stream page reuses it to load a new version of
+// the composition when the site is updated mid-live (see LayoutHost).
+export async function signLayoutViewToken(payload: LayoutViewPayload, ttl = "24h"): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

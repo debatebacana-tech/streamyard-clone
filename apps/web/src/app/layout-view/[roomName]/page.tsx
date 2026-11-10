@@ -1,4 +1,4 @@
-import { LayoutView } from "./LayoutView";
+import { LayoutHost } from "./LayoutHost";
 
 export default async function LayoutViewPage({
   params,
@@ -14,5 +14,5 @@ export default async function LayoutViewPage({
     return <div className="flex h-screen items-center justify-center bg-black text-white">Token ausente</div>;
   }
 
-  return <LayoutView roomName={roomName} layoutViewToken={token} />;
+  return <LayoutHost roomName={roomName} token={token} />;
 }
