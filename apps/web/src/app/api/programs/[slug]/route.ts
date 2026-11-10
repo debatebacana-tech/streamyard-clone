@@ -5,13 +5,9 @@ import { brandLogo, brandingOf, syncProgramRoom } from "@/lib/programs";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-import { ANIMATED_BACKGROUND } from "@/lib/scene";
-
 function mediaUrlOrNull(value: unknown): string | null | undefined {
   if (value === null) return null;
   if (typeof value === "string" && value.startsWith("/media/") && value.length <= 200) return value;
-  // The built-in animated Debate Bacana background.
-  if (value === ANIMATED_BACKGROUND) return value;
   return undefined;
 }
 

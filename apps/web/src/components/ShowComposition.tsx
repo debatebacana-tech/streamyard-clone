@@ -31,7 +31,6 @@ import {
   type ProgramBranding,
   type Scene,
   type CustomSlot,
-  ANIMATED_BACKGROUND,
   type PersonLook,
   personKey,
   type Team,
@@ -822,34 +821,6 @@ function AnimatedImage({ src, className, delay = 0 }: { src: string; className: 
   );
 }
 
-// The moving details of the built-in Debate Bacana background, drawn over the
-// same spots of the picture: chevrons blink and a light runs along the corner
-// bands (the dot grids stay still: pulsing them cost a repaint per frame). Small layers moved with opacity/transform only,
-// so the stream renderer stays light.
-function BackgroundMotion() {
-  const k = 1280 / 1920;
-  const chevrons = (left: number, flip: boolean, delay: string) => (
-    <svg viewBox="0 0 90 60" className="absolute" style={{ left: left * k, top: 516 * k, width: 90 * k, height: 60 * k, transform: flip ? "scaleX(-1)" : undefined }}>
-      {[0, 38].map((x, i) => (
-        <path key={x} className="end-chevron" style={{ animationDelay: `calc(${delay} + ${i * 0.18}s)` }} d={`M${x + 2} 4 l28 26 l-28 26`} fill="none" stroke="#c8f000" strokeWidth="7" />
-      ))}
-    </svg>
-  );
-  const band = (style: React.CSSProperties, delay: string) => (
-    <div className="absolute overflow-hidden" style={{ ...style, transform: "skewX(-38deg)" }}>
-      <span className="bg-sweep absolute inset-y-0 left-0 w-1/3" style={{ animationDelay: delay }} />
-    </div>
-  );
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {chevrons(64, false, "0s")}
-      {chevrons(1766, true, "0.7s")}
-      {band({ top: -20 * k, left: -60 * k, width: 330 * k, height: 46 * k }, "0s")}
-      {band({ bottom: -20 * k, right: -60 * k, width: 330 * k, height: 46 * k }, "2.5s")}
-    </div>
-  );
-}
-
 function GcBar({ scene, branding, bottom }: { scene: Scene; branding: ProgramBranding; bottom: number }) {
   const { gc } = scene;
   return (
@@ -1295,7 +1266,6 @@ export function ShowComposition({
             : `radial-gradient(circle at 50% 0%, ${branding.primaryColor}, #0b0b0b 75%)`,
         }}
       >
-        {branding.backgroundUrl === ANIMATED_BACKGROUND && <BackgroundMotion />}
         <SwapContext.Provider value={swap}>
         <LooksContext.Provider value={show.looks ?? {}}>
         <CropContext.Provider value={scene.screenCrop}>
