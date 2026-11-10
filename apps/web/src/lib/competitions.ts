@@ -38,8 +38,8 @@ export const COMPETITIONS: Competition[] = [
   { id: "bra.camp.mineiro", label: "Mineiro", short: "MINEIRO", zones: [{ until: 2, color: GREEN }], bottom: 0, rest: null },
   { id: "bra.camp.gaucho", label: "Gaúcho", short: "GAUCHÃO", zones: [{ until: 2, color: GREEN }], bottom: 0, rest: null },
   // Capixabão (ge.globo): table stripes come from ge's own classification bands.
-  { id: "ge.capixaba.1", label: "Capixabão (1ª divisão)", short: "CAPIXABÃO", zones: [], bottom: 0, rest: null, provider: "ge", page: "campeonato-capixaba", knockout: true },
-  { id: "ge.capixaba.2", label: "Capixabão Série B (2ª divisão)", short: "CAPIXABÃO SÉRIE B", zones: [], bottom: 0, rest: null, provider: "ge", page: "capixaba-serie-b", knockout: true },
+  { id: "ge.capixaba.1", label: "Capixabão (1ª divisão)", short: "CAPIXABÃO", zones: [], bottom: 0, rest: null, provider: "ge", page: "campeonato-capixaba", knockout: true, logo: "/brand/competicoes/capixabao.png" },
+  { id: "ge.capixaba.2", label: "Capixabão Série B (2ª divisão)", short: "CAPIXABÃO SÉRIE B", zones: [], bottom: 0, rest: null, provider: "ge", page: "capixaba-serie-b", knockout: true, logo: "/brand/competicoes/capixabao.png" },
 ];
 
 export function competition(id: string): Competition | null {
