@@ -812,7 +812,7 @@ function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; 
               <img src={branding.logoUrl} alt="" className="block h-[70px] w-auto max-w-[230px] object-contain drop-shadow-xl" />
               <span
                 aria-hidden
-                className="logo-shine pointer-events-none absolute inset-0"
+                className="pointer-events-none absolute inset-0 overflow-hidden"
                 style={{
                   WebkitMaskImage: `url(${JSON.stringify(branding.logoUrl)})`,
                   maskImage: `url(${JSON.stringify(branding.logoUrl)})`,
@@ -823,7 +823,10 @@ function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; 
                   WebkitMaskPosition: "center",
                   maskPosition: "center",
                 }}
-              />
+              >
+                {/* Moved with transform only: no repaint per frame in the stream renderer. */}
+                <span className="logo-shine absolute inset-y-0 left-0 w-1/2" />
+              </span>
             </span>
           ) : (
             <span

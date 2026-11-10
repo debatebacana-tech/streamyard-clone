@@ -177,15 +177,14 @@ body {
   transform-origin: 50% 60%;
 }
 .logo-shine {
-  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.9) 48%, rgba(255, 255, 255, 0.95) 50%, transparent 63%) no-repeat;
-  background-size: 250% 100%;
+  background: linear-gradient(105deg, transparent 10%, rgba(255, 255, 255, 0.85) 50%, transparent 90%);
+  transform: translateX(-120%);
   animation: logo-shine 7s ease-in-out infinite;
-  mix-blend-mode: screen;
+  will-change: transform;
 }
 @keyframes logo-shine {
-  0%, 72% { background-position: 160% 0; opacity: 1; }
-  88% { background-position: -60% 0; opacity: 1; }
-  89%, 100% { background-position: -60% 0; opacity: 0; }
+  0%, 72% { transform: translateX(-120%); }
+  88%, 100% { transform: translateX(320%); }
 }
 @keyframes logo-pop {
   0%, 70%, 100% { transform: scale(1) rotate(0deg); }

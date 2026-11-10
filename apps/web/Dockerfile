@@ -38,6 +38,9 @@ ENV LIVEKIT_API_KEY="build-time-placeholder"
 ENV LIVEKIT_API_SECRET="build-time-placeholder-not-used-at-runtime-00"
 ENV LIVEKIT_HTTP_URL="http://localhost:7880"
 ENV DATABASE_URL="file:./dev.db"
+# Never build next to a live stream (2 vCPUs): wait until it ends.
+ARG APP_DOMAIN
+RUN node scripts/wait-offair.mjs "https://${APP_DOMAIN}"
 RUN npx prisma generate
 RUN nice -n 19 npm run build
 

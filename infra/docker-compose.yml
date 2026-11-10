@@ -80,6 +80,7 @@ services:
       context: ../apps/web
       args:
         NEXT_PUBLIC_LIVEKIT_WS_URL: wss://${LIVEKIT_DOMAIN}
+        APP_DOMAIN: ${APP_DOMAIN}
     restart: unless-stopped
     env_file:
       - ./web.env
