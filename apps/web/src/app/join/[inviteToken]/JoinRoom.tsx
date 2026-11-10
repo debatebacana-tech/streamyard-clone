@@ -8,12 +8,15 @@ import {
   LiveKitRoom,
   ParticipantTile,
   RoomAudioRenderer,
+  useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
+import { SelfPhoto } from "@/components/SelfPhoto";
 import { Track } from "livekit-client";
 import "@livekit/components-styles";
 
-function RoomView() {
+function RoomView({ inviteToken }: { inviteToken: string }) {
+  const me = useLocalParticipant().localParticipant;
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
     onlySubscribed: true,
   });
@@ -26,6 +29,7 @@ function RoomView() {
         <RoomAudioRenderer />
       </div>
       <ControlBar controls={{ microphone: true, camera: true, screenShare: false, leave: true }} />
+      <SelfPhoto name={me.name || ""} inviteToken={inviteToken} />
     </div>
   );
 }
@@ -78,7 +82,7 @@ export function JoinRoom({ inviteToken }: { inviteToken: string }) {
         data-lk-theme="default"
         className="flex flex-1 flex-col"
       >
-        <RoomView />
+        <RoomView inviteToken={inviteToken} />
       </LiveKitRoom>
     );
   }

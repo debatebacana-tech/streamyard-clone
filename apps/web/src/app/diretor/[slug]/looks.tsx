@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useParticipants } from "@livekit/components-react";
+import { useLocalParticipant, useParticipants } from "@livekit/components-react";
+import { SelfPhoto } from "@/components/SelfPhoto";
 import { NEUTRAL_LOOK, personKey, type PersonLook } from "@/lib/scene";
 import { ImagePicker } from "./assets";
 import { useDirector } from "./context";
@@ -62,6 +63,8 @@ function PersonRow({ name, look, onSave }: { name: string; look: PersonLook; onS
 }
 
 export function LooksPanel() {
+  const { slug } = useDirector();
+  const me = useLocalParticipant().localParticipant;
   const { config, save } = useProgramConfig();
   const people = useParticipants().filter((p) => !p.identity.startsWith("layout-viewer"));
   if (!config) return <p className="text-sm text-neutral-500">Carregando...</p>;
@@ -81,9 +84,13 @@ export function LooksPanel() {
     save({ looks: next });
   };
 
-  if (!names.size) return <p className="text-sm text-neutral-500">Ninguém na sala ainda. Quando a pessoa entrar, ela aparece aqui.</p>;
   return (
     <div className="space-y-2">
+      <SelfPhoto name={me.name || ""} slug={slug} />
+      <p className="text-[11px] text-neutral-500">
+        Cada convidado envia a própria foto pela tela dele (botão “Minha foto” embaixo da câmera). Aqui você também pode trocar a de qualquer um e ajustar as cores.
+      </p>
+      {!names.size && <p className="text-sm text-neutral-500">Ninguém na sala ainda.</p>}
       {[...names.entries()].map(([key, name]) => (
         <PersonRow key={key} name={name} look={looks[key] ?? NEUTRAL_LOOK} onSave={(look) => saveLook(key, look)} />
       ))}
