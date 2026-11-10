@@ -298,7 +298,7 @@ export function ClubsPanel() {
               {c.name} {c.short && <span className="text-xs text-neutral-500">{c.short}</span>}
             </span>
             <span className={`text-xs ${c.vinhetaUrl ? "text-emerald-400" : "text-neutral-500"}`}>{c.vinhetaUrl ? "✓ vinheta" : "sem vinheta"}</span>
-            <UploadButton slug={slug} accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/x-m4a,video/mp4,video/webm" label="Vinheta" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, vinhetaUrl: a.url }); }} />
+            <UploadButton slug={slug} accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/x-m4a,video/mp4,video/quicktime,video/webm" label="Vinheta" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, vinhetaUrl: a.url }); }} />
             <span className={`text-xs ${c.anthemUrl ? "text-emerald-400" : "text-neutral-500"}`}>{c.anthemUrl ? "✓ hino" : "sem hino"}</span>
             <UploadButton slug={slug} accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/x-m4a" label="Hino" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, anthemUrl: a.url }); }} />
             <UploadButton slug={slug} accept="image/png,image/jpeg,image/webp" label="Escudo" role="clube" onUploaded={async (a) => { addAsset(a); await call("PATCH", { id: c.id, crestUrl: a.url }); }} />

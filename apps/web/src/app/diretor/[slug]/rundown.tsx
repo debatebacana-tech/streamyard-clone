@@ -195,7 +195,7 @@ export function RundownSettings() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
         Envie aqui suas artes e vídeos:
-        <UploadButton slug={slug} accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" label="Arte ou vídeo" role="arte" onUploaded={addAsset} />
+        <UploadButton slug={slug} accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" label="Arte ou vídeo" role="arte" onUploaded={addAsset} />
         <UploadButton slug={slug} accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/x-m4a" label="Trilha" role="trilha" onUploaded={addAsset} />
         <span className="text-neutral-500">Imagens e vídeos em 1280×720 ou 1920×1080.</span>
       </div>

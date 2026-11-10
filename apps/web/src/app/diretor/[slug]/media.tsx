@@ -110,7 +110,7 @@ export function MediaPanel() {
           )}
         </div>
 
-        <UploadButton slug={slug} accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" label="Enviar fotos ou vídeos (até 150 MB)" role="midia" onUploaded={addAsset} />
+        <UploadButton slug={slug} accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/quicktime,video/webm" label="Enviar fotos ou vídeos (até 150 MB)" role="midia" onUploaded={addAsset} />
         <p className="text-[11px] text-neutral-500">
           Vídeo: prefira .mp4. O som do vídeo vai para a transmissão. Ao trocar de mídia, a anterior sai sozinha.
         </p>

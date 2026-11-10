@@ -160,7 +160,7 @@ export function EffectsPanel() {
           Volume
           <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="flex-1" />
         </label>
-        <UploadButton slug={slug} accept={`${AUDIO_TYPES},video/mp4,video/webm`} label="Efeito/vinheta" role="efeito" onUploaded={addAsset} />
+        <UploadButton slug={slug} accept={`${AUDIO_TYPES},video/mp4,video/quicktime,video/webm`} label="Efeito/vinheta" role="efeito" onUploaded={addAsset} />
       </div>
     </div>
   );

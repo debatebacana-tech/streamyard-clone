@@ -164,7 +164,15 @@ export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean;
       onEnded={() => setVideo(null)}
       onError={() => setVideo(null)}
       ref={(el) => {
-        if (el) el.volume = Math.min(1, Math.max(0, video.volume));
+        if (!el) return;
+        el.volume = Math.min(1, Math.max(0, video.volume));
+        // Sound blocked until a click: show the stinger muted instead of skipping it.
+        el.play().catch((err: DOMException) => {
+          if (err?.name !== "NotAllowedError") return;
+          el.muted = true;
+          el.play().catch(() => {});
+          if (!silent) window.dispatchEvent(new Event(AUDIO_BLOCKED));
+        });
       }}
       className="absolute inset-0 z-50 h-full w-full bg-black object-cover"
     />

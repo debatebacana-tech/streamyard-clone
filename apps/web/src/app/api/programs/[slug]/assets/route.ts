@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
+import { mkdir, rename, stat, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { ALLOWED_TYPES, MAX_UPLOAD_BYTES, UPLOAD_DIR, mediaUrl } from "@/lib/assets";
 import { prisma } from "@/lib/db";
 import { hostProgram } from "@/lib/hostProgram";
 import { syncProgramRoom } from "@/lib/programs";
+import { normalizeVideo } from "@/lib/video";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -43,16 +44,34 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Arquivo maior que 150 MB" }, { status: 413 });
   }
 
-  const fileName = `${randomBytes(12).toString("hex")}.${type.ext}`;
+  const id = randomBytes(12).toString("hex");
+  let fileName = `${id}.${type.ext}`;
+  let mimeType = file.type;
+  let size = file.size;
   await mkdir(UPLOAD_DIR, { recursive: true });
-  await writeFile(path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, fileName), Buffer.from(await file.arrayBuffer()));
+  const saved = path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, fileName);
+  await writeFile(saved, Buffer.from(await file.arrayBuffer()));
+
+  // MP4/MOV (e.g. iPhone HEVC) become H.264 MP4 that every browser and the
+  // stream can play; WEBM stays as sent (keeps transparency for stingers).
+  if (type.kind === "video" && type.ext !== "webm") {
+    const converted = path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, `${id}.mp4`);
+    const target = converted === saved ? `${converted}.conv` : converted;
+    if (await normalizeVideo(saved, target)) {
+      if (target !== converted) await rename(target, converted);
+      else await unlink(saved).catch(() => {});
+      fileName = `${id}.mp4`;
+      mimeType = "video/mp4";
+      size = (await stat(converted)).size;
+    }
+  }
 
   const rawName = form?.get("name");
   const name = (typeof rawName === "string" && rawName.trim() ? rawName : file.name).trim().slice(0, 80);
   const rawRole = form?.get("role");
   const role = typeof rawRole === "string" && ROLES.has(rawRole) ? rawRole : type.kind === "image" ? "" : "efeito";
   const asset = await prisma.asset.create({
-    data: { programId: program.id, kind: type.kind, role, name, fileName, mimeType: file.type, size: file.size },
+    data: { programId: program.id, kind: type.kind, role, name, fileName, mimeType, size },
   });
   // New effect pads get preloaded on every output.
   if (asset.role === "efeito") await syncProgramRoom(program).catch(() => {});

@@ -20,6 +20,8 @@ export const ALLOWED_TYPES: Record<string, { ext: string; kind: AssetKind }> = {
   "audio/x-m4a": { ext: "m4a", kind: "audio" },
   "video/mp4": { ext: "mp4", kind: "video" },
   "video/webm": { ext: "webm", kind: "video" },
+  // iPhone/Mac videos; converted to MP4 on upload.
+  "video/quicktime": { ext: "mov", kind: "video" },
 };
 
 const MIME_BY_EXT: Record<string, string> = {};

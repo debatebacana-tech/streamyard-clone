@@ -39,7 +39,7 @@ ENV LIVEKIT_API_SECRET="build-time-placeholder-not-used-at-runtime-00"
 ENV LIVEKIT_HTTP_URL="http://localhost:7880"
 ENV DATABASE_URL="file:./dev.db"
 RUN npx prisma generate
-RUN npm run build
+RUN nice -n 19 npm run build
 
 FROM base AS runner
 WORKDIR /app
@@ -51,6 +51,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN groupadd -r nodejs && useradd -r -g nodejs nextjs
+# ffmpeg converts uploaded videos (e.g. iPhone HEVC) to H.264 that every
+# browser and the stream output can play.
+RUN apt-get update -y && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

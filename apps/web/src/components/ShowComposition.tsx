@@ -11,7 +11,7 @@ import {
 } from "@livekit/components-react";
 import { RoomEvent, Track } from "livekit-client";
 import { MediaLayer } from "./MediaLayer";
-import { MusicLayer } from "./MusicLayer";
+import { AUDIO_BLOCKED, AUDIO_UNLOCK, MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
@@ -819,13 +819,39 @@ function Countdown({ to }: { to: number }) {
 
 // The team's own pre-live / break / closing art: an image, or a looping video
 // (heard only where the composition plays media: Egress and the air monitor).
+// A looping video that never stays frozen: if the browser blocks sound, it
+// plays muted and the air monitor offers "Ativar som".
+function LoopVideo({ src, withSound }: { src: string; withSound: boolean }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.muted = !withSound;
+    const unlock = () => {
+      el.muted = false;
+      el.play().catch(() => {});
+    };
+    el.play().catch((err: DOMException) => {
+      if (err?.name !== "NotAllowedError") return;
+      el.muted = true;
+      el.play().catch(() => {});
+      if (withSound) {
+        window.dispatchEvent(new Event(AUDIO_BLOCKED));
+        window.addEventListener(AUDIO_UNLOCK, unlock, { once: true });
+      }
+    });
+    return () => window.removeEventListener(AUDIO_UNLOCK, unlock);
+  }, [withSound]);
+  return <video ref={ref} src={src} loop playsInline preload="auto" className="h-full w-full object-cover" />;
+}
+
 function ScreenMedia({ scene, withSound }: { scene: Scene; withSound: boolean }) {
   const s = scene.screen;
   const isVideo = /\.(mp4|webm)$/i.test(s.mediaUrl ?? "");
   return (
     <div className="absolute inset-0 z-40 bg-black">
       {isVideo ? (
-        <video key={s.mediaUrl} src={s.mediaUrl!} autoPlay loop playsInline muted={!withSound} className="h-full w-full object-cover" />
+        <LoopVideo key={s.mediaUrl} src={s.mediaUrl!} withSound={withSound} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={s.mediaUrl!} alt="" className="h-full w-full object-cover" />
