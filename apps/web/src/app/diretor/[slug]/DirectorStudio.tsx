@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ControlBar, LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import "@livekit/components-styles";
@@ -104,13 +104,45 @@ function LiveControl({ slug }: { slug: string }) {
 }
 
 function Monitor({ label, tone, children }: { label: string; tone: "green" | "red"; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const on = () => setFull(document.fullscreenElement === box.current);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
+  // Whole-screen view of the monitor (Esc or the button again to leave).
+  const toggle = () => {
+    const job = document.fullscreenElement ? document.exitFullscreen() : box.current?.requestFullscreen();
+    job?.catch(() => {});
+  };
   return (
     <div className="min-w-0 flex-1 space-y-1">
-      <p className={`text-xs font-bold tracking-widest ${tone === "red" ? "text-red-500" : "text-emerald-500"}`}>
-        {label} <span className="font-normal tracking-normal text-neutral-500">· arraste uma janela sobre outra para trocar</span>
+      <p className={`flex items-center gap-2 text-xs font-bold tracking-widest ${tone === "red" ? "text-red-500" : "text-emerald-500"}`}>
+        <span>
+          {label} <span className="font-normal tracking-normal text-neutral-500">· arraste uma janela sobre outra para trocar</span>
+        </span>
+        <button
+          onClick={toggle}
+          className="ml-auto rounded border border-white/10 px-2 py-0.5 text-[11px] font-semibold tracking-normal text-neutral-300 hover:border-white/30 hover:text-white"
+          title="Ver este monitor em tela cheia (Esc para sair)"
+        >
+          ⛶ Tela cheia
+        </button>
       </p>
-      <div className={`relative aspect-video overflow-hidden rounded-md border-2 bg-black ${tone === "red" ? "border-red-600" : "border-emerald-600"}`}>
+      <div
+        ref={box}
+        className={`relative overflow-hidden bg-black ${full ? "h-full w-full" : `aspect-video rounded-md border-2 ${tone === "red" ? "border-red-600" : "border-emerald-600"}`}`}
+      >
         {children}
+        {full && (
+          <button
+            onClick={toggle}
+            className="absolute top-3 right-3 z-[80] rounded-md bg-black/60 px-3 py-1.5 text-sm text-white opacity-30 hover:opacity-100"
+          >
+            ✕ Sair da tela cheia
+          </button>
+        )}
       </div>
     </div>
   );
