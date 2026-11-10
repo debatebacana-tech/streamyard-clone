@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireHostSession } from "@/lib/auth";
-import { disconnect, oauthStatus, redirectUri, saveClient } from "@/lib/youtubeLive";
+import { disconnect, oauthStatus, publicOrigin, redirectUri, saveClient } from "@/lib/youtubeLive";
 
 // The Google Cloud OAuth client ("ID do cliente" + "chave secreta") and the
 // connection status for "Programar live".
 export async function GET(request: Request) {
   if (!(await requireHostSession())) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  return NextResponse.json({ ...(await oauthStatus()), redirectUri: redirectUri(new URL(request.url).origin) });
+  return NextResponse.json({ ...(await oauthStatus()), redirectUri: redirectUri(publicOrigin(request)) });
 }
 
 export async function POST(request: Request) {

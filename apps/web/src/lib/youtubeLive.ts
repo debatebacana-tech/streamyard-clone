@@ -18,8 +18,17 @@ const SCOPE = "https://www.googleapis.com/auth/youtube";
 
 export class YoutubeError extends Error {}
 
+// The address the director's browser uses (PUBLIC_APP_URL is the internal one
+// the stream renderer uses, e.g. http://web:3000, which Google can't redirect to).
+export function publicOrigin(request: Request) {
+  if (process.env.PUBLIC_SITE_URL) return process.env.PUBLIC_SITE_URL.replace(/\/$/, "");
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+  return host ? `${proto.split(",")[0]}://${host.split(",")[0]}` : new URL(request.url).origin;
+}
+
 export function redirectUri(origin: string) {
-  return `${process.env.PUBLIC_APP_URL ?? origin}/api/youtube/callback`;
+  return `${origin}/api/youtube/callback`;
 }
 
 async function settings() {

@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { requireHostSession } from "@/lib/auth";
-import { YoutubeError, finishConnect } from "@/lib/youtubeLive";
+import { YoutubeError, finishConnect, publicOrigin } from "@/lib/youtubeLive";
 
 // Google sends the director back here after "Permitir".
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const base = process.env.PUBLIC_APP_URL ?? url.origin;
+  const base = publicOrigin(request);
   const jar = await cookies();
   const back = jar.get("yt_back")?.value ?? "/diretor";
   const done = (msg: string) => {
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   if (!code || url.searchParams.get("state") !== jar.get("yt_state")?.value) return done("Login expirado, tente conectar de novo");
   try {
-    const channel = await finishConnect(url.origin, code);
+    const channel = await finishConnect(base, code);
     return done(`ok:${channel}`);
   } catch (err) {
     return done(err instanceof YoutubeError ? err.message : "Falha ao conectar o YouTube");
