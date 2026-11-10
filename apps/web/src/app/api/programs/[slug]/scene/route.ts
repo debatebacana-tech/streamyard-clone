@@ -126,8 +126,12 @@ async function take(slug: string, patch?: unknown) {
   let live = liveSceneOf(program);
   let draft = draftSceneOf(program);
   if (patch !== undefined) draft = mergeScene(draft, patch);
-  const transition = configOf(program).transition;
-  if (transition.enabled && arrangementChanged(draft, live)) {
+  const config = configOf(program);
+  const transition = config.transition;
+  // CORTAR during the abertura also ends it: the vinheta leaves under the
+  // animation and the show goes to the program (like "Cortar para o programa").
+  const endsOpening = live.step === "abertura";
+  if (transition.enabled && (endsOpening || arrangementChanged(draft, live))) {
     const at = Date.now();
     await saveScenes(program, { live: { ...live, transitionAt: at }, draft });
     await sleep(transition.cutMs);
@@ -137,6 +141,7 @@ async function take(slug: string, patch?: unknown) {
   }
   // Clock, track and screen keep running on air; the preview's copy may be stale.
   live = { ...withAirState(draft, live), transitionAt: live.transitionAt };
+  if (endsOpening && live.step === "abertura") live = applyRundown(live, "aovivo", config, Date.now());
   await saveScenes(program, { live, draft: live });
   return { live, draft: live };
 }
