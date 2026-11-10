@@ -31,12 +31,15 @@ export function TransitionLayer({
 }) {
   const [playing, setPlaying] = useState<number | null>(null);
   const video = useRef<HTMLVideoElement>(null);
+  // The team's video failed to load (deleted, unsupported): use the built-in one.
+  const [broken, setBroken] = useState<string | null>(null);
+  const mediaUrl = config.mediaUrl && config.mediaUrl !== broken ? config.mediaUrl : null;
 
   useEffect(() => {
     if (!at || !config.enabled || Date.now() - at > MAX_AGE_MS) return;
     const start = setTimeout(() => setPlaying(at), 0);
     const el = video.current;
-    if (config.mediaUrl && el) {
+    if (mediaUrl && el) {
       el.currentTime = 0;
       el.play().catch(() => {
         // Autoplay with sound may be refused in a monitor tab: retry muted.
@@ -50,18 +53,18 @@ export function TransitionLayer({
       clearTimeout(start);
       clearTimeout(end);
     };
-  }, [at, config.enabled, config.mediaUrl]);
+  }, [at, config.enabled, mediaUrl]);
 
-  if (config.mediaUrl) {
+  if (mediaUrl) {
     return (
       <video
         ref={video}
-        src={config.mediaUrl}
+        src={mediaUrl}
         preload="auto"
         playsInline
         muted={!withSound}
         onEnded={() => setPlaying(null)}
-        onError={() => setPlaying(null)}
+        onError={() => setBroken(mediaUrl)}
         className="pointer-events-none absolute inset-0 z-[60] h-full w-full object-cover"
         style={{ opacity: playing ? 1 : 0 }}
       />

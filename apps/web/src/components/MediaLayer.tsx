@@ -109,12 +109,9 @@ function parseCue(payload: Uint8Array): MediaCue | null {
 // "Programa") cuts the opening video right there, under the transition, instead
 // of letting its long tail play out.
 export function MediaLayer({ silent = false, preload = [], step }: { silent?: boolean; preload?: string[]; step?: string }) {
-  const [video, setVideo] = useState<(Extract<MediaCue, { type: "play" }> & { step?: string }) | null>(null);
+  // inOpening: the video was on screen during the abertura step.
+  const [video, setVideo] = useState<(Extract<MediaCue, { type: "play" }> & { inOpening?: boolean }) | null>(null);
   const playing = useRef(new Map<string, HTMLAudioElement>());
-  const stepRef = useRef(step);
-  useEffect(() => {
-    stepRef.current = step;
-  }, [step]);
 
   const preloadKey = preload.join("|");
   useEffect(() => {
@@ -133,7 +130,7 @@ export function MediaLayer({ silent = false, preload = [], step }: { silent?: bo
         return;
       }
       if (cue.kind === "video") {
-        setVideo((current) => (cue.toggle && current?.url === cue.url ? null : { ...cue, step: stepRef.current }));
+        setVideo((current) => (cue.toggle && current?.url === cue.url ? null : cue));
         return;
       }
       if (silent) return;
@@ -178,9 +175,10 @@ export function MediaLayer({ silent = false, preload = [], step }: { silent?: bo
     return () => current.forEach((a) => a.pause());
   }, []);
 
-  // A video started before/at the abertura goes away once the show moves on.
-  const cutShort = Boolean(video && step !== undefined && step !== "abertura" && step !== video.step);
-  // Forget it, so going back to that step later doesn't replay it.
+  // A video playing during the abertura (the opening, cued a moment before the
+  // step switches) goes away as soon as the show leaves the abertura.
+  if (video && step === "abertura" && !video.inOpening) setVideo({ ...video, inOpening: true });
+  const cutShort = Boolean(video?.inOpening && step !== "abertura");
   if (cutShort) setVideo(null);
   if (!video || cutShort) return null;
   return (

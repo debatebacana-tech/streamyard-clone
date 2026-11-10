@@ -133,8 +133,20 @@ export function CustomLayoutPanel() {
         className="relative aspect-video w-full max-w-3xl touch-none overflow-hidden rounded-lg border border-neutral-700 bg-neutral-950 select-none"
         style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px)", backgroundSize: "10% 10%" }}
       >
-        {/* Where the logo + AO VIVO sit, so windows can avoid them. */}
+        {/* Where the logo + AO VIVO, the GC and the ticker sit (same sizes as the
+            composition, 1280x720), so the cameras can be placed around them. */}
         <div className="pointer-events-none absolute top-[2%] right-[2%] h-[11%] w-[20%] rounded border border-dashed border-red-500/50 text-center text-[9px] leading-[1.6] text-red-300/70">logo · AO VIVO</div>
+        <div
+          className="pointer-events-none absolute flex items-center justify-center rounded border border-dashed border-[#DFFF00]/60 bg-[#DFFF00]/5 text-[10px] font-bold tracking-widest text-[#DFFF00]/80"
+          style={{ left: `${(24 / 1280) * 100}%`, right: `${(24 / 1280) * 100}%`, bottom: `${((draft.ticker.visible ? 56 : 18) / 720) * 100}%`, height: `${(106 / 720) * 100}%`, zIndex: 20 }}
+        >
+          GC (texto da pauta)
+        </div>
+        {draft.ticker.visible && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center border-t border-dashed border-sky-400/60 text-[9px] text-sky-300/80" style={{ height: `${(44 / 720) * 100}%`, zIndex: 20 }}>
+            letreiro
+          </div>
+        )}
         {slots.map((s, i) => (
           <div
             key={i}
