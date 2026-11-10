@@ -791,6 +791,36 @@ function WebOverlay({ scene, box }: { scene: Scene; box: Box }) {
 
 const GC_H = 84;
 
+// A logo or picture with the TV-channel touch: a light sweeps across it every
+// few seconds (masked to its own shape) with a small pop. Transform-only, so
+// the stream renderer doesn't repaint it every frame.
+function AnimatedImage({ src, className, delay = 0 }: { src: string; className: string; delay?: number }) {
+  const mask = `url(${JSON.stringify(src)})`;
+  const timing = delay ? { animationDelay: `${delay}s` } : undefined;
+  return (
+    <span className="logo-anim relative inline-block" style={timing}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" className={`block w-auto object-contain ${className}`} />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        style={{
+          WebkitMaskImage: mask,
+          maskImage: mask,
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+        }}
+      >
+        <span className="logo-shine absolute inset-y-0 left-0 w-1/2" style={timing} />
+      </span>
+    </span>
+  );
+}
+
 function GcBar({ scene, branding, bottom }: { scene: Scene; branding: ProgramBranding; bottom: number }) {
   const { gc } = scene;
   return (
@@ -798,8 +828,8 @@ function GcBar({ scene, branding, bottom }: { scene: Scene; branding: ProgramBra
     <div className="chat-in absolute right-6 left-6 flex items-stretch shadow-2xl" style={{ bottom, height: GC_H }}>
       <div className="flex items-center justify-center rounded-l-md px-3" style={{ background: FRAME, minWidth: GC_H }}>
         {gc.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={gc.imageUrl} alt="" className="h-[72px] w-auto object-contain" />
+          // Same light sweep and pop as the corner logo, a few seconds apart.
+          <AnimatedImage src={gc.imageUrl} className="h-[72px]" delay={3.5} />
         ) : (
           <span className="h-10 w-3 rounded" style={{ background: branding.primaryColor }} />
         )}
@@ -867,27 +897,7 @@ function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; 
           (branding.logoUrl ? (
             // TV-channel style: a light sweeps across the logo every few seconds
             // (masked to the logo's own shape) with a small pop.
-            <span className="logo-anim relative inline-block">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={branding.logoUrl} alt="" className="block h-[70px] w-auto max-w-[230px] object-contain drop-shadow-xl" />
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 overflow-hidden"
-                style={{
-                  WebkitMaskImage: `url(${JSON.stringify(branding.logoUrl)})`,
-                  maskImage: `url(${JSON.stringify(branding.logoUrl)})`,
-                  WebkitMaskSize: "contain",
-                  maskSize: "contain",
-                  WebkitMaskRepeat: "no-repeat",
-                  maskRepeat: "no-repeat",
-                  WebkitMaskPosition: "center",
-                  maskPosition: "center",
-                }}
-              >
-                {/* Moved with transform only: no repaint per frame in the stream renderer. */}
-                <span className="logo-shine absolute inset-y-0 left-0 w-1/2" />
-              </span>
-            </span>
+            <AnimatedImage src={branding.logoUrl} className="h-[70px] max-w-[230px] drop-shadow-xl" />
           ) : (
             <span
               className="pt-1 text-4xl whitespace-nowrap uppercase"
