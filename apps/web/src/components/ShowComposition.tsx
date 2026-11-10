@@ -32,7 +32,6 @@ import {
   type Scene,
   type CustomSlot,
   type PersonLook,
-  lookFilter,
   personKey,
   type Team,
 } from "@/lib/scene";
@@ -183,7 +182,6 @@ function Tile({
         <VideoTrack
           trackRef={trackRef}
           className={`h-full w-full ${isScreen && !crop ? "bg-black object-contain" : "object-cover"}`}
-          style={!isScreen && lookFilter(look) ? { filter: lookFilter(look) } : undefined}
         />
       ) : !isScreen && look?.photo ? (
         // Camera off: the person's photo (e.g. their caricature), always whole;
@@ -796,7 +794,8 @@ const GC_H = 84;
 function GcBar({ scene, branding, bottom }: { scene: Scene; branding: ProgramBranding; bottom: number }) {
   const { gc } = scene;
   return (
-    <div className="absolute right-6 left-6 flex items-stretch shadow-2xl" style={{ bottom, height: GC_H }}>
+    // Slides in like the highlighted chat message (also when it comes back after one).
+    <div className="chat-in absolute right-6 left-6 flex items-stretch shadow-2xl" style={{ bottom, height: GC_H }}>
       <div className="flex items-center justify-center rounded-l-md px-3" style={{ background: FRAME, minWidth: GC_H }}>
         {gc.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -1306,7 +1305,7 @@ export function ShowComposition({
         <Header scene={scene} branding={branding} bugOn={bugOn} />
         {bugOn && <ScoreboardBug scene={scene} branding={branding} />}
         {barOn && <ScoreboardBar scene={scene} bottom={barBottom} />}
-        {gcOn && <GcBar scene={scene} branding={branding} bottom={gcBottom} />}
+        {gcOn && <GcBar key={`${scene.gc.subtitle}|${scene.gc.title}`} scene={scene} branding={branding} bottom={gcBottom} />}
         {highlightOn && <HighlightBar scene={scene} branding={branding} bottom={gcBottom} />}
         {tickerOn && <Ticker scene={scene} branding={branding} />}
         {stage.length === 0 && emptyHint && (

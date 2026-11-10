@@ -356,7 +356,7 @@ function Desk() {
           <Panel title="Participantes">
             <StagePanel />
           </Panel>
-          <Panel title="Foto com a câmera desligada e cor das câmeras">
+          <Panel title="Foto com a câmera desligada">
             <LooksPanel />
           </Panel>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

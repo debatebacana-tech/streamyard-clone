@@ -416,19 +416,6 @@ export function normalizeLooks(input: unknown): Record<string, PersonLook> {
   return out;
 }
 
-// CSS filter for a camera (empty when nothing changed).
-export function lookFilter(l: PersonLook | undefined): string {
-  if (!l) return "";
-  const parts: string[] = [];
-  if (l.brightness !== 1) parts.push(`brightness(${l.brightness})`);
-  if (l.contrast !== 1) parts.push(`contrast(${l.contrast})`);
-  if (l.saturation !== 1) parts.push(`saturate(${l.saturation})`);
-  // Warmer: a touch of sepia plus a small hue shift; cooler: the hue the other way.
-  if (l.warmth > 0) parts.push(`sepia(${(l.warmth * 0.35).toFixed(2)})`, `hue-rotate(${(-l.warmth * 8).toFixed(1)}deg)`);
-  if (l.warmth < 0) parts.push(`hue-rotate(${(-l.warmth * 12).toFixed(1)}deg)`, `saturate(${(1 + l.warmth * 0.1).toFixed(2)})`);
-  return parts.join(" ");
-}
-
 // sounds: quick-sound files every output keeps preloaded (pads play instantly).
 export type ShowMetadata = {
   program: ProgramBranding;
