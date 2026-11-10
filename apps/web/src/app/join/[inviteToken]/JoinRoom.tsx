@@ -12,6 +12,7 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import { SelfPhoto } from "@/components/SelfPhoto";
+import { CameraBackground } from "@/components/CameraBackground";
 import { Track } from "livekit-client";
 import "@livekit/components-styles";
 
@@ -29,6 +30,7 @@ function RoomView({ inviteToken }: { inviteToken: string }) {
         <RoomAudioRenderer />
       </div>
       <ControlBar controls={{ microphone: true, camera: true, screenShare: false, leave: true }} />
+      <CameraBackground />
       <SelfPhoto name={me.name || ""} inviteToken={inviteToken} />
     </div>
   );

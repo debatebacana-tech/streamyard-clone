@@ -13,6 +13,7 @@
   "dependencies": {
     "@livekit/components-react": "^2.9.25",
     "@livekit/components-styles": "^1.2.0",
+    "@livekit/track-processors": "^0.8.2",
     "@prisma/client": "6.19.3",
     "@types/qrcode": "^1.5.5",
     "iron-session": "^9.0.1",

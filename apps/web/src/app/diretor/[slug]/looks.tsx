@@ -2,6 +2,7 @@
 
 import { useLocalParticipant, useParticipants } from "@livekit/components-react";
 import { SelfPhoto } from "@/components/SelfPhoto";
+import { CameraBackground } from "@/components/CameraBackground";
 import { NEUTRAL_LOOK, personKey, type PersonLook } from "@/lib/scene";
 import { ImagePicker } from "./assets";
 import { useDirector } from "./context";
@@ -44,6 +45,7 @@ export function LooksPanel() {
 
   return (
     <div className="space-y-2">
+      <CameraBackground />
       <SelfPhoto name={me.name || ""} slug={slug} />
       <p className="text-[11px] text-neutral-500">
         Cada convidado envia a própria foto pela tela dele (botão “Minha foto” embaixo da câmera). Aqui você também pode trocar a de qualquer um.
