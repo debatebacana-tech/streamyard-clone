@@ -5,6 +5,7 @@ import { VideoTrack, isTrackReference, useParticipants, useTracks } from "@livek
 import { Track } from "livekit-client";
 import { dedupeTracks } from "@/components/ShowComposition";
 import {
+  ANIMATED_BACKGROUND,
   LAYOUTS,
   THEME_PRESETS,
   WEB_POSITIONS,
@@ -497,6 +498,12 @@ export function IdentityPanel() {
         <div className="space-y-1">
           <p className="text-xs text-neutral-400">Fundo (1280×720 ou maior)</p>
           <ImagePicker slug={slug} assets={assets} value={branding.backgroundUrl} onChange={(url) => patchProgram({ backgroundUrl: url })} onUploaded={addAsset} />
+          <button
+            onClick={() => patchProgram({ backgroundUrl: ANIMATED_BACKGROUND })}
+            className={`mt-1 w-full rounded-md px-2 py-1.5 text-xs font-semibold ${branding.backgroundUrl === ANIMATED_BACKGROUND ? "bg-[#DFFF00] text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
+          >
+            {branding.backgroundUrl === ANIMATED_BACKGROUND ? "✓ Fundo animado Debate Bacana" : "Usar o fundo animado Debate Bacana"}
+          </button>
         </div>
       </div>
     </div>

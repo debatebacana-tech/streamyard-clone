@@ -271,3 +271,14 @@ body {
 @keyframes end-rise {
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Built-in Debate Bacana background: moving details (opacity/transform only). */
+.bg-sweep {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  transform: translateX(-120%);
+  animation: bg-sweep 5s ease-in-out infinite;
+}
+@keyframes bg-sweep {
+  0%, 60% { transform: translateX(-120%); }
+  85%, 100% { transform: translateX(420%); }
+}

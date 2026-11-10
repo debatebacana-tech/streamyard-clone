@@ -377,6 +377,9 @@ const RUNDOWN_STEPS = new Set<string>(["espera", "abertura", "aovivo", "interval
 
 export type ProgramFormat = "debate" | "futebol" | "especial";
 
+// Built-in dark Debate Bacana background; its details move on air (see BackgroundMotion).
+export const ANIMATED_BACKGROUND = "/brand/fundo-debate-bacana.png";
+
 export type ProgramBranding = {
   slug: string;
   name: string;
