@@ -729,10 +729,10 @@ function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBra
   return (
     <>
       {scene.showLogo && (
-        <div className="absolute top-3 flex h-[108px] items-center justify-center" style={{ left, right }}>
+        <div className="absolute top-3 flex h-[108px] items-center justify-center gap-4" style={{ left, right }}>
           {branding.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoUrl} alt="" className="max-h-full max-w-full object-contain drop-shadow-xl" />
+            <img src={branding.logoUrl} alt="" className="max-h-full max-w-[60%] object-contain drop-shadow-xl" />
           ) : (
             <span
               className={`${bugOn || sponsorOn ? "text-6xl" : "text-7xl"} truncate whitespace-nowrap uppercase`}
@@ -741,6 +741,14 @@ function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBra
               {branding.name}
             </span>
           )}
+          {/* Pulsing "AO VIVO" next to the logo. */}
+          <span
+            className="flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-xl leading-none text-white uppercase shadow-xl"
+            style={{ ...CONDENSED, fontWeight: 700, background: "rgba(0,0,0,0.55)", border: "2px solid rgba(255,255,255,0.15)" }}
+          >
+            <span className="live-dot h-3.5 w-3.5 rounded-full bg-[#ff1f1f] shadow-[0_0_10px_#ff1f1f]" />
+            Ao vivo
+          </span>
         </div>
       )}
       {sponsorOn && (

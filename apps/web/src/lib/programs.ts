@@ -1,5 +1,6 @@
 import type { Program } from "@prisma/client";
 import { prisma } from "./db";
+import { withLock } from "./locks";
 import { getRoomServiceClient } from "./livekit";
 import { normalizeProgramConfig, type ProgramConfig } from "./programConfig";
 import { chatMessages } from "./youtubeChat";
@@ -98,14 +99,24 @@ async function metadataFor(program: Program): Promise<string> {
   return JSON.stringify(metadata);
 }
 
-// Creates the program's LiveKit room if needed and pushes the stored
-// branding/on-air scene into its metadata, which the composition renders from.
+// Pushes the stored branding/on-air scene into the program's LiveKit room
+// metadata, which every output renders from. Runs one at a time per program
+// and always reads the latest stored state, so an older push can't overwrite a
+// newer one (that made the air monitor jump back to a previous scene).
 export async function syncProgramRoom(program: Program) {
-  const roomService = getRoomServiceClient();
-  const name = roomForProgram(program.slug);
-  const metadata = await metadataFor(program);
-  await roomService.createRoom({ name, emptyTimeout: 10 * 60, metadata });
-  await roomService.updateRoomMetadata(name, metadata);
+  return withLock(`sync:${program.slug}`, async () => {
+    const fresh = (await getProgram(program.slug)) ?? program;
+    const roomService = getRoomServiceClient();
+    const name = roomForProgram(fresh.slug);
+    const metadata = await metadataFor(fresh);
+    try {
+      await roomService.updateRoomMetadata(name, metadata);
+    } catch {
+      // No room yet: create it with the metadata.
+      await roomService.createRoom({ name, emptyTimeout: 10 * 60, metadata });
+      await roomService.updateRoomMetadata(name, metadata).catch(() => {});
+    }
+  });
 }
 
 export async function saveScenes(program: Program, scenes: { live?: Scene; draft?: Scene }) {

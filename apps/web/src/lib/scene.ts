@@ -312,7 +312,12 @@ export type Scene = {
   // When the last animated cut started (server time), so every output plays
   // the transition together.
   transitionAt: number | null;
+  // Current rundown step (lights the right button in the ROTEIRO bar).
+  step: RundownStep;
 };
+
+export type RundownStep = "espera" | "abertura" | "aovivo" | "intervalo" | "encerramento";
+const RUNDOWN_STEPS = new Set<string>(["espera", "abertura", "aovivo", "intervalo", "encerramento"]);
 
 export type ProgramFormat = "debate" | "futebol" | "especial";
 
@@ -368,6 +373,7 @@ export const DEFAULT_SCENE: Scene = {
   tweet: { visible: false, mode: "side", card: null },
   media: { visible: false, url: null, kind: "image", mode: "destaque", startedAt: null, pausedAt: null, loop: false, volume: 1 },
   transitionAt: null,
+  step: "aovivo",
 };
 
 const LAYOUT_MODES = new Set<string>(LAYOUTS.map((l) => l.mode));
@@ -696,6 +702,7 @@ export function normalizeScene(input: unknown): Scene {
       card: normalizeTweetCard(obj(raw.tweet).card),
     },
     transitionAt: typeof raw.transitionAt === "number" ? raw.transitionAt : null,
+    step: typeof raw.step === "string" && RUNDOWN_STEPS.has(raw.step) ? (raw.step as RundownStep) : screenKind !== "none" ? (screenKind as RundownStep) : "aovivo",
   };
 }
 

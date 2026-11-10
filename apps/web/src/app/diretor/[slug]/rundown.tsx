@@ -50,18 +50,25 @@ export function RundownBar() {
   const { slug, scenes, sceneRequest } = useDirector();
   const sendCue = useMediaCues();
   const [minutes, setMinutes] = useState(5);
-  const kind = scenes.live.screen.kind;
-  const current: Step = kind === "none" ? "aovivo" : kind;
+  // The step being switched to: lit at once, before the server answers.
+  const [going, setGoing] = useState<Step | null>(null);
+  const current: Step = going ?? scenes.live.step;
 
   async function go(step: Step) {
-    if (step === "abertura") {
-      // Read fresh: the stinger may have just been chosen in the Roteiro tab.
-      const { config } = (await fetch(`/api/programs/${slug}/config`).then((r) => r.json())) as { config: ProgramConfig };
-      if (config.openingVideoUrl) {
-        sendCue({ type: "play", id: crypto.randomUUID(), url: config.openingVideoUrl, kind: "video", volume: 1 });
+    if (going) return;
+    setGoing(step);
+    try {
+      if (step === "abertura") {
+        // Read fresh: the stinger may have just been chosen in the Roteiro tab.
+        const { config } = (await fetch(`/api/programs/${slug}/config`).then((r) => r.json())) as { config: ProgramConfig };
+        if (config.openingVideoUrl) {
+          sendCue({ type: "play", id: crypto.randomUUID(), url: config.openingVideoUrl, kind: "video", volume: 1 });
+        }
       }
+      await sceneRequest({ action: "rundown", step, countdownMs: step === "espera" ? minutes * 60_000 : undefined });
+    } finally {
+      setGoing(null);
     }
-    await sceneRequest({ action: "rundown", step, countdownMs: step === "espera" ? minutes * 60_000 : undefined });
   }
 
   return (
@@ -74,12 +81,14 @@ export function RundownBar() {
             <button
               onClick={() => go(step)}
               title={hint}
-              className={`rounded-md px-4 py-2 text-sm font-bold ${
+              disabled={going !== null && going !== step}
+              className={`rounded-md px-4 py-2 text-sm font-bold transition ${
                 on ? "bg-[#DFFF00] text-black" : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
-              }`}
+              } ${going === step ? "animate-pulse" : ""} disabled:opacity-50`}
             >
               <span className="mr-1.5 text-xs opacity-60">{i + 1}</span>
               {label}
+              {going === step && <span className="ml-1.5 text-xs">…</span>}
             </button>
             {step === "espera" && (
               <select

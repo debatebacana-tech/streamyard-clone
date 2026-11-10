@@ -151,6 +151,7 @@ function Monitor({ label, tone, children }: { label: string; tone: "green" | "re
 
 function Workspace() {
   const { scenes, direct, setDirect, sceneRequest, patch } = useDirector();
+  const [cutting, setCutting] = useState(false);
   const pending = JSON.stringify(scenes.draft) !== JSON.stringify(scenes.live);
 
   return (
@@ -165,12 +166,16 @@ function Workspace() {
         </Monitor>
         <div className="flex w-28 shrink-0 flex-col items-center justify-center gap-2">
           <button
-            onClick={() => sceneRequest({ action: "take" })}
-            disabled={direct || !pending}
+            onClick={async () => {
+              setCutting(true);
+              await sceneRequest({ action: "take" }).catch(() => {});
+              setCutting(false);
+            }}
+            disabled={direct || !pending || cutting}
             className="w-full rounded-md bg-red-600 py-4 text-sm font-black tracking-wider hover:bg-red-500 disabled:opacity-30"
             title="Envia a prévia para o ar"
           >
-            CORTAR ▶
+            {cutting ? "CORTANDO…" : "CORTAR ▶"}
           </button>
           <label className="flex items-center gap-1 text-center text-[11px] leading-tight text-neutral-400">
             <input type="checkbox" checked={direct} onChange={(e) => setDirect(e.target.checked)} />
@@ -493,14 +498,21 @@ export function DirectorStudio({ program, initialScenes }: { program: ProgramBra
       .then((d) => setAssets(d.assets ?? []));
   }, [slug]);
 
+  // Requests go out one after another in click order (choose a scene, then
+  // Space: the cut always takes that scene), and each answer is applied in turn.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
   const sceneRequest = useCallback(
-    async (body: SceneRequest) => {
-      const res = await fetch(`/api/programs/${slug}/scene`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+    (body: SceneRequest) => {
+      const job = queue.current.then(async () => {
+        const res = await fetch(`/api/programs/${slug}/scene`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) setScenes(await res.json());
       });
-      if (res.ok) setScenes(await res.json());
+      queue.current = job.catch(() => {});
+      return job;
     },
     [slug],
   );

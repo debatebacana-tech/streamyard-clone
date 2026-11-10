@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { hostProgram } from "@/lib/hostProgram";
 import { configOf, draftSceneOf, getProgram, liveSceneOf, saveScenes } from "@/lib/programs";
 import type { ProgramConfig } from "@/lib/programConfig";
-import { clockElapsedMs, mergeScene, type Scene } from "@/lib/scene";
+import { clockElapsedMs, mergeScene, type RundownStep, type Scene } from "@/lib/scene";
+import { withLock } from "@/lib/locks";
 
 type SceneRequest =
   // Edit the preview, the air, or both (e.g. a goal should hit air immediately).
@@ -20,7 +21,6 @@ type SceneRequest =
   // Show rundown: institutional screen + its track, straight to air.
   | { action: "rundown"; step: RundownStep; countdownMs?: number };
 
-type RundownStep = "espera" | "abertura" | "aovivo" | "intervalo" | "encerramento";
 
 function startMusic(scene: Scene, url: string | null, now: number, loop: boolean, title = ""): Scene {
   if (!url) return { ...scene, music: { ...scene.music, startedAt: null } };
@@ -28,6 +28,10 @@ function startMusic(scene: Scene, url: string | null, now: number, loop: boolean
 }
 
 function applyRundown(scene: Scene, step: RundownStep, config: ProgramConfig, now: number, countdownMs?: number): Scene {
+  return { ...rundownScreen(scene, step, config, now, countdownMs), step };
+}
+
+function rundownScreen(scene: Scene, step: RundownStep, config: ProgramConfig, now: number, countdownMs?: number): Scene {
   switch (step) {
     case "espera":
       return startMusic(
@@ -72,7 +76,7 @@ function applyRundown(scene: Scene, step: RundownStep, config: ProgramConfig, no
 // Air-only parts (music, screen, clock) are mirrored into the preview so a
 // later "take" doesn't undo them.
 function withAirState(draft: Scene, live: Scene): Scene {
-  return { ...draft, music: live.music, screen: live.screen, scoreboard: { ...draft.scoreboard, clock: live.scoreboard.clock } };
+  return { ...draft, music: live.music, screen: live.screen, step: live.step, scoreboard: { ...draft.scoreboard, clock: live.scoreboard.clock } };
 }
 
 function applyClock(scene: Scene, op: string, ms: number | undefined, now: number): Scene {
@@ -138,10 +142,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { program, error } = await hostProgram(params);
+  const { program: found, error } = await hostProgram(params);
   if (error) return error;
-
   const body = (await request.json().catch(() => null)) as SceneRequest | null;
+  // Changes to a program's scenes apply one at a time, each on the latest
+  // stored state (a take never cuts a stale preview, a goal never undoes a cut).
+  return withLock(`scene:${found.slug}`, async () => {
+    const program = (await getProgram(found.slug)) ?? found;
+    return applyRequest(program, body);
+  });
+}
+
+async function applyRequest(program: NonNullable<Awaited<ReturnType<typeof getProgram>>>, body: SceneRequest | null) {
   // Rundown steps (pré-live, abertura, programa...) also go through the
   // transition so the screen never jumps; an opening stinger video covers the
   // abertura by itself.
@@ -154,6 +166,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       await saveScenes(program, { live: { ...before, transitionAt: Date.now() } });
       await sleep(config.transition.cutMs);
       current = (await getProgram(program.slug)) ?? program;
+    } else if (covered) {
+      // Let the opening video (cued by the director) cover the screen first.
+      await sleep(350);
     }
     const airNow = liveSceneOf(current);
     const live = mergeScene(applyRundown(airNow, body.step, config, Date.now(), body.countdownMs), {});
