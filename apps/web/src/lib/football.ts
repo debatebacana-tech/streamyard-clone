@@ -1,7 +1,7 @@
 import { competition, zoneColor } from "./competitions";
 import type { BoardGroup, BoardMatch, BoardTeam, BracketRound, BracketSide, BracketTie } from "./scene";
 
-import { apifMatches, apifStandings } from "./apiFootball";
+import { geBracket, geMatches, geStandings } from "./geGlobo";
 
 export { COMPETITIONS } from "./competitions";
 
@@ -49,7 +49,7 @@ function team(raw: unknown): BoardTeam {
 export async function fetchStandings(id: string): Promise<{ groups: BoardGroup[]; logo: string | null; round: number | null }> {
   const comp = competition(id);
   if (!comp) throw new Error("Competição desconhecida");
-  if (comp.provider === "apif") return apifStandings(comp);
+  if (comp.provider === "ge") return geStandings(comp);
   const data = o(await getJson(`/v2/sports/soccer/${id}/standings`));
   const children = a(data.children).length ? a(data.children) : [data];
   const groups: BoardGroup[] = children
@@ -122,7 +122,7 @@ function matchDetail(status: Raw): string {
 export async function fetchMatches(id: string, from: string, to: string): Promise<{ matches: BoardMatch[]; logo: string | null }> {
   const known = competition(id);
   if (!known) throw new Error("Competição desconhecida");
-  if (known.provider === "apif") return apifMatches(known, from, to);
+  if (known.provider === "ge") return geMatches(known, from, to);
   const start = Date.parse(`${from}T12:00:00Z`);
   const end = Date.parse(`${to}T12:00:00Z`);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) throw new Error("Datas inválidas");
@@ -191,6 +191,7 @@ function winnerFromNote(note: string, a: BoardTeam, b: BoardTeam): "a" | "b" | n
 export async function fetchBracket(id: string): Promise<{ bracket: BracketRound[]; logo: string | null }> {
   const comp = competition(id);
   if (!comp?.knockout) throw new Error("Essa competição não tem mata-mata");
+  if (comp.provider === "ge") return geBracket(comp);
   const page = o(await getJson(`/site/v2/sports/soccer/${id}/scoreboard`));
   const league = o(a(page.leagues)[0]);
   const entries = a(o(a(league.calendar)[0]).entries).map(o);

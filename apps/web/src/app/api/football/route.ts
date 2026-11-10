@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireHostSession } from "@/lib/auth";
 import { COMPETITIONS, fetchBracket, fetchMatches, fetchStandings } from "@/lib/football";
-import { ApiFootballError } from "@/lib/apiFootball";
 
 // Director-only: round fixtures or standings for the board screens.
 // GET ?competition=bra.1&kind=tabela | &kind=jogos&from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -16,9 +15,8 @@ export async function GET(request: Request) {
     return NextResponse.json(await fetchMatches(id, q.get("from") ?? "", q.get("to") ?? ""));
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
-    if (err instanceof ApiFootballError) return NextResponse.json({ error: message, needsKey: /Cadastre/.test(message) }, { status: 400 });
     return NextResponse.json(
-      { error: message.startsWith("ESPN") ? "Não consegui buscar os dados agora (tente de novo em instantes)" : message || "Falha" },
+      { error: message.startsWith("ESPN") || message.startsWith("ge ") ? "Não consegui buscar os dados agora (tente de novo em instantes)" : message || "Falha" },
       { status: 502 },
     );
   }
