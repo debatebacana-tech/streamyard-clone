@@ -8,16 +8,23 @@ import type { LocalVideoTrack } from "livekit-client";
 // in their own browser (it costs their computer, not the stream). Off by
 // default; the choice is remembered in this browser.
 
-type Mode = "none" | "blur" | "cenario" | "escuro";
+type Mode = "none" | "blur" | "cenario" | "escuro" | "cruzeiro" | "atletico" | "flamengo";
 const OPTIONS: { mode: Mode; label: string }[] = [
   { mode: "none", label: "Sem fundo" },
   { mode: "blur", label: "Desfocar" },
   { mode: "cenario", label: "Cenário Debate Bacana" },
   { mode: "escuro", label: "Fundo escuro" },
+  // Each host's podcast corner in their club's colors.
+  { mode: "cruzeiro", label: "💙 Cruzeiro" },
+  { mode: "atletico", label: "🖤 Atlético" },
+  { mode: "flamengo", label: "❤️ Flamengo" },
 ];
 const IMAGES: Partial<Record<Mode, string>> = {
   cenario: "/brand/cenario-camera.jpg",
   escuro: "/brand/fundo-escuro-camera.jpg",
+  cruzeiro: "/brand/fundo-cruzeiro.jpg",
+  atletico: "/brand/fundo-atletico.jpg",
+  flamengo: "/brand/fundo-flamengo.jpg",
 };
 const KEY = "studio-camera-background";
 
