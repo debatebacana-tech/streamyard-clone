@@ -721,6 +721,27 @@ function Ticker({ scene, branding }: { scene: Scene; branding: ProgramBranding }
   );
 }
 
+// TV-style live bug in the top-right corner: red "AO VIVO" with a pulsing dot
+// and, under it, a smaller strip alternating "Inscreva-se!" / "Deixe o like!".
+function LiveBug() {
+  return (
+    <div className="absolute top-5 right-6 z-[30] flex flex-col items-end" style={CONDENSED}>
+      <div className="flex items-center gap-2 rounded-t-md rounded-bl-md bg-[#e10600] px-3.5 py-1 text-[26px] leading-none font-bold tracking-wide text-white uppercase shadow-[0_6px_18px_rgba(0,0,0,0.45)]">
+        <span className="live-dot h-3 w-3 rounded-full bg-white shadow-[0_0_8px_#fff]" />
+        Ao vivo
+      </div>
+      <div className="relative h-[26px] w-[150px] overflow-hidden rounded-b-md bg-[#111] text-[16px] font-bold tracking-wider text-white uppercase shadow-[0_6px_18px_rgba(0,0,0,0.45)]">
+        <span className="bug-swap absolute inset-0 flex items-center justify-center gap-1.5">
+          <span className="text-[#ff2b2b]">▶</span> Inscreva-se!
+        </span>
+        <span className="bug-swap bug-swap-2 absolute inset-0 flex items-center justify-center gap-1.5">
+          <span>👍</span> Deixe o like!
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBranding; bugOn: boolean }) {
   const sponsorOn = scene.sponsor.visible && scene.sponsor.imageUrl;
   // Center the title in the space the scoreboard bug and sponsor leave free.
@@ -732,7 +753,7 @@ function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBra
         <div className="absolute top-3 flex h-[108px] items-center justify-center gap-4" style={{ left, right }}>
           {branding.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoUrl} alt="" className="max-h-full max-w-[60%] object-contain drop-shadow-xl" />
+            <img src={branding.logoUrl} alt="" className="max-h-full max-w-full object-contain drop-shadow-xl" />
           ) : (
             <span
               className={`${bugOn || sponsorOn ? "text-6xl" : "text-7xl"} truncate whitespace-nowrap uppercase`}
@@ -741,18 +762,11 @@ function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBra
               {branding.name}
             </span>
           )}
-          {/* Pulsing "AO VIVO" next to the logo. */}
-          <span
-            className="flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-xl leading-none text-white uppercase shadow-xl"
-            style={{ ...CONDENSED, fontWeight: 700, background: "rgba(0,0,0,0.55)", border: "2px solid rgba(255,255,255,0.15)" }}
-          >
-            <span className="live-dot h-3.5 w-3.5 rounded-full bg-[#ff1f1f] shadow-[0_0_10px_#ff1f1f]" />
-            Ao vivo
-          </span>
         </div>
       )}
+      <LiveBug />
       {sponsorOn && (
-        <div className="absolute top-4 right-6 rounded-md bg-white px-3 py-2 shadow-xl" style={{ border: `3px solid ${FRAME}` }}>
+        <div className="absolute top-[92px] right-6 rounded-md bg-white px-3 py-2 shadow-xl" style={{ border: `3px solid ${FRAME}` }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={scene.sponsor.imageUrl!} alt="" className="h-12 max-w-[150px] object-contain" />
         </div>

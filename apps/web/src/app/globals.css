@@ -156,3 +156,17 @@ body {
   letter-spacing: 0.08em;
   color: var(--db-lime);
 }
+
+/* Live bug strip: "Inscreva-se!" and "Deixe o like!" take turns. */
+.bug-swap {
+  animation: bug-swap 8s ease-in-out infinite;
+}
+.bug-swap-2 {
+  animation-delay: -4s;
+}
+@keyframes bug-swap {
+  0%, 44% { transform: translateY(0); opacity: 1; }
+  50%, 94% { transform: translateY(-110%); opacity: 0; }
+  95% { transform: translateY(110%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
