@@ -71,8 +71,8 @@ function TrackControl() {
   );
 }
 
-// Opening / closing track one click away (second click stops it).
-function TrackShortcuts({ opening, closing }: { opening: string | null; closing: string | null }) {
+// Pre-live / closing track one click away (second click stops it).
+function TrackShortcuts({ waiting, closing }: { waiting: string | null; closing: string | null }) {
   const { scenes, sceneRequest } = useDirector();
   const music = scenes.live.music;
   const on = (url: string | null) => Boolean(url && music.url === url && music.startedAt);
@@ -80,17 +80,17 @@ function TrackShortcuts({ opening, closing }: { opening: string | null; closing:
     <>
       {(
         [
-          ["Abertura", opening, "Trilha de abertura"],
-          ["Encerramento", closing, "Trilha de encerramento"],
+          ["Pré-live", waiting, "Trilha de espera", true],
+          ["Encerramento", closing, "Trilha de encerramento", false],
         ] as const
-      ).map(([label, url, title]) => (
+      ).map(([label, url, title, loop]) => (
         <button
           key={label}
           disabled={!url}
           onClick={() =>
             on(url)
               ? sceneRequest({ action: "music", op: "stop" })
-              : sceneRequest({ action: "music", op: "play", url: url!, title, loop: false, volume: music.volume || 0.6 })
+              : sceneRequest({ action: "music", op: "play", url: url!, title, loop, volume: music.volume || 0.6 })
           }
           title={url ? (on(url) ? "Parar" : `Tocar a ${title.toLowerCase()}`) : `Escolha a ${title.toLowerCase()} na aba Roteiro`}
           className={`rounded-md px-3 py-1.5 text-xs font-bold disabled:opacity-35 ${on(url) ? "bg-[#DFFF00] text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
@@ -291,7 +291,7 @@ export function HotSoundsBar({ always }: { always: boolean }) {
       </span>
       <span className="ml-auto flex flex-wrap items-center gap-2">
         <span className="studio-label px-1 text-sm">TRILHAS</span>
-        <TrackShortcuts opening={config.openingTrackUrl} closing={config.closingTrackUrl} />
+        <TrackShortcuts waiting={config.waitingTrackUrl} closing={config.closingTrackUrl} />
         <TrackControl />
       </span>
       <button className="rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700" onClick={() => sendCue({ type: "stop" })}>
