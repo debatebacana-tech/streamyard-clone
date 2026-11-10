@@ -105,9 +105,16 @@ function parseCue(payload: Uint8Array): MediaCue | null {
 
 // Renders inside the composition canvas. `silent` shows stingers without
 // playing sound (preview monitors).
-export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean; preload?: string[] }) {
-  const [video, setVideo] = useState<Extract<MediaCue, { type: "play" }> | null>(null);
+// `step` is the on-air rundown step: leaving the abertura (the director pressed
+// "Programa") cuts the opening video right there, under the transition, instead
+// of letting its long tail play out.
+export function MediaLayer({ silent = false, preload = [], step }: { silent?: boolean; preload?: string[]; step?: string }) {
+  const [video, setVideo] = useState<(Extract<MediaCue, { type: "play" }> & { step?: string }) | null>(null);
   const playing = useRef(new Map<string, HTMLAudioElement>());
+  const stepRef = useRef(step);
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
 
   const preloadKey = preload.join("|");
   useEffect(() => {
@@ -126,7 +133,7 @@ export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean;
         return;
       }
       if (cue.kind === "video") {
-        setVideo((current) => (cue.toggle && current?.url === cue.url ? null : cue));
+        setVideo((current) => (cue.toggle && current?.url === cue.url ? null : { ...cue, step: stepRef.current }));
         return;
       }
       if (silent) return;
@@ -171,7 +178,11 @@ export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean;
     return () => current.forEach((a) => a.pause());
   }, []);
 
-  if (!video) return null;
+  // A video started before/at the abertura goes away once the show moves on.
+  const cutShort = Boolean(video && step !== undefined && step !== "abertura" && step !== video.step);
+  // Forget it, so going back to that step later doesn't replay it.
+  if (cutShort) setVideo(null);
+  if (!video || cutShort) return null;
   return (
     <video
       key={video.id + video.url}

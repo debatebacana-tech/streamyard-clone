@@ -28,6 +28,7 @@ import {
   type CompetitionTheme,
   type ProgramBranding,
   type Scene,
+  type CustomSlot,
   type Team,
 } from "@/lib/scene";
 
@@ -237,12 +238,65 @@ function MediaStage({ stage, scene, branding, box, withSound }: {
   );
 }
 
-function Stage({ stage, scene, branding, box }: {
+// Fills the drawn windows of a "Personalizado" layout: a window tied to a
+// person shows them (found by identity, or by name from another browser);
+// an open window takes the next person on stage.
+export function resolveCustom(scene: Scene, stage: TrackReferenceOrPlaceholder[], pool: TrackReferenceOrPlaceholder[]) {
+  const used = new Set<TrackReferenceOrPlaceholder>();
+  const wantScreen = (s: CustomSlot) => s.source === "screen";
+  const fits = (s: CustomSlot, t: TrackReferenceOrPlaceholder) => (t.source === Track.Source.ScreenShare) === wantScreen(s);
+  const picks: (TrackReferenceOrPlaceholder | null)[] = scene.custom.map((slot) => {
+    if (!slot.who) return null;
+    const mine = (t: TrackReferenceOrPlaceholder) =>
+      t.participant.identity === slot.who ||
+      (slot.name !== "" && (t.participant.name || "").trim().toLowerCase() === slot.name.trim().toLowerCase());
+    const pick = pool.find((t) => mine(t) && fits(slot, t) && !used.has(t)) ?? (wantScreen(slot) ? undefined : pool.find((t) => mine(t) && !used.has(t)));
+    if (pick) used.add(pick);
+    return pick ?? null;
+  });
+  return scene.custom.map((slot, i) => {
+    if (slot.who) return picks[i];
+    const pick = stage.find((t) => !used.has(t) && fits(slot, t));
+    if (pick) used.add(pick);
+    return pick ?? null;
+  });
+}
+
+function CustomStage({ scene, stage, pool, branding }: {
+  scene: Scene;
+  stage: TrackReferenceOrPlaceholder[];
+  pool: TrackReferenceOrPlaceholder[];
+  branding: ProgramBranding;
+}) {
+  const tracks = resolveCustom(scene, stage, pool);
+  return (
+    <>
+      {scene.custom.map((slot, i) => {
+        const t = tracks[i];
+        if (!t) return null;
+        const full = slot.w > 0.98 && slot.h > 0.98;
+        return (
+          <div
+            key={`${i}-${t.participant.identity}-${t.source}`}
+            className="absolute"
+            style={{ left: slot.x * CANVAS_W, top: slot.y * CANVAS_H, width: slot.w * CANVAS_W, height: slot.h * CANVAS_H, zIndex: i + 1 }}
+          >
+            <Tile trackRef={t} branding={branding} framed={!full} />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function Stage({ stage, scene, branding, box, pool }: {
   stage: TrackReferenceOrPlaceholder[];
   scene: Scene;
   branding: ProgramBranding;
   box: Box;
+  pool: TrackReferenceOrPlaceholder[];
 }) {
+  if (scene.layout === "custom") return <CustomStage scene={scene} stage={stage} pool={pool} branding={branding} />;
   if (stage.length === 0) return null;
   const featured = pickFeatured(stage, scene);
   const others = stage.filter((t) => t !== featured);
@@ -880,7 +934,8 @@ function ScreenMedia({ scene, withSound }: { scene: Scene; withSound: boolean })
   return (
     <div className="absolute inset-0 z-40 bg-black">
       {isVideo ? (
-        <LoopVideo key={s.mediaUrl} src={s.mediaUrl!} withSound={withSound} />
+        // The pre-live video is always silent: the waiting track plays over it.
+        <LoopVideo key={s.mediaUrl} src={s.mediaUrl!} withSound={withSound && s.kind !== "espera"} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={s.mediaUrl!} alt="" className="h-full w-full object-cover" />
@@ -1026,6 +1081,11 @@ export function ShowComposition({
   const stage = all
     .filter((t) => order.has(t.participant.identity))
     .sort((a, b) => order.get(a.participant.identity)! - order.get(b.participant.identity)!);
+  // Everyone in the room (a drawn window can show someone not "on stage").
+  const pool = all.filter((t) => !t.participant.identity.startsWith("layout-viewer"));
+  // Who is heard: the people on stage, plus anyone shown in a drawn window.
+  const audible = new Set(order.keys());
+  if (scene.layout === "custom") for (const t of resolveCustom(scene, stage, pool)) if (t) audible.add(t.participant.identity);
 
   // Swap two windows: with the big window involved, the other becomes the
   // featured one; otherwise they trade places in the order.
@@ -1083,7 +1143,7 @@ export function ShowComposition({
     bottom: Math.max(y, 24),
   };
   // Re-keys the stage when the arrangement changes, so a cut fades in.
-  const arrangement = `${scene.layout}:${scene.featuredSide}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
+  const arrangement = `${scene.layout}:${scene.featuredSide}:${scene.layout === "custom" ? JSON.stringify(scene.custom) : ""}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
 
   return (
     <ScaledCanvas>
@@ -1101,7 +1161,7 @@ export function ShowComposition({
           {mediaOn && scene.media.mode !== "full" ? (
             <MediaStage stage={stage} scene={scene} branding={branding} box={box} withSound={media === "play"} />
           ) : (
-            <Stage stage={stage} scene={scene} branding={branding} box={box} />
+            <Stage stage={stage} scene={scene} branding={branding} box={box} pool={pool} />
           )}
         </div>
         </CropContext.Provider>
@@ -1158,7 +1218,7 @@ export function ShowComposition({
           ) : (
             <InstitutionalScreen scene={scene} branding={branding} />
           ))}
-        {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} />}
+        {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} step={scene.step} />}
         {!sceneOverride && media !== "off" && (
           <TransitionLayer at={scene.transitionAt} config={show.transition} branding={branding} withSound={media === "play"} />
         )}
@@ -1166,7 +1226,7 @@ export function ShowComposition({
       {media === "play" && <MusicLayer music={scene.music} />}
       {withAudio &&
         audioTracks
-          .filter((t) => order.has(t.participant.identity))
+          .filter((t) => audible.has(t.participant.identity))
           .map((t) => <AudioTrack key={t.publication.trackSid} trackRef={t} />)}
     </ScaledCanvas>
   );

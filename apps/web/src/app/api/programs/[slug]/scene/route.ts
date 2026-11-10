@@ -53,7 +53,12 @@ function rundownScreen(scene: Scene, step: RundownStep, config: ProgramConfig, n
       // The opening stinger itself is cued by the director's client.
       return startMusic({ ...scene, screen: { ...scene.screen, kind: "none" } }, config.openingTrackUrl, now, false, "Trilha de abertura");
     case "aovivo":
-      return { ...scene, screen: { ...scene.screen, kind: "none" } };
+      // Cutting the abertura short: its track fades out with the video.
+      return {
+        ...scene,
+        screen: { ...scene.screen, kind: "none" },
+        ...(scene.step === "abertura" && scene.music.startedAt && { music: { ...scene.music, startedAt: null } }),
+      };
     case "intervalo":
       return startMusic(
         { ...scene, screen: { ...config.screens.intervalo, kind: "intervalo", countdownTo: null, mediaUrl: config.breakMediaUrl } },
@@ -101,6 +106,7 @@ function arrangementChanged(a: Scene, b: Scene): boolean {
     a.stageMode !== b.stageMode ||
     a.featured !== b.featured ||
     a.featuredSide !== b.featuredSide ||
+    (a.layout === "custom" && JSON.stringify(a.custom) !== JSON.stringify(b.custom)) ||
     a.chat.visible !== b.chat.visible ||
     a.board.kind !== b.board.kind ||
     a.web.visible !== b.web.visible ||

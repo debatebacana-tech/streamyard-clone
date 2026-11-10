@@ -9,6 +9,10 @@ import { useDirector } from "./context";
 
 const input = "rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-neutral-500";
 
+// Every panel has its own copy of the settings; a save anywhere updates them all
+// (a new scene shows in the CENAS bar, a chosen vinheta clears "sem vinheta").
+const CONFIG_EVENT = "program-config-updated";
+
 export function useProgramConfig() {
   const { slug } = useDirector();
   const [config, setConfig] = useState<ProgramConfig | null>(null);
@@ -17,6 +21,9 @@ export function useProgramConfig() {
     fetch(`/api/programs/${slug}/config`)
       .then((r) => r.json())
       .then((d) => setConfig(d.config));
+    const onUpdate = (e: Event) => setConfig((e as CustomEvent<ProgramConfig>).detail);
+    window.addEventListener(CONFIG_EVENT, onUpdate);
+    return () => window.removeEventListener(CONFIG_EVENT, onUpdate);
   }, [slug]);
 
   async function save(patch: Partial<ProgramConfig> | { screens: Partial<Record<string, Partial<ScreenText>>> }) {
@@ -27,7 +34,11 @@ export function useProgramConfig() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
-    if (res.ok) setConfig((await res.json()).config);
+    if (res.ok) {
+      const next = (await res.json()).config as ProgramConfig;
+      setConfig(next);
+      window.dispatchEvent(new CustomEvent(CONFIG_EVENT, { detail: next }));
+    }
   }
 
   return { config, save };
@@ -101,18 +112,24 @@ export function RundownBar() {
       <span className="studio-label flex items-center px-2 text-base">ROTEIRO</span>
       {STEPS.map(({ step, label, hint }, i) => {
         const on = current === step;
+        // During the opening, "Programa" cuts the vinheta whenever the hosts are ready.
+        const cutsOpening = step === "aovivo" && current === "abertura";
         return (
           <div key={step} className="flex items-stretch">
             <button
               onClick={() => go(step)}
-              title={hint}
+              title={step === "aovivo" && current === "abertura" ? "Corta a vinheta agora (com a transição) e entra a mesa" : hint}
               disabled={going !== null && going !== step}
               className={`rounded-md px-4 py-2 text-sm font-bold transition ${
-                on ? "bg-[#DFFF00] text-black" : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+                on
+                  ? "bg-[#DFFF00] text-black"
+                  : cutsOpening
+                    ? "bg-red-600 text-white ring-2 ring-red-300 hover:bg-red-500"
+                    : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
               } ${going === step ? "animate-pulse" : ""} disabled:opacity-50`}
             >
               <span className="mr-1.5 text-xs opacity-60">{i + 1}</span>
-              {label}
+              {cutsOpening ? "✂ Cortar para o programa" : label}
               {going === step && <span className="ml-1.5 text-xs">…</span>}
               {missing[step] && (
                 <span
@@ -254,7 +271,7 @@ export function RundownSettings() {
           <ScreenTexts kind="espera" text={config.screens.espera} onSave={(t) => save({ screens: { espera: t } })} />
         </StepCard>
         <StepCard n={2} title="Abertura">
-          <AssetSelect label="Sua vinheta de abertura (vídeo)" hint="Toca em tela cheia; quando acaba, entra a mesa." value={config.openingVideoUrl} options={videos} onChange={(url) => save({ openingVideoUrl: url })} />
+          <AssetSelect label="Sua vinheta de abertura (vídeo)" hint="Toca em tela cheia. Para não esperar o fim, aperte “Cortar para o programa” na hora que a mesa estiver pronta." value={config.openingVideoUrl} options={videos} onChange={(url) => save({ openingVideoUrl: url })} />
           <AssetSelect label="Trilha (toca uma vez)" hint="Deixe vazio se a trilha já está no vídeo." value={config.openingTrackUrl} options={tracks} onChange={(url) => save({ openingTrackUrl: url })} />
         </StepCard>
         <StepCard n={4} title="Intervalo">

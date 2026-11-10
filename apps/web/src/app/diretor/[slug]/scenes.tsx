@@ -57,6 +57,7 @@ export function ScenesBar() {
       featured: d.featured,
       featuredSide: d.featuredSide,
       chat: d.chat.visible,
+      ...(d.layout === "custom" && { custom: d.custom }),
     };
     save({ scenes: [...list, scene] });
   }

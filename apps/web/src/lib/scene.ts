@@ -4,7 +4,46 @@
 // composition renders from.
 
 // "auto" is the grid: one row up to four, two rows beyond.
-export type LayoutMode = "auto" | "spotlight" | "center" | "screen" | "solo" | "pip" | "vertical";
+export type LayoutMode = "auto" | "spotlight" | "center" | "screen" | "solo" | "pip" | "vertical" | "custom";
+
+// One window of a layout the director drew ("Personalizado"): position and size
+// as fractions of the 1280x720 frame, later windows on top. who = participant
+// identity (null = next person on stage); name lets a saved layout find the
+// same person when they join from another browser.
+export type CustomSlot = { x: number; y: number; w: number; h: number; who: string | null; name: string; source: "camera" | "screen" };
+
+export const CUSTOM_PRESETS: { name: string; slots: CustomSlot[] }[] = [
+  {
+    name: "Dois lado a lado",
+    slots: [
+      { x: 0.02, y: 0.16, w: 0.47, h: 0.6, who: null, name: "", source: "camera" },
+      { x: 0.51, y: 0.16, w: 0.47, h: 0.6, who: null, name: "", source: "camera" },
+    ],
+  },
+  {
+    name: "Tela grande + 2 câmeras",
+    slots: [
+      { x: 0.02, y: 0.15, w: 0.66, h: 0.66, who: null, name: "", source: "screen" },
+      { x: 0.7, y: 0.15, w: 0.28, h: 0.32, who: null, name: "", source: "camera" },
+      { x: 0.7, y: 0.49, w: 0.28, h: 0.32, who: null, name: "", source: "camera" },
+    ],
+  },
+  {
+    name: "Tela cheia + câmera no canto",
+    slots: [
+      { x: 0, y: 0, w: 1, h: 1, who: null, name: "", source: "screen" },
+      { x: 0.74, y: 0.62, w: 0.23, h: 0.23, who: null, name: "", source: "camera" },
+    ],
+  },
+  {
+    name: "Três em fila",
+    slots: [
+      { x: 0.02, y: 0.2, w: 0.31, h: 0.5, who: null, name: "", source: "camera" },
+      { x: 0.345, y: 0.2, w: 0.31, h: 0.5, who: null, name: "", source: "camera" },
+      { x: 0.67, y: 0.2, w: 0.31, h: 0.5, who: null, name: "", source: "camera" },
+    ],
+  },
+];
 
 export const LAYOUTS: { mode: LayoutMode; label: string; hint: string }[] = [
   { mode: "auto", label: "Grade", hint: "Todos lado a lado (até 4 numa fila, depois duas fileiras)" },
@@ -14,6 +53,7 @@ export const LAYOUTS: { mode: LayoutMode; label: string; hint: string }[] = [
   { mode: "pip", label: "PiP", hint: "Destaque em tela cheia com as outras em janelinhas" },
   { mode: "solo", label: "Só um", hint: "Apenas a pessoa em destaque" },
   { mode: "vertical", label: "Tela vertical", hint: "A tela compartilhada (Twitter, celular) numa moldura em pé, recortada no meio, com as câmeras ao lado" },
+  { mode: "custom", label: "Personalizado", hint: "Você escolhe quem entra em cada janela e posiciona/redimensiona na prévia (aba Cenas → Montar layout)" },
 ];
 
 // Institutional full screens from the brand manual.
@@ -266,6 +306,8 @@ export type Scene = {
   // Scene title in the header, next to the program name (e.g. "CENTRAL DA PARTIDA").
   title: string;
   layout: LayoutMode;
+  // The windows of the "Personalizado" layout.
+  custom: CustomSlot[];
   // Participants shown in the output; everyone else stays backstage (not seen or heard).
   onStage: string[];
   // Preferred window order in "all" mode (dragging windows on the monitors).
@@ -346,6 +388,7 @@ export const DEFAULT_SCENE: Scene = {
   highlight: { visible: false, author: "", text: "", avatarUrl: null },
   title: "",
   layout: "auto",
+  custom: CUSTOM_PRESETS[0].slots,
   onStage: [],
   order: [],
   screenCrop: { enabled: false, x: 0, y: 0, w: 1, h: 1 },
@@ -579,6 +622,23 @@ function kicks(value: unknown): Kick[] {
   return Array.isArray(value) ? value.filter((k): k is Kick => k === "goal" || k === "miss").slice(0, 30) : [];
 }
 
+export function normalizeSlots(input: unknown[]): CustomSlot[] {
+  return input.slice(0, 9).map((raw) => {
+    const c = obj(raw);
+    const w = num(c.w, 0.3, 0.05, 1);
+    const h = num(c.h, 0.3, 0.05, 1);
+    return {
+      x: num(c.x, 0, 0, 1 - w),
+      y: num(c.y, 0, 0, 1 - h),
+      w,
+      h,
+      who: typeof c.who === "string" && c.who.length <= 64 ? c.who : null,
+      name: str(c.name, 60),
+      source: c.source === "screen" ? "screen" : "camera",
+    };
+  });
+}
+
 export function normalizeScene(input: unknown): Scene {
   const raw = obj(input);
   const gc = obj(raw.gc);
@@ -605,6 +665,7 @@ export function normalizeScene(input: unknown): Scene {
     },
     title: str(raw.title, 60),
     layout: typeof raw.layout === "string" && LAYOUT_MODES.has(raw.layout) ? (raw.layout as LayoutMode) : d.layout,
+    custom: Array.isArray(raw.custom) ? normalizeSlots(raw.custom) : d.custom,
     onStage: Array.isArray(raw.onStage)
       ? [...new Set(raw.onStage.filter((id): id is string => typeof id === "string" && id.length <= 64))].slice(0, 16)
       : d.onStage,
@@ -783,6 +844,8 @@ export type SavedScene = {
   featured: string | null;
   featuredSide?: "left" | "right";
   chat: boolean;
+  // The drawn windows, for a "Personalizado" scene.
+  custom?: CustomSlot[];
 };
 
 export const DEFAULT_SAVED_SCENES: SavedScene[] = [
@@ -806,6 +869,7 @@ export function normalizeSavedScene(input: unknown): SavedScene | null {
     featured: typeof s.featured === "string" ? s.featured.slice(0, 64) : null,
     featuredSide: s.featuredSide === "left" ? "left" : "right",
     chat: bool(s.chat, false),
+    ...(Array.isArray(s.custom) && { custom: normalizeSlots(s.custom) }),
   };
 }
 
@@ -818,6 +882,7 @@ export function savedScenePatch(saved: SavedScene) {
     featured: saved.featured,
     featuredSide: saved.featuredSide ?? "right",
     chat: { visible: saved.chat },
+    ...(saved.layout === "custom" && saved.custom && { custom: saved.custom }),
   };
 }
 
@@ -828,6 +893,7 @@ export function matchesSavedScene(scene: Scene, saved: SavedScene): boolean {
     scene.stageMode === saved.stageMode &&
     scene.chat.visible === saved.chat &&
     scene.featuredSide === (saved.featuredSide ?? "right") &&
-    (saved.stageMode === "all" || JSON.stringify(scene.onStage) === JSON.stringify(saved.onStage))
+    (saved.stageMode === "all" || JSON.stringify(scene.onStage) === JSON.stringify(saved.onStage)) &&
+    (saved.layout !== "custom" || !saved.custom || JSON.stringify(scene.custom) === JSON.stringify(saved.custom))
   );
 }

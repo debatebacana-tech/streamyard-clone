@@ -35,6 +35,7 @@ import { MediaPanel } from "./media";
 import { ClubPads, ClubsPanel } from "./clubs";
 import { MyName, savedDirectorName } from "./names";
 import { CropPanel } from "./crop";
+import { CustomLayoutPanel } from "./custom";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
 
@@ -360,6 +361,9 @@ function Desk() {
               <WebPanel />
             </Panel>
           </div>
+          <Panel title="Montar layout (personalizado)">
+            <CustomLayoutPanel />
+          </Panel>
           <Panel title="Recortar tela compartilhada (campinho)">
             <CropPanel />
           </Panel>
