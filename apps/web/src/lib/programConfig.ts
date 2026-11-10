@@ -60,6 +60,8 @@ export type ProgramConfig = {
   hotSounds: HotSound[];
   // Photo with the camera off and camera colors, per person (by name).
   looks: Record<string, PersonLook>;
+  // Donation alerts overlay (e.g. LivePix): a transparent page over the stream.
+  alertsUrl: string | null;
   screens: Record<Exclude<ScreenKind, "none">, ScreenText>;
 };
 
@@ -109,6 +111,7 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
       ? c.hotSounds.map(hotSound).filter((x): x is HotSound => x !== null).slice(0, 6)
       : DEFAULT_HOT_SOUNDS,
     looks: normalizeLooks(c.looks),
+    alertsUrl: typeof c.alertsUrl === "string" && /^https:\/\/[^\s]{4,400}$/.test(c.alertsUrl.trim()) ? c.alertsUrl.trim() : null,
     tweets: (Array.isArray(c.tweets) ? c.tweets : []).map(normalizeTweetCard).filter((x): x is TweetCard => x !== null).slice(0, 30),
     screens: {
       espera: screen(screens.espera, SCREEN_DEFAULTS.espera),

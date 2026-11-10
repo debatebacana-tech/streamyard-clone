@@ -424,6 +424,8 @@ export type ShowMetadata = {
   transition?: TransitionConfig;
   sounds?: string[];
   looks?: Record<string, PersonLook>;
+  // Donation alerts page (LivePix overlay link), drawn over the stream.
+  alerts?: string | null;
 };
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A", redCards: 0 };
@@ -885,6 +887,7 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
       chat: Array.isArray(parsed.chat) ? parsed.chat.slice(-12) : [],
       transition: normalizeTransition(parsed.transition),
       looks: normalizeLooks(parsed.looks),
+      alerts: typeof parsed.alerts === "string" && parsed.alerts.startsWith("https://") ? parsed.alerts : null,
       sounds: Array.isArray(parsed.sounds)
         ? parsed.sounds.filter((u): u is string => typeof u === "string" && u.startsWith("/media/")).slice(0, 80)
         : [],

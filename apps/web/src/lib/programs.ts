@@ -98,6 +98,7 @@ async function metadataFor(program: Program): Promise<string> {
     transition: configOf(program).transition,
     sounds: await quickSounds(program, liveSceneOf(program)).catch(() => []),
     looks: configOf(program).looks,
+    alerts: configOf(program).alertsUrl,
   };
   return JSON.stringify(metadata);
 }

@@ -104,7 +104,17 @@ export function TransitionLayer({
       </div>
       <div className="wipe-caricature absolute inset-x-0 bottom-0 flex justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={CARICATURE} alt={branding.name} className="h-[540px] w-auto drop-shadow-[0_10px_30px_rgba(0,0,0,0.6)]" />
+        <img
+          src={CARICATURE}
+          alt={branding.name}
+          className="h-[540px] w-auto"
+          // The picture ends in a straight line at the outer shoulders: fade the
+          // sides so the arms melt into the backdrop instead of being cut.
+          style={{
+            WebkitMaskImage: "linear-gradient(90deg, transparent 0%, black 14%, black 86%, transparent 100%)",
+            maskImage: "linear-gradient(90deg, transparent 0%, black 14%, black 86%, transparent 100%)",
+          }}
+        />
       </div>
     </div>
   );

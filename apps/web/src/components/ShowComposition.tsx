@@ -1333,6 +1333,18 @@ export function ShowComposition({
           ) : (
             <InstitutionalScreen scene={scene} branding={branding} />
           ))}
+        {/* Donation alerts (LivePix overlay), made for a 1920x1080 browser
+            source: drawn at that size and scaled to the canvas. Only where the
+            show plays (stream and air monitor), so the alert isn't heard twice. */}
+        {show.alerts && media === "play" && (
+          <iframe
+            src={show.alerts}
+            title="Alertas"
+            allow="autoplay"
+            className="pointer-events-none absolute top-0 left-0 z-[56] origin-top-left border-0"
+            style={{ width: 1920, height: 1080, transform: `scale(${CANVAS_W / 1920})`, background: "transparent", colorScheme: "normal" }}
+          />
+        )}
         {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} step={scene.step} />}
         {!sceneOverride && media !== "off" && (
           <TransitionLayer at={scene.transitionAt} config={show.transition} branding={branding} withSound={media === "play"} />
