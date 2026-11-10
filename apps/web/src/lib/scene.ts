@@ -268,6 +268,8 @@ export type Scene = {
   layout: LayoutMode;
   // Participants shown in the output; everyone else stays backstage (not seen or heard).
   onStage: string[];
+  // Preferred window order in "all" mode (dragging windows on the monitors).
+  order: string[];
   // Featured participant for spotlight/pip/solo; falls back to a screen share, then the first on stage.
   featured: string | null;
   // Where the featured window goes in "Destaque"/"Tela vertical": right =
@@ -337,6 +339,7 @@ export const DEFAULT_SCENE: Scene = {
   title: "",
   layout: "auto",
   onStage: [],
+  order: [],
   featured: null,
   featuredSide: "right",
   gc: { visible: false, title: "", subtitle: "", imageUrl: null },
@@ -595,6 +598,9 @@ export function normalizeScene(input: unknown): Scene {
     onStage: Array.isArray(raw.onStage)
       ? [...new Set(raw.onStage.filter((id): id is string => typeof id === "string" && id.length <= 64))].slice(0, 16)
       : d.onStage,
+    order: Array.isArray(raw.order)
+      ? [...new Set(raw.order.filter((id): id is string => typeof id === "string" && id.length <= 64))].slice(0, 24)
+      : [],
     featured: typeof raw.featured === "string" && raw.featured.length <= 64 ? raw.featured : null,
     featuredSide: raw.featuredSide === "left" ? "left" : "right",
     gc: {

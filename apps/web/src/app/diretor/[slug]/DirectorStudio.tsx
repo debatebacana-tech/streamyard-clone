@@ -106,7 +106,9 @@ function LiveControl({ slug }: { slug: string }) {
 function Monitor({ label, tone, children }: { label: string; tone: "green" | "red"; children: React.ReactNode }) {
   return (
     <div className="min-w-0 flex-1 space-y-1">
-      <p className={`text-xs font-bold tracking-widest ${tone === "red" ? "text-red-500" : "text-emerald-500"}`}>{label}</p>
+      <p className={`text-xs font-bold tracking-widest ${tone === "red" ? "text-red-500" : "text-emerald-500"}`}>
+        {label} <span className="font-normal tracking-normal text-neutral-500">· arraste uma janela sobre outra para trocar</span>
+      </p>
       <div className={`relative aspect-video overflow-hidden rounded-md border-2 bg-black ${tone === "red" ? "border-red-600" : "border-emerald-600"}`}>
         {children}
       </div>
@@ -115,14 +117,18 @@ function Monitor({ label, tone, children }: { label: string; tone: "green" | "re
 }
 
 function Workspace() {
-  const { scenes, direct, setDirect, sceneRequest } = useDirector();
+  const { scenes, direct, setDirect, sceneRequest, patch } = useDirector();
   const pending = JSON.stringify(scenes.draft) !== JSON.stringify(scenes.live);
 
   return (
     <div className="space-y-4">
       <div className="flex items-stretch gap-3">
         <Monitor label="PRÉVIA" tone="green">
-          <ShowComposition scene={scenes.draft} emptyHint="Ninguém em cena — use “Pôr em cena” nos participantes" />
+          <ShowComposition
+            scene={scenes.draft}
+            emptyHint="Ninguém em cena — use “Pôr em cena” nos participantes"
+            onArrange={(p) => patch(p)}
+          />
         </Monitor>
         <div className="flex w-28 shrink-0 flex-col items-center justify-center gap-2">
           <button
@@ -139,7 +145,7 @@ function Workspace() {
           </label>
         </div>
         <Monitor label="NO AR" tone="red">
-          <ShowComposition media="play" emptyHint="Ninguém em cena" />
+          <ShowComposition media="play" emptyHint="Ninguém em cena" onArrange={(p) => patch(p, { air: true })} />
           <AudioUnlock />
         </Monitor>
       </div>

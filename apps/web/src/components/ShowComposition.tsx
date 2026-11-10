@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AudioTrack,
   VideoTrack,
@@ -79,6 +79,10 @@ function ScaledCanvas({ children }: { children: ReactNode }) {
   );
 }
 
+// Monitors let the director drag one window onto another to swap them.
+const SwapContext = createContext<((from: string, to: string) => void) | null>(null);
+const DRAG_TYPE = "application/x-studio-identity";
+
 function Tile({
   trackRef,
   branding,
@@ -94,10 +98,35 @@ function Tile({
   const isScreen = trackRef.source === Track.Source.ScreenShare;
   const name = trackRef.participant.name || trackRef.participant.identity;
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
+  const swap = useContext(SwapContext);
+  const [over, setOver] = useState(false);
+  const identity = trackRef.participant.identity;
+  const drag = swap
+    ? {
+        draggable: true,
+        onDragStart: (e: React.DragEvent) => {
+          e.dataTransfer.setData(DRAG_TYPE, identity);
+          e.dataTransfer.effectAllowed = "move";
+        },
+        onDragOver: (e: React.DragEvent) => {
+          if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+          e.preventDefault();
+          setOver(true);
+        },
+        onDragLeave: () => setOver(false),
+        onDrop: (e: React.DragEvent) => {
+          e.preventDefault();
+          setOver(false);
+          const from = e.dataTransfer.getData(DRAG_TYPE);
+          if (from && from !== identity) swap(from, identity);
+        },
+      }
+    : {};
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden bg-neutral-900 ${framed ? "rounded-2xl" : ""}`}
+      {...drag}
+      className={`relative h-full w-full overflow-hidden bg-neutral-900 ${framed ? "rounded-2xl" : ""} ${swap ? "cursor-grab active:cursor-grabbing" : ""} ${over ? "outline outline-[6px] outline-[#aedf02]" : ""}`}
       style={framed ? { border: `5px solid ${FRAME}`, boxShadow: "0 8px 24px rgba(0,0,0,.45)" } : undefined}
     >
       {hasVideo ? (
@@ -881,6 +910,7 @@ export function ShowComposition({
   withAudio = false,
   media = "off",
   emptyHint,
+  onArrange,
 }: {
   // Renders this scene instead of the on-air one (preview monitor).
   scene?: Scene;
@@ -889,6 +919,8 @@ export function ShowComposition({
   // Sound pads, stingers and background track: played, shown muted, or ignored.
   media?: "play" | "silent" | "off";
   emptyHint?: string;
+  // Dragging a window onto another calls this with the scene change to apply.
+  onArrange?: (patch: Partial<Scene>) => void;
 }) {
   const show = parseShowMetadata(useRoomMetadata());
   const tracks = useTracks(
@@ -918,10 +950,39 @@ export function ShowComposition({
     scene.stageMode === "all"
       ? [...new Set(all.filter((t) => !t.participant.identity.startsWith("host-") || showsVideo(t)).map((t) => t.participant.identity))]
       : scene.onStage;
-  const order = new Map(onStageIds.map((id, i) => [id, i]));
+  // "all" follows the order the director arranged by dragging; newcomers go last.
+  const ranked =
+    scene.stageMode === "all" && scene.order.length
+      ? [...onStageIds].sort((a, b) => {
+          const ia = scene.order.indexOf(a);
+          const ib = scene.order.indexOf(b);
+          return (ia < 0 ? 1e6 + onStageIds.indexOf(a) : ia) - (ib < 0 ? 1e6 + onStageIds.indexOf(b) : ib);
+        })
+      : onStageIds;
+  const order = new Map(ranked.map((id, i) => [id, i]));
   const stage = all
     .filter((t) => order.has(t.participant.identity))
     .sort((a, b) => order.get(a.participant.identity)! - order.get(b.participant.identity)!);
+
+  // Swap two windows: with the big window involved, the other becomes the
+  // featured one; otherwise they trade places in the order.
+  const swap = onArrange
+    ? (from: string, to: string) => {
+        const featuredLayout = scene.layout !== "auto";
+        const featuredId = featuredLayout ? pickFeatured(stage, scene)?.participant.identity : undefined;
+        if (featuredId && (from === featuredId || to === featuredId)) {
+          onArrange({ featured: from === featuredId ? to : from });
+          return;
+        }
+        // Manual: swap inside the director's list (keeps people who are offline).
+        const ids = scene.stageMode === "manual" ? [...scene.onStage] : [...new Set(stage.map((s) => s.participant.identity))];
+        const a = ids.indexOf(from);
+        const b = ids.indexOf(to);
+        if (a < 0 || b < 0) return;
+        [ids[a], ids[b]] = [ids[b], ids[a]];
+        onArrange(scene.stageMode === "manual" ? { onStage: ids } : { order: ids });
+      }
+    : null;
 
   const tickerOn = scene.ticker.visible && scene.ticker.text.trim() !== "";
   const highlightOn = scene.highlight.visible && scene.highlight.text.trim() !== "";
@@ -970,6 +1031,7 @@ export function ShowComposition({
             : `radial-gradient(circle at 50% 0%, ${branding.primaryColor}, #0b0b0b 75%)`,
         }}
       >
+        <SwapContext.Provider value={swap}>
         <div key={arrangement} className="scene-fade absolute inset-0">
           {mediaOn && scene.media.mode !== "full" ? (
             <MediaStage stage={stage} scene={scene} branding={branding} box={box} withSound={media === "play"} />
@@ -977,6 +1039,7 @@ export function ShowComposition({
             <Stage stage={stage} scene={scene} branding={branding} box={box} />
           )}
         </div>
+        </SwapContext.Provider>
         {mediaOn && scene.media.mode === "full" && (
           <div className="scene-fade absolute inset-0 z-[31] bg-black">
             <ProjectedMediaView media={scene.media} withSound={media === "play"} />
