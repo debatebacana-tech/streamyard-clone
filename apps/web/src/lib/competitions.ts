@@ -16,6 +16,10 @@ export type Competition = {
   knockout?: boolean;
   // Only knockout (no table at all).
   cup?: boolean;
+  // Data source: ESPN (default) or API-Football (needs the key), found by name.
+  provider?: "espn" | "apif";
+  search?: string;
+  division?: 1 | 2;
 };
 
 const BLUE = "#2f7cf6";
@@ -34,6 +38,9 @@ export const COMPETITIONS: Competition[] = [
   { id: "bra.camp.carioca", label: "Carioca", short: "CARIOCA", zones: [{ until: 4, color: GREEN }], bottom: 0, rest: null },
   { id: "bra.camp.mineiro", label: "Mineiro", short: "MINEIRO", zones: [{ until: 2, color: GREEN }], bottom: 0, rest: null },
   { id: "bra.camp.gaucho", label: "Gaúcho", short: "GAUCHÃO", zones: [{ until: 2, color: GREEN }], bottom: 0, rest: null },
+  // Capixabão (API-Football): top 4 to the semifinals; the last two go down / the top two go up.
+  { id: "apif.capixaba.1", label: "Capixabão (1ª divisão)", short: "CAPIXABÃO", zones: [{ until: 4, color: GREEN }], bottom: 2, rest: null, provider: "apif", search: "Capixaba", division: 1 },
+  { id: "apif.capixaba.2", label: "Capixabão Série B (2ª divisão)", short: "CAPIXABÃO SÉRIE B", zones: [{ until: 2, color: BLUE }, { until: 4, color: GREEN }], bottom: 0, rest: null, provider: "apif", search: "Capixaba", division: 2 },
 ];
 
 export function competition(id: string): Competition | null {

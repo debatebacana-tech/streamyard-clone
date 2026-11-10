@@ -22,7 +22,7 @@ async function fetchBoard(competition: string, kind: Kind, from: string, to: str
   const q = new URLSearchParams({ competition, kind, from, to });
   const res = await fetch(`/api/football?${q}`);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? "Falha ao buscar");
+  if (!res.ok) throw Object.assign(new Error(data.error ?? "Falha ao buscar"), { needsKey: Boolean(data.needsKey) });
   return data;
 }
 
@@ -43,6 +43,39 @@ const label = (id: string) => COMPETITIONS.find((c) => c.id === id)?.label ?? ""
 const short = (id: string) => COMPETITIONS.find((c) => c.id === id)?.short ?? "";
 const comp = (id: string) => COMPETITIONS.find((c) => c.id === id);
 
+// Key for the championships that come from API-Football (Capixabão).
+function ApiFootballKey({ onSaved }: { onSaved: () => void }) {
+  const [key, setKey] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  async function save() {
+    const res = await fetch("/api/settings/api-football", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey: key }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return setMsg(data.error ?? "Falhou");
+    setKey("");
+    onSaved();
+  }
+  return (
+    <div className="space-y-2 rounded-md border border-amber-700/60 bg-amber-950/30 p-3 text-xs text-neutral-300">
+      <p className="font-semibold text-amber-200">O Capixabão vem da API-Football (a ESPN não tem)</p>
+      <ol className="list-decimal space-y-1 pl-4 text-neutral-400">
+        <li>
+          Crie a conta grátis em <b className="text-neutral-200">dashboard.api-football.com</b>
+        </li>
+        <li>
+          Em <b className="text-neutral-200">My Access</b>, copie a <b>API-KEY</b> e cole aqui (fica guardada criptografada)
+        </li>
+      </ol>
+      <div className="flex gap-2">
+        <input type="password" className={`${input} flex-1`} placeholder="API-KEY da API-Football" value={key} onChange={(e) => setKey(e.target.value)} />
+        <button className={btnGo} disabled={!key.trim()} onClick={save}>
+          Salvar
+        </button>
+      </div>
+      {msg && <p className="text-red-400">{msg}</p>}
+    </div>
+  );
+}
+
 export function BoardPanel() {
   const { scenes, patch, direct } = useDirector();
   const [competition, setCompetition] = useState(scenes.draft.board.competition || "bra.1");
@@ -52,6 +85,7 @@ export function BoardPanel() {
   const [subtitle, setSubtitle] = useState(() => short(scenes.draft.board.competition || "bra.1"));
   const [busy, setBusy] = useState<Kind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [needsKey, setNeedsKey] = useState(false);
   const [data, setData] = useState<{ kind: Kind; data: Data } | null>(null);
   const live = scenes.live.board;
   const draft = scenes.draft.board;
@@ -59,6 +93,7 @@ export function BoardPanel() {
   async function load(kind: Kind) {
     setBusy(kind);
     setError(null);
+    setNeedsKey(false);
     try {
       const data = await fetchBoard(competition, kind, from, to);
       setData({ kind, data });
@@ -71,6 +106,7 @@ export function BoardPanel() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha");
+      setNeedsKey(Boolean((e as { needsKey?: boolean }).needsKey));
     }
     setBusy(null);
   }
@@ -143,7 +179,16 @@ export function BoardPanel() {
           <p className="text-[11px] text-neutral-500">Pegue as datas da rodada (ex: sábado a quarta). Placares ao vivo atualizam sozinhos enquanto a tela estiver no ar.</p>
         </div>
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {needsKey ? (
+          <ApiFootballKey
+            onSaved={() => {
+              setNeedsKey(false);
+              setError(null);
+            }}
+          />
+        ) : (
+          error && <p className="text-xs text-red-400">{error}</p>
+        )}
 
         <div className="space-y-2 rounded-md bg-neutral-950 p-3 text-sm">
           <p>

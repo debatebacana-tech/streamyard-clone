@@ -21,6 +21,8 @@ model ShowSettings {
   youtubeChannelTitle       String?
   youtubeStreamId           String?
   youtubeBroadcastId        String?
+  // API-Football key (encrypted): state championships ESPN doesn't cover (Capixabão).
+  apiFootballKeyCipher      String?
   lowerThirdText          String   @default("")
   logoUrl                 String?
   // Only one program can be live at a time (one channel, one egress worth of CPU).

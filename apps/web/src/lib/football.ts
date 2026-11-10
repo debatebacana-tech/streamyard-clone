@@ -1,6 +1,8 @@
 import { competition, zoneColor } from "./competitions";
 import type { BoardGroup, BoardMatch, BoardTeam, BracketRound, BracketSide, BracketTie } from "./scene";
 
+import { apifMatches, apifStandings } from "./apiFootball";
+
 export { COMPETITIONS } from "./competitions";
 
 // Round fixtures and standings from ESPN's public site API (free, no key,
@@ -47,6 +49,7 @@ function team(raw: unknown): BoardTeam {
 export async function fetchStandings(id: string): Promise<{ groups: BoardGroup[]; logo: string | null; round: number | null }> {
   const comp = competition(id);
   if (!comp) throw new Error("Competição desconhecida");
+  if (comp.provider === "apif") return apifStandings(comp);
   const data = o(await getJson(`/v2/sports/soccer/${id}/standings`));
   const children = a(data.children).length ? a(data.children) : [data];
   const groups: BoardGroup[] = children
@@ -117,7 +120,9 @@ function matchDetail(status: Raw): string {
 // Matches between two dates (inclusive, YYYY-MM-DD), one request per day
 // (the API refuses date ranges).
 export async function fetchMatches(id: string, from: string, to: string): Promise<{ matches: BoardMatch[]; logo: string | null }> {
-  if (!competition(id)) throw new Error("Competição desconhecida");
+  const known = competition(id);
+  if (!known) throw new Error("Competição desconhecida");
+  if (known.provider === "apif") return apifMatches(known, from, to);
   const start = Date.parse(`${from}T12:00:00Z`);
   const end = Date.parse(`${to}T12:00:00Z`);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) throw new Error("Datas inválidas");
