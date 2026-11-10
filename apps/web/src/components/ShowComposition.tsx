@@ -725,7 +725,7 @@ function Ticker({ scene, branding }: { scene: Scene; branding: ProgramBranding }
 // and, under it, a smaller strip alternating "Inscreva-se!" / "Deixe o like!".
 function LiveBug() {
   return (
-    <div className="absolute top-5 right-6 z-[30] flex flex-col items-end" style={CONDENSED}>
+    <div className="flex flex-col items-end pt-1" style={CONDENSED}>
       <div className="flex items-center gap-2 rounded-t-md rounded-bl-md bg-[#e10600] px-3.5 py-1 text-[26px] leading-none font-bold tracking-wide text-white uppercase shadow-[0_6px_18px_rgba(0,0,0,0.45)]">
         <span className="live-dot h-3 w-3 rounded-full bg-white shadow-[0_0_8px_#fff]" />
         Ao vivo
@@ -742,31 +742,28 @@ function LiveBug() {
   );
 }
 
-function Header({ scene, branding, bugOn }: { scene: Scene; branding: ProgramBranding; bugOn: boolean }) {
+function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; bugOn: boolean }) {
   const sponsorOn = scene.sponsor.visible && scene.sponsor.imageUrl;
-  // Center the title in the space the scoreboard bug and sponsor leave free.
-  const left = bugOn ? 470 : sponsorOn ? 200 : 24;
-  const right = sponsorOn ? 200 : 24;
+  // Top-right corner, TV style: the program's logo right beside the live bug.
   return (
     <>
-      {scene.showLogo && (
-        <div className="absolute top-3 flex h-[108px] items-center justify-center gap-4" style={{ left, right }}>
-          {branding.logoUrl ? (
+      <div className="absolute top-4 right-6 z-[30] flex items-start gap-3">
+        {scene.showLogo &&
+          (branding.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoUrl} alt="" className="max-h-full max-w-full object-contain drop-shadow-xl" />
+            <img src={branding.logoUrl} alt="" className="h-[70px] w-auto max-w-[230px] object-contain drop-shadow-xl" />
           ) : (
             <span
-              className={`${bugOn || sponsorOn ? "text-6xl" : "text-7xl"} truncate whitespace-nowrap uppercase`}
-              style={{ ...DISPLAY, color: "#fff", WebkitTextStroke: `3px ${FRAME}`, textShadow: `5px 5px 0 ${FRAME}` }}
+              className="pt-1 text-4xl whitespace-nowrap uppercase"
+              style={{ ...DISPLAY, color: "#fff", WebkitTextStroke: `2px ${FRAME}`, textShadow: `3px 3px 0 ${FRAME}` }}
             >
               {branding.name}
             </span>
-          )}
-        </div>
-      )}
-      <LiveBug />
+          ))}
+        <LiveBug />
+      </div>
       {sponsorOn && (
-        <div className="absolute top-[92px] right-6 rounded-md bg-white px-3 py-2 shadow-xl" style={{ border: `3px solid ${FRAME}` }}>
+        <div className="absolute top-[98px] right-6 rounded-md bg-white px-3 py-2 shadow-xl" style={{ border: `3px solid ${FRAME}` }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={scene.sponsor.imageUrl!} alt="" className="h-12 max-w-[150px] object-contain" />
         </div>
@@ -1076,7 +1073,8 @@ export function ShowComposition({
   const gcBottom = y;
   if (gcOn || highlightOn) y += GC_H + 22;
   const headerOn = scene.showLogo;
-  const top = headerOn ? 128 : bugOn ? (themeTab ? 128 : 92) : 24;
+  // The logo + live bug sit in the top-right corner (about 96 px tall).
+  const top = bugOn ? (themeTab ? 128 : 100) : headerOn ? 104 : 90;
   const box: Box = {
     top,
     left: tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : tweetSide === "left" ? 24 + TWEET_W + 16 : 24,

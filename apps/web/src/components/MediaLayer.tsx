@@ -56,9 +56,27 @@ function audioFor(url: string): HTMLAudioElement {
   return el;
 }
 
+// Stinger videos (opening, effect videos) are downloaded ahead too, so they
+// start at once and never stall mid-way (the opening used to catch near its end).
+const videoBlobs = new Map<string, string>();
+const videoLoading = new Set<string>();
+function warmVideo(url: string) {
+  if (videoBlobs.has(url) || videoLoading.has(url)) return;
+  videoLoading.add(url);
+  fetch(url)
+    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+    .then((b) => videoBlobs.set(url, URL.createObjectURL(b)))
+    .catch(() => {})
+    .finally(() => videoLoading.delete(url));
+}
+
 export function preloadSounds(urls: string[]) {
   if (typeof window === "undefined") return;
-  for (const url of urls) if (url.startsWith("/media/") && !/\.(mp4|webm)$/i.test(url)) void warm(url);
+  for (const url of urls) {
+    if (!url.startsWith("/media/")) continue;
+    if (/\.(mp4|webm)$/i.test(url)) warmVideo(url);
+    else void warm(url);
+  }
 }
 
 const localBus = typeof window !== "undefined" ? new EventTarget() : null;
@@ -91,7 +109,7 @@ export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean;
   const [video, setVideo] = useState<Extract<MediaCue, { type: "play" }> | null>(null);
   const playing = useRef(new Map<string, HTMLAudioElement>());
 
-  const preloadKey = silent ? "" : preload.join("|");
+  const preloadKey = preload.join("|");
   useEffect(() => {
     if (preloadKey) preloadSounds(preloadKey.split("|"));
   }, [preloadKey]);
@@ -157,7 +175,7 @@ export function MediaLayer({ silent = false, preload = [] }: { silent?: boolean;
   return (
     <video
       key={video.id + video.url}
-      src={video.url}
+      src={videoBlobs.get(video.url) ?? video.url}
       autoPlay
       muted={silent}
       playsInline

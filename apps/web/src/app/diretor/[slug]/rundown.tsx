@@ -70,11 +70,11 @@ export function RundownBar() {
     setGoing(step);
     try {
       if (step === "abertura") {
-        // Read fresh: the stinger may have just been chosen in the Roteiro tab.
-        const { config } = (await fetch(`/api/programs/${slug}/config`).then((r) => r.json())) as { config: ProgramConfig };
-        if (config.openingVideoUrl) {
-          sendCue({ type: "play", id: crypto.randomUUID(), url: config.openingVideoUrl, kind: "video", volume: 1 });
-        }
+        // The loaded settings answer at once; read them only if not loaded yet.
+        const opening =
+          config?.openingVideoUrl ??
+          ((await fetch(`/api/programs/${slug}/config`).then((r) => r.json())) as { config: ProgramConfig }).config.openingVideoUrl;
+        if (opening) sendCue({ type: "play", id: crypto.randomUUID(), url: opening, kind: "video", volume: 1 });
       }
       await sceneRequest({ action: "rundown", step, countdownMs: step === "espera" ? minutes * 60_000 : undefined });
     } finally {

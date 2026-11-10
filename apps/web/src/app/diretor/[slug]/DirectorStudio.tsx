@@ -504,10 +504,13 @@ export function DirectorStudio({ program, initialScenes }: { program: ProgramBra
   const sceneRequest = useCallback(
     (body: SceneRequest) => {
       const job = queue.current.then(async () => {
+        // A request lost to a network hiccup must not freeze every click
+        // queued behind it: give up after 10 s and move on.
         const res = await fetch(`/api/programs/${slug}/scene`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(10_000),
         });
         if (res.ok) setScenes(await res.json());
       });

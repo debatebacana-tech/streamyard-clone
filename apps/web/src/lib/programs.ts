@@ -74,13 +74,15 @@ export function draftSceneOf(program: Program): Scene {
 async function quickSounds(program: Program, scene: Scene): Promise<string[]> {
   const config = configOf(program);
   const [effects, clubs] = await Promise.all([
-    prisma.asset.findMany({ where: { programId: program.id, role: "efeito", kind: "audio" }, select: { fileName: true } }),
+    // Effect pads (audio) and stingers (video) of the program.
+    prisma.asset.findMany({ where: { programId: program.id, role: "efeito" }, select: { fileName: true } }),
     prisma.club.findMany({
       where: { name: { in: [scene.scoreboard.home.name, scene.scoreboard.away.name].filter(Boolean) } },
       select: { vinhetaUrl: true, anthemUrl: true },
     }),
   ]);
   const urls = [
+    config.openingVideoUrl,
     ...config.hotSounds.map((s) => s.url),
     ...effects.map((a) => `/media/${a.fileName}`),
     ...clubs.flatMap((c) => [c.vinhetaUrl, c.anthemUrl]),
@@ -127,6 +129,11 @@ export async function saveScenes(program: Program, scenes: { live?: Scene; draft
       ...(scenes.draft && { draftSceneJson: JSON.stringify(scenes.draft) }),
     },
   });
-  if (scenes.live) await syncProgramRoom(updated);
+  if (scenes.live) {
+    // Never let a slow LiveKit call hold the scene queue: wait at most 4 s
+    // (the push keeps going in the background and the next one catches up).
+    const sync = syncProgramRoom(updated).catch((err) => console.error("room sync failed", err));
+    await Promise.race([sync, new Promise((resolve) => setTimeout(resolve, 4000))]);
+  }
   return updated;
 }
