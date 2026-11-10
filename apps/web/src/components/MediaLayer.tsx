@@ -14,7 +14,9 @@ export const MEDIA_TOPIC = "media";
 // toggle: pressing a pad again while its sound is playing stops it.
 export type MediaCue =
   | { type: "play"; id: string; url: string; kind: "audio" | "video"; volume: number; toggle?: boolean }
-  | { type: "stop" };
+  | { type: "stop" }
+  // Effects volume changed while sounds play (new presses use it too).
+  | { type: "volume"; volume: number };
 
 // Quick sounds stay in memory: each file is downloaded once into a local
 // blob and kept in its own audio element, so a pad plays the instant it's
@@ -98,6 +100,7 @@ function parseCue(payload: Uint8Array): MediaCue | null {
   try {
     const cue = JSON.parse(decoder.decode(payload)) as MediaCue;
     if (cue.type === "stop") return cue;
+    if (cue.type === "volume" && typeof cue.volume === "number") return cue;
     if (cue.type === "play" && typeof cue.url === "string" && cue.url.startsWith("/media/")) return cue;
   } catch {}
   return null;
@@ -112,6 +115,7 @@ export function MediaLayer({ silent = false, preload = [], step }: { silent?: bo
   // inOpening: the video was on screen during the abertura step.
   const [video, setVideo] = useState<(Extract<MediaCue, { type: "play" }> & { inOpening?: boolean }) | null>(null);
   const playing = useRef(new Map<string, HTMLAudioElement>());
+  const videoEl = useRef<HTMLVideoElement | null>(null);
 
   const preloadKey = preload.join("|");
   useEffect(() => {
@@ -120,6 +124,12 @@ export function MediaLayer({ silent = false, preload = [], step }: { silent?: bo
 
   const handle = useCallback(
     (cue: MediaCue) => {
+      if (cue.type === "volume") {
+        const v = Math.min(1, Math.max(0, cue.volume));
+        playing.current.forEach((a) => (a.volume = v));
+        if (videoEl.current) videoEl.current.volume = v;
+        return;
+      }
       if (cue.type === "stop") {
         playing.current.forEach((a) => {
           a.pause();
@@ -191,6 +201,7 @@ export function MediaLayer({ silent = false, preload = [], step }: { silent?: bo
       onEnded={() => setVideo(null)}
       onError={() => setVideo(null)}
       ref={(el) => {
+        videoEl.current = el;
         if (!el) return;
         el.volume = Math.min(1, Math.max(0, video.volume));
         // Sound blocked until a click: show the stinger muted instead of skipping it.

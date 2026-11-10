@@ -17,7 +17,9 @@ export type HotSound = { id: string; label: string; url: string | null; color: s
 
 export const DEFAULT_HOT_SOUNDS: HotSound[] = [
   { id: "gol-bacana", label: "⚽ GOL BACANA", url: null, color: "#DFFF00" },
-  { id: "melhor-amigo", label: "ELE É O NOSSO MELHOR AMIGO — Eduardo Pires", url: null, color: "#38bdf8" },
+  { id: "eduardo-pires", label: "EDUARDO PIRES", url: null, color: "#38bdf8" },
+  { id: "melhor-amigo", label: "ELE É O NOSSO MELHOR AMIGO", url: null, color: "#f472b6" },
+  { id: "calma-calma", label: "CALMA CALMA", url: null, color: "#fb923c" },
 ];
 
 function hotSound(input: unknown, i: number): HotSound | null {

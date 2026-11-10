@@ -72,7 +72,8 @@ export function ControlPad({ program, initialLive }: { program: ProgramBranding;
 
   const sb = live.scoreboard;
   const clubFor = (name: string) => clubs.find((c) => c.name.toLowerCase() === name.trim().toLowerCase()) ?? null;
-  const game = (["home", "away"] as const).map((side) => ({ side, club: clubFor(sb[side].name) }));
+  // Club vinheta/hino only while a match is on (the scoreboard is on screen).
+  const game = sb.visible ? (["home", "away"] as const).map((side) => ({ side, club: clubFor(sb[side].name) })) : [];
   const sounds: HotSound[] = (config?.hotSounds ?? []).filter((s) => s.url);
   const football = program.format === "futebol" || config?.scoreboardModule === true;
 

@@ -71,16 +71,74 @@ function TrackControl() {
   );
 }
 
+// Opening / closing track one click away (second click stops it).
+function TrackShortcuts({ opening, closing }: { opening: string | null; closing: string | null }) {
+  const { scenes, sceneRequest } = useDirector();
+  const music = scenes.live.music;
+  const on = (url: string | null) => Boolean(url && music.url === url && music.startedAt);
+  return (
+    <>
+      {(
+        [
+          ["Abertura", opening, "Trilha de abertura"],
+          ["Encerramento", closing, "Trilha de encerramento"],
+        ] as const
+      ).map(([label, url, title]) => (
+        <button
+          key={label}
+          disabled={!url}
+          onClick={() =>
+            on(url)
+              ? sceneRequest({ action: "music", op: "stop" })
+              : sceneRequest({ action: "music", op: "play", url: url!, title, loop: false, volume: music.volume || 0.6 })
+          }
+          title={url ? (on(url) ? "Parar" : `Tocar a ${title.toLowerCase()}`) : `Escolha a ${title.toLowerCase()} na aba Roteiro`}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold disabled:opacity-35 ${on(url) ? "bg-[#DFFF00] text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
+        >
+          {on(url) ? "⏹" : "▶"} {label}
+        </button>
+      ))}
+    </>
+  );
+}
+
+// Volume of the effect pads (signature sounds, club vinheta/hino): applies to
+// what is playing now and to the next presses. Kept in this browser.
+const FX_KEY = "studio-fx-volume";
+function readFx() {
+  try {
+    const v = Number(localStorage.getItem(FX_KEY));
+    return v > 0 && v <= 1 ? v : 1;
+  } catch {
+    return 1;
+  }
+}
+
 export function HotSoundsBar({ always }: { always: boolean }) {
   const { slug, addAsset, scenes } = useDirector();
   const { clubs } = useClubs();
   const sb = scenes.live.scoreboard;
-  const game = (["home", "away"] as const)
-    .map((side) => ({ side, club: clubFor(clubs, sb[side].name) }))
-    .filter((g) => g.club && (g.club.vinhetaUrl || g.club.anthemUrl));
+  // Club vinheta/hino only while a match is on (the scoreboard is on screen).
+  const game = sb.visible
+    ? (["home", "away"] as const)
+        .map((side) => ({ side, club: clubFor(clubs, sb[side].name) }))
+        .filter((g) => g.club && (g.club.vinhetaUrl || g.club.anthemUrl))
+    : [];
+  const [fx, setFx] = useState(1);
+  useEffect(() => {
+    const id = setTimeout(() => setFx(readFx()), 0);
+    return () => clearTimeout(id);
+  }, []);
+  const changeFx = (v: number) => {
+    setFx(v);
+    try {
+      localStorage.setItem(FX_KEY, String(v));
+    } catch {}
+    sendCue({ type: "volume", volume: v });
+  };
   const playUrl = (url: string | null, flashId: string) => {
     if (!url) return;
-    sendCue({ type: "play", id: crypto.randomUUID(), url, kind: /\.(mp4|webm)$/i.test(url) ? "video" : "audio", volume: 1, toggle: true });
+    sendCue({ type: "play", id: crypto.randomUUID(), url, kind: /\.(mp4|webm)$/i.test(url) ? "video" : "audio", volume: fx, toggle: true });
     setFlash(flashId);
     setTimeout(() => setFlash((f) => (f === flashId ? null : f)), 600);
   };
@@ -92,7 +150,7 @@ export function HotSoundsBar({ always }: { always: boolean }) {
 
   const play = (s: HotSound) => {
     if (!s.url) return;
-    sendCue({ type: "play", id: crypto.randomUUID(), url: s.url, kind: /\.(mp4|webm)$/i.test(s.url) ? "video" : "audio", volume: 1, toggle: true });
+    sendCue({ type: "play", id: crypto.randomUUID(), url: s.url, kind: /\.(mp4|webm)$/i.test(s.url) ? "video" : "audio", volume: fx, toggle: true });
     setFlash(s.id);
     setTimeout(() => setFlash((f) => (f === s.id ? null : f)), 600);
   };
@@ -226,7 +284,14 @@ export function HotSoundsBar({ always }: { always: boolean }) {
       <button onClick={() => setEditing((e) => !e)} className="text-xs text-neutral-500 hover:text-neutral-300">
         {editing ? "pronto" : "editar"}
       </button>
-      <span className="ml-auto">
+      <span className="flex items-center gap-2 rounded-md bg-neutral-900 px-2 py-1" title="Volume dos efeitos (destaques, vinheta e hino)">
+        <span className="text-xs font-semibold">🔔 Efeitos</span>
+        <input type="range" min={0.05} max={1} step={0.05} value={fx} onChange={(e) => changeFx(Number(e.target.value))} className="w-24 accent-[#DFFF00]" />
+        <span className="w-8 text-right text-xs tabular-nums">{Math.round(fx * 100)}%</span>
+      </span>
+      <span className="ml-auto flex flex-wrap items-center gap-2">
+        <span className="studio-label px-1 text-sm">TRILHAS</span>
+        <TrackShortcuts opening={config.openingTrackUrl} closing={config.closingTrackUrl} />
         <TrackControl />
       </span>
       <button className="rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700" onClick={() => sendCue({ type: "stop" })}>
