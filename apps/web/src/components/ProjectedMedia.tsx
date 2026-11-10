@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mediaElapsedMs, type ProjectedMedia } from "@/lib/scene";
 
 // A projected video that every output plays at the same point: it seeks to
@@ -8,6 +8,9 @@ import { mediaElapsedMs, type ProjectedMedia } from "@/lib/scene";
 // or restarts, and corrects drift every few seconds.
 function SyncedVideo({ media, withSound, fit }: { media: ProjectedMedia; withSound: boolean; fit: "contain" | "cover" }) {
   const ref = useRef<HTMLVideoElement>(null);
+  // A file the browser can't decode (e.g. HEVC on Windows) shows nothing
+  // instead of a black screen over the cameras.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -43,9 +46,11 @@ function SyncedVideo({ media, withSound, fit }: { media: ProjectedMedia; withSou
     if (ref.current) ref.current.volume = media.volume;
   }, [media.volume]);
 
+  if (failed) return null;
   return (
     <video
       ref={ref}
+      onError={() => setFailed(true)}
       src={media.url!}
       playsInline
       preload="auto"

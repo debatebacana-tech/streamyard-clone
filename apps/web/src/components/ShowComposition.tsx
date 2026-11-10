@@ -1067,7 +1067,7 @@ export function ShowComposition({
         </div>
         </SwapContext.Provider>
         {mediaOn && scene.media.mode === "full" && (
-          <div className="scene-fade absolute inset-0 z-[31] bg-black">
+          <div className="scene-fade absolute inset-0 z-[31]">
             <ProjectedMediaView media={scene.media} withSound={media === "play"} />
           </div>
         )}
