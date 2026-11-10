@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMediaCues } from "@/components/MediaLayer";
 import type { ProgramConfig } from "@/lib/programConfig";
 import type { ScreenText } from "@/lib/scene";
@@ -52,6 +52,17 @@ export function RundownBar() {
   const [minutes, setMinutes] = useState(5);
   // The step being switched to: lit at once, before the server answers.
   const [going, setGoing] = useState<Step | null>(null);
+  const { config } = useProgramConfig();
+  // What each step shows: the team's own art/video, or the built-in screen.
+  const missing: Partial<Record<Step, string>> = config
+    ? {
+        espera: config.waitingMediaUrl ? "" : "tela padrão",
+        abertura: config.openingVideoUrl ? "" : "sem vinheta",
+        intervalo: config.breakMediaUrl ? "" : "tela padrão",
+        encerramento: config.closingMediaUrl ? "" : "tela padrão",
+      }
+    : {};
+  const [autoOpen, setAutoOpen] = useState(false);
   const current: Step = going ?? scenes.live.step;
 
   async function go(step: Step) {
@@ -71,6 +82,20 @@ export function RundownBar() {
     }
   }
 
+  // Pre-live countdown reached zero: start the opening by itself (if ticked).
+  const countdownTo = scenes.live.step === "espera" ? scenes.live.screen.countdownTo : null;
+  const goRef = useRef(go);
+  useEffect(() => {
+    goRef.current = go;
+  });
+  useEffect(() => {
+    if (!autoOpen || !countdownTo) return;
+    const wait = countdownTo - Date.now();
+    if (wait < -5000) return;
+    const id = setTimeout(() => goRef.current("abertura"), Math.max(0, wait));
+    return () => clearTimeout(id);
+  }, [autoOpen, countdownTo]);
+
   return (
     <div className="studio-bar flex flex-wrap items-stretch gap-2 p-2">
       <span className="studio-label flex items-center px-2 text-base">ROTEIRO</span>
@@ -89,6 +114,14 @@ export function RundownBar() {
               <span className="mr-1.5 text-xs opacity-60">{i + 1}</span>
               {label}
               {going === step && <span className="ml-1.5 text-xs">…</span>}
+              {missing[step] && (
+                <span
+                  className={`ml-1.5 rounded px-1 text-[10px] font-semibold ${on ? "bg-black/15" : "bg-white/10 text-neutral-400"}`}
+                  title="Escolha a arte/vídeo em Roteiro"
+                >
+                  {missing[step]}
+                </span>
+              )}
             </button>
             {step === "espera" && (
               <select
@@ -103,6 +136,12 @@ export function RundownBar() {
                   </option>
                 ))}
               </select>
+            )}
+            {step === "espera" && (
+              <label className="ml-1 flex items-center gap-1 text-[11px] text-neutral-400" title="Quando a contagem do pré-live zerar, entra a Abertura sozinha">
+                <input type="checkbox" checked={autoOpen} onChange={(e) => setAutoOpen(e.target.checked)} />
+                abrir ao zerar
+              </label>
             )}
           </div>
         );
