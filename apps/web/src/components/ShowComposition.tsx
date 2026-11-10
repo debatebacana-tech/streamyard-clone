@@ -804,8 +804,26 @@ function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; 
       <div className="absolute top-4 right-6 z-[30] flex items-start gap-3">
         {scene.showLogo &&
           (branding.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoUrl} alt="" className="h-[70px] w-auto max-w-[230px] object-contain drop-shadow-xl" />
+            // TV-channel style: a light sweeps across the logo every few seconds
+            // (masked to the logo's own shape) with a small pop.
+            <span className="logo-anim relative inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={branding.logoUrl} alt="" className="block h-[70px] w-auto max-w-[230px] object-contain drop-shadow-xl" />
+              <span
+                aria-hidden
+                className="logo-shine pointer-events-none absolute inset-0"
+                style={{
+                  WebkitMaskImage: `url(${JSON.stringify(branding.logoUrl)})`,
+                  maskImage: `url(${JSON.stringify(branding.logoUrl)})`,
+                  WebkitMaskSize: "contain",
+                  maskSize: "contain",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskPosition: "center",
+                  maskPosition: "center",
+                }}
+              />
+            </span>
           ) : (
             <span
               className="pt-1 text-4xl whitespace-nowrap uppercase"

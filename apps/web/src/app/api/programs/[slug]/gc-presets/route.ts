@@ -5,10 +5,10 @@ import { hostProgram } from "@/lib/hostProgram";
 type Params = { params: Promise<{ slug: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
-  const { program, error } = await hostProgram(params);
+  const { error } = await hostProgram(params);
   if (error) return error;
 
-  const presets = await prisma.gcPreset.findMany({ where: { programId: program.id }, orderBy: { createdAt: "asc" } });
+  const presets = await prisma.gcPreset.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json({ presets });
 }
 
@@ -30,10 +30,10 @@ export async function POST(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const { program, error } = await hostProgram(params);
+  const { error } = await hostProgram(params);
   if (error) return error;
 
   const id = new URL(request.url).searchParams.get("id");
-  if (id) await prisma.gcPreset.deleteMany({ where: { id, programId: program.id } });
+  if (id) await prisma.gcPreset.deleteMany({ where: { id } });
   return NextResponse.json({ ok: true });
 }

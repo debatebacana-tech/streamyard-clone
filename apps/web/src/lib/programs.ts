@@ -74,8 +74,8 @@ export function draftSceneOf(program: Program): Scene {
 async function quickSounds(program: Program, scene: Scene): Promise<string[]> {
   const config = configOf(program);
   const [effects, clubs] = await Promise.all([
-    // Effect pads (audio) and stingers (video) of the program.
-    prisma.asset.findMany({ where: { programId: program.id, role: "efeito" }, select: { fileName: true } }),
+    // Effect pads (audio) and stingers (video): one library for every program.
+    prisma.asset.findMany({ where: { role: "efeito" }, select: { fileName: true } }),
     prisma.club.findMany({
       where: { name: { in: [scene.scoreboard.home.name, scene.scoreboard.away.name].filter(Boolean) } },
       select: { vinhetaUrl: true, anthemUrl: true },

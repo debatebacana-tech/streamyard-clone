@@ -17,10 +17,10 @@ function present(asset: { id: string; kind: string; role: string; name: string; 
 const ROLES = new Set(["trilha", "efeito", "arte", "midia", "clube"]);
 
 export async function GET(_request: Request, { params }: Params) {
-  const { program, error } = await hostProgram(params);
+  const { error } = await hostProgram(params);
   if (error) return error;
 
-  const assets = await prisma.asset.findMany({ where: { programId: program.id }, orderBy: { createdAt: "desc" } });
+  const assets = await prisma.asset.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json({ assets: assets.map(present) });
 }
 
@@ -79,11 +79,11 @@ export async function POST(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const { program, error } = await hostProgram(params);
+  const { error } = await hostProgram(params);
   if (error) return error;
 
   const id = new URL(request.url).searchParams.get("id");
-  const asset = id ? await prisma.asset.findFirst({ where: { id, programId: program.id } }) : null;
+  const asset = id ? await prisma.asset.findFirst({ where: { id } }) : null;
   if (!asset) {
     return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
   }

@@ -170,3 +170,26 @@ body {
   95% { transform: translateY(110%); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
+
+/* Logo beside the live bug: a light sweep every 7 s with a small pop, TV style. */
+.logo-anim {
+  animation: logo-pop 7s ease-in-out infinite;
+  transform-origin: 50% 60%;
+}
+.logo-shine {
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.9) 48%, rgba(255, 255, 255, 0.95) 50%, transparent 63%) no-repeat;
+  background-size: 250% 100%;
+  animation: logo-shine 7s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+@keyframes logo-shine {
+  0%, 72% { background-position: 160% 0; opacity: 1; }
+  88% { background-position: -60% 0; opacity: 1; }
+  89%, 100% { background-position: -60% 0; opacity: 0; }
+}
+@keyframes logo-pop {
+  0%, 70%, 100% { transform: scale(1) rotate(0deg); }
+  76% { transform: scale(1.08) rotate(-2deg); }
+  82% { transform: scale(0.98) rotate(1deg); }
+  88% { transform: scale(1) rotate(0deg); }
+}
