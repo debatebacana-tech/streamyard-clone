@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireHostSession } from "@/lib/auth";
-import { ProxyAgent, fetch } from "undici";
+import { fetch } from "undici";
 import { extractEmbedUrl } from "@/lib/scene";
-import { TUNNEL_PROXY, isTunneledHost, tunnelStatus } from "@/lib/tunnel";
 
 // Fetches an embed URL from this server, which shares its IP with the Egress
 // browser that renders the live output, so the director learns whether the
@@ -20,22 +19,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, reason: "Endereço não permitido" });
   }
 
-  // Same route the Egress browser takes (see /proxy.pac).
-  const tunneled = isTunneledHost(host);
-  if (tunneled) {
-    const tunnel = await tunnelStatus();
-    if (!tunnel.exitNode?.online) {
-      return NextResponse.json({
-        ok: false,
-        reason: tunnel.configured
-          ? "Este site só funciona pelo computador de casa, e ele não está conectado agora"
-          : "Este site bloqueia o servidor da live. Configure \"Campinho via computador de casa\" na Área do Diretor",
-      });
-    }
-  }
   try {
     const res = await fetch(url, {
-      ...(tunneled && { dispatcher: new ProxyAgent(TUNNEL_PROXY) }),
       redirect: "follow",
       signal: AbortSignal.timeout(8000),
       headers: {
@@ -49,21 +34,17 @@ export async function GET(request: Request) {
     if (!res.ok) {
       return NextResponse.json({
         ok: false,
-        reason: tunneled
-          ? `O site recusou mesmo passando pelo computador de casa (erro ${res.status})`
-          : `O site recusou o servidor da live (erro ${res.status})`,
+        reason: `O site recusou o servidor da live (erro ${res.status})`,
       });
     }
     if (xfo || /frame-ancestors\s+('none'|'self')/i.test(csp)) {
       return NextResponse.json({ ok: false, reason: "O site não permite ser exibido dentro de outra página" });
     }
-    return NextResponse.json({ ok: true, tunneled });
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({
       ok: false,
-      reason: tunneled
-        ? "O computador de casa não está conectado (veja \"Campinho via computador de casa\" na Área do Diretor)"
-        : "O servidor da live não conseguiu abrir o site",
+      reason: "O servidor da live não conseguiu abrir o site",
     });
   }
 }

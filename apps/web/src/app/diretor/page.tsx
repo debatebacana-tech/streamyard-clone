@@ -4,7 +4,6 @@ import { requireHostSession } from "@/lib/auth";
 import { getLiveState } from "@/lib/live";
 import { listPrograms } from "@/lib/programs";
 import { ChannelSettings, LogoutButton } from "./ChannelSettings";
-import { TunnelSettings } from "./TunnelSettings";
 
 export default async function DirectorHome() {
   if (!(await requireHostSession())) redirect("/login");
@@ -60,11 +59,6 @@ export default async function DirectorHome() {
       <section className="studio-bar p-5">
         <h2 className="mb-3 font-semibold">Canal do YouTube</h2>
         <ChannelSettings />
-      </section>
-
-      <section className="studio-bar p-5">
-        <h2 className="mb-3 font-semibold">Campinho via computador de casa (Sofascore)</h2>
-        <TunnelSettings />
       </section>
     </div>
     </main>

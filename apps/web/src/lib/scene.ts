@@ -270,6 +270,9 @@ export type Scene = {
   onStage: string[];
   // Preferred window order in "all" mode (dragging windows on the monitors).
   order: string[];
+  // Part of shared screens to show (fractions of the frame), e.g. only the
+  // live pitch of a match page.
+  screenCrop: { enabled: boolean; x: number; y: number; w: number; h: number };
   // Featured participant for spotlight/pip/solo; falls back to a screen share, then the first on stage.
   featured: string | null;
   // Where the featured window goes in "Destaque"/"Tela vertical": right =
@@ -340,6 +343,7 @@ export const DEFAULT_SCENE: Scene = {
   layout: "auto",
   onStage: [],
   order: [],
+  screenCrop: { enabled: false, x: 0, y: 0, w: 1, h: 1 },
   featured: null,
   featuredSide: "right",
   gc: { visible: false, title: "", subtitle: "", imageUrl: null },
@@ -601,6 +605,18 @@ export function normalizeScene(input: unknown): Scene {
     order: Array.isArray(raw.order)
       ? [...new Set(raw.order.filter((id): id is string => typeof id === "string" && id.length <= 64))].slice(0, 24)
       : [],
+    screenCrop: (() => {
+      const c = obj(raw.screenCrop);
+      const x = num(c.x, 0, 0, 0.95);
+      const y = num(c.y, 0, 0, 0.95);
+      return {
+        enabled: bool(c.enabled, false),
+        x,
+        y,
+        w: num(c.w, 1, 0.05, 1 - x),
+        h: num(c.h, 1, 0.05, 1 - y),
+      };
+    })(),
     featured: typeof raw.featured === "string" && raw.featured.length <= 64 ? raw.featured : null,
     featuredSide: raw.featuredSide === "left" ? "left" : "right",
     gc: {
@@ -701,6 +717,7 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     screen: { ...current.screen, ...obj(p.screen) },
     board: { ...current.board, ...obj(p.board) },
     tierList: { ...current.tierList, ...obj(p.tierList) },
+    screenCrop: { ...current.screenCrop, ...obj(p.screenCrop) },
     tweet: { ...current.tweet, ...obj(p.tweet) },
     media: { ...current.media, ...obj(p.media) },
     // Only the server's animated cut sets this.

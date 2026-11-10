@@ -34,6 +34,7 @@ import { TwitterPanel } from "./twitter";
 import { MediaPanel } from "./media";
 import { ClubPads, ClubsPanel } from "./clubs";
 import { MyName, savedDirectorName } from "./names";
+import { CropPanel } from "./crop";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
 
@@ -354,6 +355,9 @@ function Desk() {
               <WebPanel />
             </Panel>
           </div>
+          <Panel title="Recortar tela compartilhada (campinho)">
+            <CropPanel />
+          </Panel>
           <Panel title="Transição entre cenas">
             <TransitionPanel />
           </Panel>

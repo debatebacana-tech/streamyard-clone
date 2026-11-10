@@ -6,7 +6,3 @@
 cpu_cost:
   web_cpu_cost: 2
   room_composite_cpu_cost: 2
-# Chrome fetches the PAC from the web app: Sofascore and similar embeds go
-# through the Tailscale tunnel, everything else (YouTube included) direct.
-chrome_flags:
-  proxy-pac-url: http://web:3000/proxy.pac

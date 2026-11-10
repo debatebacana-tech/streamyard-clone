@@ -81,6 +81,14 @@ function ScaledCanvas({ children }: { children: ReactNode }) {
 
 // Monitors let the director drag one window onto another to swap them.
 const SwapContext = createContext<((from: string, to: string) => void) | null>(null);
+// Crop applied to shared screens (Chrome's object-view-box: the cropped part
+// then fits the window like a whole video would).
+const CropContext = createContext<Scene["screenCrop"] | null>(null);
+
+export function cropViewBox(c: Scene["screenCrop"]): string {
+  const pct = (v: number) => `${(Math.max(0, v) * 100).toFixed(2)}%`;
+  return `inset(${pct(c.y)} ${pct(1 - c.x - c.w)} ${pct(1 - c.y - c.h)} ${pct(c.x)})`;
+}
 const DRAG_TYPE = "application/x-studio-identity";
 
 function Tile({
@@ -99,6 +107,7 @@ function Tile({
   const name = trackRef.participant.name || trackRef.participant.identity;
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const swap = useContext(SwapContext);
+  const screenCrop = useContext(CropContext);
   const [over, setOver] = useState(false);
   const identity = trackRef.participant.identity;
   const drag = swap
@@ -133,6 +142,7 @@ function Tile({
         <VideoTrack
           trackRef={trackRef}
           className={`h-full w-full ${isScreen && !crop ? "bg-black object-contain" : "object-cover"}`}
+          style={isScreen && screenCrop?.enabled ? ({ objectViewBox: cropViewBox(screenCrop) } as React.CSSProperties) : undefined}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-neutral-800">
@@ -1066,6 +1076,7 @@ export function ShowComposition({
         }}
       >
         <SwapContext.Provider value={swap}>
+        <CropContext.Provider value={scene.screenCrop}>
         <div key={arrangement} className="scene-fade absolute inset-0">
           {mediaOn && scene.media.mode !== "full" ? (
             <MediaStage stage={stage} scene={scene} branding={branding} box={box} withSound={media === "play"} />
@@ -1073,6 +1084,7 @@ export function ShowComposition({
             <Stage stage={stage} scene={scene} branding={branding} box={box} />
           )}
         </div>
+        </CropContext.Provider>
         </SwapContext.Provider>
         {mediaOn && scene.media.mode === "full" && (
           <div className="scene-fade absolute inset-0 z-[31]">

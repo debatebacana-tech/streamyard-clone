@@ -142,6 +142,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (error) return error;
 
   const body = (await request.json().catch(() => null)) as SceneRequest | null;
+  // Rundown steps (pré-live, abertura, programa...) also go through the
+  // transition so the screen never jumps; an opening stinger video covers the
+  // abertura by itself.
+  if (body?.action === "rundown") {
+    const config = configOf(program);
+    const before = liveSceneOf(program);
+    const covered = body.step === "abertura" && Boolean(config.openingVideoUrl);
+    let current = program;
+    if (config.transition.enabled && !covered) {
+      await saveScenes(program, { live: { ...before, transitionAt: Date.now() } });
+      await sleep(config.transition.cutMs);
+      current = (await getProgram(program.slug)) ?? program;
+    }
+    const airNow = liveSceneOf(current);
+    const live = mergeScene(applyRundown(airNow, body.step, config, Date.now(), body.countdownMs), {});
+    const draft = withAirState(draftSceneOf(current), live);
+    await saveScenes(current, { live, draft });
+    return NextResponse.json({ live, draft });
+  }
+
   if (body?.action === "take" || body?.action === "cut") {
     return NextResponse.json(await take(program.slug, body.action === "cut" ? body.patch : undefined));
   }
@@ -171,10 +191,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       draft = withAirState(draft, live);
       break;
     }
-    case "rundown":
-      live = mergeScene(applyRundown(live, body.step, configOf(program), Date.now(), body.countdownMs), {});
-      draft = withAirState(draft, live);
-      break;
     default:
       return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
   }

@@ -54,21 +54,6 @@ services:
         condition: service_started
       configs:
         condition: service_completed_successfully
-      tailscale:
-        condition: service_started
-
-  # Routes only the embeds that block datacenter IPs (see /proxy.pac in the
-  # web app) through the team's home computer. Idle until a key is pasted in
-  # the director area.
-  tailscale:
-    image: tailscale/tailscale:stable
-    restart: unless-stopped
-    entrypoint: ["/bin/sh", "/scripts/run.sh"]
-    volumes:
-      - ./tailscale:/scripts:ro
-      - tailscale-state:/var/lib/tailscale
-      - tailscale-status:/status
-      - web-data:/shared:ro
 
   # Brings OBS into a program room: WHIP (proxied by Caddy at /w on the
   # LiveKit domain, media on 7885/udp) or RTMP on 1935.
@@ -100,7 +85,6 @@ services:
       - ./web.env
     volumes:
       - web-data:/app/data
-      - tailscale-status:/app/tunnel:ro
     ports:
       - "3000:3000"
     depends_on:
@@ -132,7 +116,5 @@ volumes:
   web-data:
   egress-tmp:
   configs:
-  tailscale-state:
-  tailscale-status:
   caddy-data:
   caddy-config:
