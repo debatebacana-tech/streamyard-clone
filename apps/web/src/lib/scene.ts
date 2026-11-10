@@ -427,7 +427,7 @@ export type ShowMetadata = {
   // Donation alerts page (LivePix overlay link), drawn over the stream.
   alerts?: string | null;
   // Pix QR code box (shown while visible).
-  qr?: { url: string | null; image: string | null; side: "left" | "right"; label: string } | null;
+  qr?: { url: string | null; image: string | null; side: "left" | "right"; label: string; zoom: number } | null;
 };
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A", redCards: 0 };
@@ -894,7 +894,9 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
         const q = obj(parsed.qr);
         const link = typeof q.url === "string" && q.url.startsWith("https://") ? q.url : null;
         const image = url(q.image);
-        return link || image ? { url: link, image, side: q.side === "left" ? "left" : "right", label: str(q.label, 40, "FAÇA SEU PIX") } : null;
+        return link || image
+          ? { url: link, image, side: q.side === "left" ? "left" : "right", label: str(q.label, 40, "FAÇA SEU PIX"), zoom: num(q.zoom, 1.8, 1, 4) }
+          : null;
       })(),
       sounds: Array.isArray(parsed.sounds)
         ? parsed.sounds.filter((u): u is string => typeof u === "string" && u.startsWith("/media/")).slice(0, 80)

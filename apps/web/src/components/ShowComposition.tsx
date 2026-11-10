@@ -822,29 +822,33 @@ function AnimatedImage({ src, className, delay = 0 }: { src: string; className: 
   );
 }
 
-// Pix QR code card on one side of the screen, in the show's look: the LivePix
-// QR widget (a page) or a picture of the code.
-function PixQrBox({ qr, branding, top }: { qr: NonNullable<ShowMetadata["qr"]>; branding: ProgramBranding; top: number }) {
-  const SIZE = 190;
+// Pix QR code card on one side of the screen, in the show's look (dark card,
+// lime frame and label): a picture of the code, or the LivePix QR widget page
+// enlarged so its code fills the card instead of floating in white.
+const QR_W = 236;
+function PixQrBox({ qr, branding, top, inset = 24 }: { qr: NonNullable<ShowMetadata["qr"]>; branding: ProgramBranding; top: number; inset?: number }) {
+  const SIZE = QR_W - 22;
+  const PAGE = 400;
+  const scale = (SIZE / PAGE) * qr.zoom;
+  const offset = (SIZE - PAGE * scale) / 2;
   return (
     <div
-      className="chat-in absolute z-[32] flex flex-col items-center overflow-hidden rounded-2xl shadow-2xl"
-      style={{ top: top + 6, [qr.side]: 24, width: SIZE + 20, background: "#f4f1ea", border: `5px solid ${FRAME}` }}
+      className="chat-in absolute z-[32] flex flex-col overflow-hidden rounded-2xl"
+      style={{ top, [qr.side]: inset, width: QR_W, background: "#111", border: `4px solid ${branding.accentColor === "#FFFFFF" ? "#DFFF00" : branding.accentColor}`, boxShadow: "0 0 24px rgba(223,255,0,0.25), 0 10px 28px rgba(0,0,0,0.5)" }}
     >
-      <span className="w-full py-1 text-center text-lg uppercase" style={{ ...CONDENSED, fontWeight: 700, background: branding.primaryColor, color: branding.accentColor }}>
+      <span className="py-1.5 text-center text-[22px] leading-none uppercase" style={{ ...CONDENSED, fontWeight: 700, background: "#DFFF00", color: "#0b0b0b" }}>
         {qr.label}
       </span>
-      <div className="relative m-2.5 overflow-hidden bg-white" style={{ width: SIZE, height: SIZE }}>
+      <div className="relative m-[7px] overflow-hidden rounded-lg bg-white" style={{ width: SIZE, height: SIZE }}>
         {qr.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={qr.image} alt="QR Code Pix" className="h-full w-full object-contain" />
         ) : (
-          // The widget page is drawn at 400px and scaled to the card.
           <iframe
             src={qr.url!}
             title="QR Code Pix"
-            className="pointer-events-none absolute top-0 left-0 origin-top-left border-0"
-            style={{ width: 400, height: 400, transform: `scale(${SIZE / 400})` }}
+            className="pointer-events-none absolute border-0"
+            style={{ width: PAGE, height: PAGE, left: offset, top: offset, transform: `scale(${scale})`, transformOrigin: "0 0" }}
           />
         )}
       </div>
@@ -1277,15 +1281,17 @@ export function ShowComposition({
   const headerOn = scene.showLogo;
   // The logo + live bug sit in the top-right corner (about 96 px tall).
   const top = bugOn ? (themeTab ? 128 : 100) : headerOn ? 104 : 90;
+  // The Pix QR card takes its own column, like the chat (the cameras make room).
+  const qrSide = show.qr?.side ?? null;
   const box: Box = {
     top,
-    left: tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : tweetSide === "left" ? 24 + TWEET_W + 16 : 24,
+    left: (tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : tweetSide === "left" ? 24 + TWEET_W + 16 : 24) + (qrSide === "left" ? QR_W + 16 : 0),
     right:
-      (side === "right" ? 24 + SIDE_W + 16 : 24) + (chatOn ? CHAT_W + 16 : 0) + (tweetSide === "right" ? TWEET_W + 16 : 0),
+      (side === "right" ? 24 + SIDE_W + 16 : 24) + (chatOn ? CHAT_W + 16 : 0) + (tweetSide === "right" ? TWEET_W + 16 : 0) + (qrSide === "right" ? QR_W + 16 : 0),
     bottom: Math.max(y, 24),
   };
   // Re-keys the stage when the arrangement changes, so a cut fades in.
-  const arrangement = `${scene.layout}:${scene.featuredSide}:${scene.layout === "custom" ? JSON.stringify(scene.custom) : ""}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
+  const arrangement = `${scene.layout}:${scene.featuredSide}:${scene.layout === "custom" ? JSON.stringify(scene.custom) : ""}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${qrSide}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
 
   return (
     <ScaledCanvas>
@@ -1364,7 +1370,7 @@ export function ShowComposition({
           ) : (
             <InstitutionalScreen scene={scene} branding={branding} />
           ))}
-        {show.qr && <PixQrBox qr={show.qr} branding={branding} top={top} />}
+        {show.qr && <PixQrBox qr={show.qr} branding={branding} top={top} inset={show.qr.side === "right" && chatOn ? 24 + CHAT_W + 16 : 24} />}
         {/* Donation alerts (LivePix overlay), made for a 1920x1080 browser
             source: drawn at that size and scaled to the canvas. Only where the
             show plays (stream and air monitor), so the alert isn't heard twice. */}

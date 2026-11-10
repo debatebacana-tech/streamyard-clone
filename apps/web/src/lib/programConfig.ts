@@ -15,7 +15,9 @@ import {
   type ScreenText,
 } from "./scene";
 
-export type PixQr = { url: string | null; image: string | null; visible: boolean; side: "left" | "right"; label: string };
+// zoom: how much the LivePix widget page is enlarged in the card (its QR is
+// small in the middle of a white page).
+export type PixQr = { url: string | null; image: string | null; visible: boolean; side: "left" | "right"; label: string; zoom: number };
 
 function pixQr(input: unknown): PixQr {
   const q = obj(input);
@@ -26,6 +28,7 @@ function pixQr(input: unknown): PixQr {
     visible: q.visible === true,
     side: q.side === "left" ? "left" : "right",
     label: text(q.label, 40, "FAÇA SEU PIX").trim() || "FAÇA SEU PIX",
+    zoom: typeof q.zoom === "number" && Number.isFinite(q.zoom) ? Math.min(4, Math.max(1, q.zoom)) : 1.8,
   };
 }
 

@@ -117,7 +117,24 @@ export function PixQrPanel() {
               apagar link
             </button>
           )}
-          <p className="text-[11px] text-neutral-500">Se tiver imagem e link, vale a imagem. Vale para os 3 programas.</p>
+          {qr.url && !qr.image && (
+            <label className="flex items-center gap-2 text-xs text-neutral-400">
+              <span className="shrink-0">Zoom do QR</span>
+              <input
+                type="range"
+                min={1}
+                max={4}
+                step={0.1}
+                defaultValue={qr.zoom}
+                onPointerUp={(e) => set({ zoom: Number((e.target as HTMLInputElement).value) })}
+                onKeyUp={(e) => set({ zoom: Number((e.target as HTMLInputElement).value) })}
+                className="flex-1 accent-[#DFFF00]"
+              />
+            </label>
+          )}
+          <p className="text-[11px] text-neutral-500">
+            Aumente o zoom até o QR encher o quadro branco (confira no monitor NO AR). A imagem do QR sai sempre do tamanho certo. Vale para os 3 programas.
+          </p>
         </div>
       </div>
     </div>
