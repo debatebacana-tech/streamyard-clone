@@ -384,8 +384,53 @@ export type ProgramBranding = {
 export type TransitionConfig = { enabled: boolean; mediaUrl: string | null; cutMs: number };
 export const DEFAULT_TRANSITION: TransitionConfig = { enabled: true, mediaUrl: null, cutMs: 520 };
 
+// How a person looks on screen, by name (shared by every program): the photo
+// shown filling their window while the camera is off (e.g. their caricature)
+// and a color correction for their camera (1 = unchanged; warmth -1..1).
+export type PersonLook = { photo: string | null; brightness: number; contrast: number; saturation: number; warmth: number };
+export const NEUTRAL_LOOK: PersonLook = { photo: null, brightness: 1, contrast: 1, saturation: 1, warmth: 0 };
+
+export const personKey = (name: string) => name.trim().toLowerCase().slice(0, 60);
+
+export function normalizeLooks(input: unknown): Record<string, PersonLook> {
+  const out: Record<string, PersonLook> = {};
+  for (const [name, raw] of Object.entries(obj(input)).slice(0, 40)) {
+    const key = personKey(name);
+    if (!key) continue;
+    const l = obj(raw);
+    out[key] = {
+      photo: url(l.photo),
+      brightness: num(l.brightness, 1, 0.5, 1.6),
+      contrast: num(l.contrast, 1, 0.5, 1.6),
+      saturation: num(l.saturation, 1, 0, 2),
+      warmth: num(l.warmth, 0, -1, 1),
+    };
+  }
+  return out;
+}
+
+// CSS filter for a camera (empty when nothing changed).
+export function lookFilter(l: PersonLook | undefined): string {
+  if (!l) return "";
+  const parts: string[] = [];
+  if (l.brightness !== 1) parts.push(`brightness(${l.brightness})`);
+  if (l.contrast !== 1) parts.push(`contrast(${l.contrast})`);
+  if (l.saturation !== 1) parts.push(`saturate(${l.saturation})`);
+  // Warmer: a touch of sepia plus a small hue shift; cooler: the hue the other way.
+  if (l.warmth > 0) parts.push(`sepia(${(l.warmth * 0.35).toFixed(2)})`, `hue-rotate(${(-l.warmth * 8).toFixed(1)}deg)`);
+  if (l.warmth < 0) parts.push(`hue-rotate(${(-l.warmth * 12).toFixed(1)}deg)`, `saturate(${(1 + l.warmth * 0.1).toFixed(2)})`);
+  return parts.join(" ");
+}
+
 // sounds: quick-sound files every output keeps preloaded (pads play instantly).
-export type ShowMetadata = { program: ProgramBranding; scene: Scene; chat?: ChatMessage[]; transition?: TransitionConfig; sounds?: string[] };
+export type ShowMetadata = {
+  program: ProgramBranding;
+  scene: Scene;
+  chat?: ChatMessage[];
+  transition?: TransitionConfig;
+  sounds?: string[];
+  looks?: Record<string, PersonLook>;
+};
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A", redCards: 0 };
 
@@ -845,6 +890,7 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
       scene: normalizeScene(parsed.scene),
       chat: Array.isArray(parsed.chat) ? parsed.chat.slice(-12) : [],
       transition: normalizeTransition(parsed.transition),
+      looks: normalizeLooks(parsed.looks),
       sounds: Array.isArray(parsed.sounds)
         ? parsed.sounds.filter((u): u is string => typeof u === "string" && u.startsWith("/media/")).slice(0, 80)
         : [],

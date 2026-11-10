@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ADAPTIVE_ROOM } from "@/lib/roomOptions";
 import {
   ControlBar,
   GridLayout,
@@ -71,6 +72,7 @@ export function JoinRoom({ inviteToken }: { inviteToken: string }) {
         serverUrl={credentials.wsUrl}
         token={credentials.token}
         connect
+        options={ADAPTIVE_ROOM}
         audio
         video
         data-lk-theme="default"

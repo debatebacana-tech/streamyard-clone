@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ADAPTIVE_ROOM } from "@/lib/roomOptions";
 import Link from "next/link";
 import { ControlBar, LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import "@livekit/components-styles";
@@ -36,6 +37,7 @@ import { ClubPads, ClubsPanel } from "./clubs";
 import { MyName, savedDirectorName } from "./names";
 import { CropPanel } from "./crop";
 import { CustomLayoutPanel } from "./custom";
+import { LooksPanel } from "./looks";
 import { YoutubeLivePanel } from "./youtube";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
@@ -354,6 +356,9 @@ function Desk() {
           <Panel title="Participantes">
             <StagePanel />
           </Panel>
+          <Panel title="Foto com a câmera desligada e cor das câmeras">
+            <LooksPanel />
+          </Panel>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Panel title="Layout e título">
               <LayoutPanel />
@@ -559,6 +564,7 @@ export function DirectorStudio({ program, initialScenes }: { program: ProgramBra
         serverUrl={credentials.wsUrl}
         token={credentials.token}
         connect
+        options={ADAPTIVE_ROOM}
         audio={false}
         video={false}
         data-lk-theme="default"

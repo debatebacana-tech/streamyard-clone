@@ -97,6 +97,7 @@ async function metadataFor(program: Program): Promise<string> {
     chat: chatMessages(program.slug).slice(-12),
     transition: configOf(program).transition,
     sounds: await quickSounds(program, liveSceneOf(program)).catch(() => []),
+    looks: configOf(program).looks,
   };
   return JSON.stringify(metadata);
 }

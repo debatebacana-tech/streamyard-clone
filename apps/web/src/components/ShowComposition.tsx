@@ -31,6 +31,9 @@ import {
   type ProgramBranding,
   type Scene,
   type CustomSlot,
+  type PersonLook,
+  lookFilter,
+  personKey,
   type Team,
 } from "@/lib/scene";
 
@@ -87,6 +90,8 @@ const SwapContext = createContext<((from: string, to: string) => void) | null>(n
 // Crop applied to shared screens (Chrome's object-view-box: the cropped part
 // then fits the window like a whole video would).
 const CropContext = createContext<Scene["screenCrop"] | null>(null);
+// Per-person photo (camera off) and camera colors, by name.
+const LooksContext = createContext<Record<string, PersonLook>>({});
 
 // Shows only the marked part of a shared screen, fitted to the window like a
 // whole video would be. Done with plain positioning (the video is enlarged and
@@ -141,6 +146,7 @@ function Tile({
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const swap = useContext(SwapContext);
   const screenCrop = useContext(CropContext);
+  const look = useContext(LooksContext)[personKey(name)];
   const [over, setOver] = useState(false);
   const identity = trackRef.participant.identity;
   const drag = swap
@@ -174,7 +180,15 @@ function Tile({
       {hasVideo && isScreen && screenCrop?.enabled ? (
         <CroppedScreen trackRef={trackRef} crop={screenCrop} cover={crop} />
       ) : hasVideo ? (
-        <VideoTrack trackRef={trackRef} className={`h-full w-full ${isScreen && !crop ? "bg-black object-contain" : "object-cover"}`} />
+        <VideoTrack
+          trackRef={trackRef}
+          className={`h-full w-full ${isScreen && !crop ? "bg-black object-contain" : "object-cover"}`}
+          style={!isScreen && lookFilter(look) ? { filter: lookFilter(look) } : undefined}
+        />
+      ) : !isScreen && look?.photo ? (
+        // Camera off: the person's photo (e.g. their caricature) fills the window.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={look.photo} alt={name} className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-neutral-800">
           <span
@@ -1114,7 +1128,13 @@ export function ShowComposition({
             all
               // The stream's own renderer (Egress) is in the room too: never a window.
               .filter((t) => !t.participant.identity.startsWith("layout-viewer"))
-              .filter((t) => !t.participant.identity.startsWith("host-") || showsVideo(t))
+              // A director with the camera off stays on screen if they have a photo.
+              .filter(
+                (t) =>
+                  !t.participant.identity.startsWith("host-") ||
+                  showsVideo(t) ||
+                  Boolean(show.looks?.[personKey(t.participant.name || t.participant.identity)]?.photo),
+              )
               .map((t) => t.participant.identity),
           ),
         ]
@@ -1207,6 +1227,7 @@ export function ShowComposition({
         }}
       >
         <SwapContext.Provider value={swap}>
+        <LooksContext.Provider value={show.looks ?? {}}>
         <CropContext.Provider value={scene.screenCrop}>
         <div key={arrangement} className="scene-fade absolute inset-0">
           {mediaOn && scene.media.mode !== "full" ? (
@@ -1216,6 +1237,7 @@ export function ShowComposition({
           )}
         </div>
         </CropContext.Provider>
+        </LooksContext.Provider>
         </SwapContext.Provider>
         {mediaOn && scene.media.mode === "full" && (
           <div className="scene-fade absolute inset-0 z-[31]">

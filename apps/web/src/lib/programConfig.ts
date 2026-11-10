@@ -6,6 +6,8 @@ import {
   normalizeSavedScene,
   normalizeTransition,
   normalizeTweetCard,
+  normalizeLooks,
+  type PersonLook,
   type TweetCard,
   type TransitionConfig,
   type SavedScene,
@@ -56,6 +58,8 @@ export type ProgramConfig = {
   tweets: TweetCard[];
   // Signature sounds always one click away (e.g. "GOL BACANA").
   hotSounds: HotSound[];
+  // Photo with the camera off and camera colors, per person (by name).
+  looks: Record<string, PersonLook>;
   screens: Record<Exclude<ScreenKind, "none">, ScreenText>;
 };
 
@@ -104,6 +108,7 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
     hotSounds: Array.isArray(c.hotSounds)
       ? c.hotSounds.map(hotSound).filter((x): x is HotSound => x !== null).slice(0, 6)
       : DEFAULT_HOT_SOUNDS,
+    looks: normalizeLooks(c.looks),
     tweets: (Array.isArray(c.tweets) ? c.tweets : []).map(normalizeTweetCard).filter((x): x is TweetCard => x !== null).slice(0, 30),
     screens: {
       espera: screen(screens.espera, SCREEN_DEFAULTS.espera),
