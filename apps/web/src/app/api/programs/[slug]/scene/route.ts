@@ -49,16 +49,15 @@ function rundownScreen(scene: Scene, step: RundownStep, config: ProgramConfig, n
         true,
         "Trilha de espera",
       );
-    case "abertura":
-      // The opening stinger itself is cued by the director's client.
-      return startMusic({ ...scene, screen: { ...scene.screen, kind: "none" } }, config.openingTrackUrl, now, false, "Trilha de abertura");
+    case "abertura": {
+      // The opening stinger itself is cued by the director's client. Without
+      // an opening track, whatever track is playing keeps playing.
+      const shown = { ...scene, screen: { ...scene.screen, kind: "none" as const } };
+      return config.openingTrackUrl ? startMusic(shown, config.openingTrackUrl, now, false, "Trilha de abertura") : shown;
+    }
     case "aovivo":
-      // Cutting the abertura short: its track fades out with the video.
-      return {
-        ...scene,
-        screen: { ...scene.screen, kind: "none" },
-        ...(scene.step === "abertura" && scene.music.startedAt && { music: { ...scene.music, startedAt: null } }),
-      };
+      // The track keeps playing into the program (stop it in DESTAQUES).
+      return { ...scene, screen: { ...scene.screen, kind: "none" } };
     case "intervalo":
       return startMusic(
         { ...scene, screen: { ...config.screens.intervalo, kind: "intervalo", countdownTo: null, mediaUrl: config.breakMediaUrl } },
