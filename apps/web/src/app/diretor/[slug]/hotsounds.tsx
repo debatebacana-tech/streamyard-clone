@@ -289,6 +289,15 @@ export function HotSoundsBar({ always }: { always: boolean }) {
         <input type="range" min={0.05} max={1} step={0.05} value={fx} onChange={(e) => changeFx(Number(e.target.value))} className="w-24 accent-[#DFFF00]" />
         <span className="w-8 text-right text-xs tabular-nums">{Math.round(fx * 100)}%</span>
       </span>
+      {(config.qr.url || config.qr.image) && (
+        <button
+          onClick={() => save({ qr: { ...config.qr, visible: !config.qr.visible } })}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold ${config.qr.visible ? "bg-red-600 text-white" : "bg-neutral-800 hover:bg-neutral-700"}`}
+          title="Mostrar/tirar o QR Code do Pix"
+        >
+          {config.qr.visible ? "■ QR Pix no ar" : "▣ QR Pix"}
+        </button>
+      )}
       <span className="ml-auto flex flex-wrap items-center gap-2">
         <span className="studio-label px-1 text-sm">TRILHAS</span>
         <TrackShortcuts waiting={config.waitingTrackUrl} closing={config.closingTrackUrl} />

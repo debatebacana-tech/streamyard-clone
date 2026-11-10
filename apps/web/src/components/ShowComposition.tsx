@@ -31,6 +31,7 @@ import {
   type ProgramBranding,
   type Scene,
   type CustomSlot,
+  type ShowMetadata,
   type PersonLook,
   personKey,
   type Team,
@@ -821,6 +822,36 @@ function AnimatedImage({ src, className, delay = 0 }: { src: string; className: 
   );
 }
 
+// Pix QR code card on one side of the screen, in the show's look: the LivePix
+// QR widget (a page) or a picture of the code.
+function PixQrBox({ qr, branding, top }: { qr: NonNullable<ShowMetadata["qr"]>; branding: ProgramBranding; top: number }) {
+  const SIZE = 190;
+  return (
+    <div
+      className="chat-in absolute z-[32] flex flex-col items-center overflow-hidden rounded-2xl shadow-2xl"
+      style={{ top: top + 6, [qr.side]: 24, width: SIZE + 20, background: "#f4f1ea", border: `5px solid ${FRAME}` }}
+    >
+      <span className="w-full py-1 text-center text-lg uppercase" style={{ ...CONDENSED, fontWeight: 700, background: branding.primaryColor, color: branding.accentColor }}>
+        {qr.label}
+      </span>
+      <div className="relative m-2.5 overflow-hidden bg-white" style={{ width: SIZE, height: SIZE }}>
+        {qr.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={qr.image} alt="QR Code Pix" className="h-full w-full object-contain" />
+        ) : (
+          // The widget page is drawn at 400px and scaled to the card.
+          <iframe
+            src={qr.url!}
+            title="QR Code Pix"
+            className="pointer-events-none absolute top-0 left-0 origin-top-left border-0"
+            style={{ width: 400, height: 400, transform: `scale(${SIZE / 400})` }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function GcBar({ scene, branding, bottom }: { scene: Scene; branding: ProgramBranding; bottom: number }) {
   const { gc } = scene;
   return (
@@ -1333,6 +1364,7 @@ export function ShowComposition({
           ) : (
             <InstitutionalScreen scene={scene} branding={branding} />
           ))}
+        {show.qr && <PixQrBox qr={show.qr} branding={branding} top={top} />}
         {/* Donation alerts (LivePix overlay), made for a 1920x1080 browser
             source: drawn at that size and scaled to the canvas. Only where the
             show plays (stream and air monitor), so the alert isn't heard twice. */}

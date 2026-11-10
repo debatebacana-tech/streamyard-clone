@@ -38,7 +38,7 @@ import { MyName, savedDirectorName } from "./names";
 import { CropPanel } from "./crop";
 import { CustomLayoutPanel } from "./custom";
 import { LooksPanel } from "./looks";
-import { AlertsPanel } from "./alerts";
+import { AlertsPanel, PixQrPanel } from "./alerts";
 import { YoutubeLivePanel } from "./youtube";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
@@ -479,6 +479,9 @@ function Desk() {
             </Panel>
             <Panel title="Alertas de Pix (LivePix)">
               <AlertsPanel />
+            </Panel>
+            <Panel title="QR Code do Pix na tela">
+              <PixQrPanel />
             </Panel>
             <Panel title="OBS">
               <ObsPanel />

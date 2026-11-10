@@ -15,6 +15,20 @@ import {
   type ScreenText,
 } from "./scene";
 
+export type PixQr = { url: string | null; image: string | null; visible: boolean; side: "left" | "right"; label: string };
+
+function pixQr(input: unknown): PixQr {
+  const q = obj(input);
+  const link = typeof q.url === "string" && /^https:\/\/\S{4,400}$/.test(q.url.trim()) ? q.url.trim() : null;
+  return {
+    url: link,
+    image: media(q.image),
+    visible: q.visible === true,
+    side: q.side === "left" ? "left" : "right",
+    label: text(q.label, 40, "FAÇA SEU PIX").trim() || "FAÇA SEU PIX",
+  };
+}
+
 export type HotSound = { id: string; label: string; url: string | null; color: string };
 
 export const DEFAULT_HOT_SOUNDS: HotSound[] = [
@@ -62,6 +76,8 @@ export type ProgramConfig = {
   looks: Record<string, PersonLook>;
   // Donation alerts overlay (e.g. LivePix): a transparent page over the stream.
   alertsUrl: string | null;
+  // Pix QR code box: the LivePix QR widget link or a picture of the code.
+  qr: PixQr;
   screens: Record<Exclude<ScreenKind, "none">, ScreenText>;
 };
 
@@ -111,6 +127,7 @@ export function normalizeProgramConfig(input: unknown, programName = "programa")
       ? c.hotSounds.map(hotSound).filter((x): x is HotSound => x !== null).slice(0, 6)
       : DEFAULT_HOT_SOUNDS,
     looks: normalizeLooks(c.looks),
+    qr: pixQr(c.qr),
     alertsUrl: typeof c.alertsUrl === "string" && /^https:\/\/[^\s]{4,400}$/.test(c.alertsUrl.trim()) ? c.alertsUrl.trim() : null,
     tweets: (Array.isArray(c.tweets) ? c.tweets : []).map(normalizeTweetCard).filter((x): x is TweetCard => x !== null).slice(0, 30),
     screens: {
@@ -129,6 +146,7 @@ export function mergeProgramConfig(current: ProgramConfig, patch: unknown, progr
       ...current,
       ...p,
       transition: { ...current.transition, ...obj(p.transition) },
+      qr: { ...current.qr, ...obj(p.qr) },
       screens: {
         espera: { ...current.screens.espera, ...obj(screens.espera) },
         intervalo: { ...current.screens.intervalo, ...obj(screens.intervalo) },
