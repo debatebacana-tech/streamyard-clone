@@ -17,6 +17,7 @@ import { TransitionLayer } from "./TransitionLayer";
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
 import { TWEET_W, TweetCardView } from "./TweetCard";
 import { ProjectedMediaView } from "./ProjectedMedia";
+import { ANIMATED_CLOSING, ClosingScreen } from "./ClosingScreen";
 import { CONDENSED, DISPLAY, FRAME } from "./showStyle";
 import {
   clockElapsedMs,
@@ -1233,6 +1234,8 @@ export function ShowComposition({
         {scene.screen.kind !== "none" &&
           (scene.screen.mediaUrl ? (
             <ScreenMedia scene={scene} withSound={media === "play"} />
+          ) : scene.screen.kind === "encerramento" && ANIMATED_CLOSING.has(branding.slug) ? (
+            <ClosingScreen branding={branding} />
           ) : (
             <InstitutionalScreen scene={scene} branding={branding} />
           ))}
