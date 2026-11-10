@@ -840,7 +840,9 @@ function PixQrBox({ qr, branding, top, inset = 24 }: { qr: NonNullable<ShowMetad
         {qr.label}
       </span>
       <div className="relative m-[7px] overflow-hidden rounded-lg bg-white" style={{ width: SIZE, height: SIZE }}>
-        {qr.image ? (
+        {qr.code ? (
+          <QrCode text={qr.code} />
+        ) : qr.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={qr.image} alt="QR Code Pix" className="h-full w-full object-contain" />
         ) : (
@@ -852,8 +854,30 @@ function PixQrBox({ qr, branding, top, inset = 24 }: { qr: NonNullable<ShowMetad
           />
         )}
       </div>
+      {qr.code && !qr.code.startsWith("000201") && (
+        <span className="-mt-0.5 mb-1.5 truncate px-2 text-center text-[15px] text-white" style={{ ...CONDENSED, fontWeight: 700 }}>
+          {qr.code.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+        </span>
+      )}
     </div>
   );
+}
+
+// A clean black-on-white QR drawn here (any phone camera or bank app reads it).
+function QrCode({ text }: { text: string }) {
+  const [svg, setSvg] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    import("qrcode")
+      .then((q) => q.toString(text, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#000000", light: "#ffffff" } }))
+      .then((out) => alive && setSvg(out))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [text]);
+  if (!svg) return null;
+  return <div className="h-full w-full [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
 function GcBar({ scene, branding, bottom }: { scene: Scene; branding: ProgramBranding; bottom: number }) {

@@ -66,9 +66,10 @@ export function PixQrPanel() {
   const { slug, assets, addAsset } = useDirector();
   const { config, save } = useProgramConfig();
   const [url, setUrl] = useState("");
+  const [code, setCode] = useState("");
   if (!config) return <p className="text-sm text-neutral-500">Carregando...</p>;
   const qr = config.qr;
-  const ready = Boolean(qr.url || qr.image);
+  const ready = Boolean(qr.code || qr.url || qr.image);
   const set = (patch: Partial<typeof qr>) => save({ qr: { ...qr, ...patch } });
   return (
     <div className="space-y-3 text-sm">
@@ -88,11 +89,45 @@ export function PixQrPanel() {
           ))}
         </div>
       </div>
+      <div className="space-y-1 rounded-md border border-[#DFFF00]/40 bg-neutral-950 p-3">
+        <p className="text-xs font-semibold text-[#DFFF00]">O estúdio gera o QR (recomendado)</p>
+        <p className="text-[11px] text-neutral-400">
+          Cole <b>o link da página do LivePix</b> (ex.: livepix.gg/debatebacana), que a câmera do celular abre para a pessoa doar, <b>ou</b> o
+          <b> “Pix copia e cola”</b> do banco, que o app do banco lê e já abre o pagamento.
+        </p>
+        <div className="flex gap-2">
+          <input
+            className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5"
+            placeholder={qr.code ? `salvo: ${qr.code.slice(0, 40)}${qr.code.length > 40 ? "…" : ""}` : "livepix.gg/debatebacana ou 000201…"}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <button
+            disabled={!code.trim()}
+            onClick={() => {
+              const v = code.trim();
+              // A bare page ("livepix.gg/...") becomes a link the camera opens.
+              set({ code: v.startsWith("000201") || /^https?:\/\//.test(v) ? v : `https://${v}` });
+              setCode("");
+            }}
+            className="rounded-md bg-[#DFFF00] px-3 py-1.5 font-bold text-black disabled:opacity-40"
+          >
+            Gerar QR
+          </button>
+        </div>
+        {qr.code && (
+          <button onClick={() => set({ code: null })} className="text-xs text-neutral-500 underline">
+            apagar
+          </button>
+        )}
+      </div>
       <label className="block space-y-1">
         <span className="text-xs text-neutral-400">Texto em cima do QR</span>
         <input className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5" defaultValue={qr.label} maxLength={40} onBlur={(e) => e.target.value.trim() !== qr.label && set({ label: e.target.value.trim() })} />
       </label>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <details className="rounded-md bg-neutral-950 p-2">
+      <summary className="cursor-pointer text-xs text-neutral-400">Outras opções: imagem do QR ou widget do LivePix (só se não usar o QR gerado)</summary>
+      <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="space-y-1">
           <span className="text-xs text-neutral-400">Imagem do QR Code (baixe no LivePix ou no app do banco)</span>
           <ImagePicker slug={slug} assets={assets} value={qr.image} onChange={(image) => set({ image })} onUploaded={addAsset} />
@@ -137,6 +172,7 @@ export function PixQrPanel() {
           </p>
         </div>
       </div>
+      </details>
     </div>
   );
 }

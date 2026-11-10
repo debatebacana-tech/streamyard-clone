@@ -17,12 +17,16 @@ import {
 
 // zoom: how much the LivePix widget page is enlarged in the card (its QR is
 // small in the middle of a white page).
-export type PixQr = { url: string | null; image: string | null; visible: boolean; side: "left" | "right"; label: string; zoom: number };
+// code: text the studio turns into a clean QR itself (the LivePix page link,
+// which the phone camera opens, or a "Pix copia e cola", which bank apps read).
+export type PixQr = { code: string | null; url: string | null; image: string | null; visible: boolean; side: "left" | "right"; label: string; zoom: number };
 
 function pixQr(input: unknown): PixQr {
   const q = obj(input);
   const link = typeof q.url === "string" && /^https:\/\/\S{4,400}$/.test(q.url.trim()) ? q.url.trim() : null;
+  const code = typeof q.code === "string" ? q.code.trim().slice(0, 512) : "";
   return {
+    code: code || null,
     url: link,
     image: media(q.image),
     visible: q.visible === true,
