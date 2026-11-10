@@ -13,6 +13,14 @@ model ShowSettings {
   youtubeStreamKeyCipher  String?
   // YouTube Data API key (encrypted) used to read the live chat.
   youtubeApiKeyCipher     String?
+  // "Programar live": the OAuth client the team created in Google Cloud, the
+  // channel's offline access, the reusable stream and the live it goes to.
+  youtubeClientId           String?
+  youtubeClientSecretCipher String?
+  youtubeRefreshTokenCipher String?
+  youtubeChannelTitle       String?
+  youtubeStreamId           String?
+  youtubeBroadcastId        String?
   lowerThirdText          String   @default("")
   logoUrl                 String?
   // Only one program can be live at a time (one channel, one egress worth of CPU).

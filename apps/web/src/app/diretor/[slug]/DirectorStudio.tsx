@@ -36,6 +36,7 @@ import { ClubPads, ClubsPanel } from "./clubs";
 import { MyName, savedDirectorName } from "./names";
 import { CropPanel } from "./crop";
 import { CustomLayoutPanel } from "./custom";
+import { YoutubeLivePanel } from "./youtube";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
 
@@ -455,6 +456,11 @@ function Desk() {
 
       {active === "ajustes" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="lg:col-span-2">
+            <Panel title="📅 Programar live no YouTube">
+              <YoutubeLivePanel />
+            </Panel>
+          </div>
           <Panel title="Identidade">
             <IdentityPanel />
           </Panel>

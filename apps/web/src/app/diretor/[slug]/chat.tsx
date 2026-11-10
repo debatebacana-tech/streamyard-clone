@@ -63,6 +63,11 @@ export function ChatTab() {
     fetch("/api/settings/youtube-api-key")
       .then((r) => r.json())
       .then((d) => setHasKey(Boolean(d.hasKey)));
+    // A live scheduled from the studio fills the link by itself.
+    fetch("/api/youtube/oauth")
+      .then((r) => r.json())
+      .then((d) => d.activeBroadcastId && setUrl((u) => u || `https://youtu.be/${d.activeBroadcastId}`))
+      .catch(() => {});
     const first = setTimeout(load, 0);
     const id = setInterval(load, 3000);
     return () => {
