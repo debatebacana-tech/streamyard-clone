@@ -186,9 +186,14 @@ function Tile({
           style={!isScreen && lookFilter(look) ? { filter: lookFilter(look) } : undefined}
         />
       ) : !isScreen && look?.photo ? (
-        // Camera off: the person's photo (e.g. their caricature) fills the window.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={look.photo} alt={name} className="h-full w-full object-cover" />
+        // Camera off: the person's photo (e.g. their caricature), always whole;
+        // whatever the window shape, the rest is the same photo blurred behind.
+        <div className="relative h-full w-full overflow-hidden bg-black">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={look.photo} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={look.photo} alt={name} className="relative h-full w-full object-contain" />
+        </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-neutral-800">
           <span
@@ -290,7 +295,7 @@ export function resolveCustom(scene: Scene, stage: TrackReferenceOrPlaceholder[]
   const wantScreen = (s: CustomSlot) => s.source === "screen";
   const fits = (s: CustomSlot, t: TrackReferenceOrPlaceholder) => (t.source === Track.Source.ScreenShare) === wantScreen(s);
   const picks: (TrackReferenceOrPlaceholder | null)[] = scene.custom.map((slot) => {
-    if (!slot.who) return null;
+    if (!slot.who || slot.source === "chat") return null;
     const mine = (t: TrackReferenceOrPlaceholder) =>
       t.participant.identity === slot.who ||
       (slot.name !== "" && (t.participant.name || "").trim().toLowerCase() === slot.name.trim().toLowerCase());
@@ -299,6 +304,7 @@ export function resolveCustom(scene: Scene, stage: TrackReferenceOrPlaceholder[]
     return pick ?? null;
   });
   return scene.custom.map((slot, i) => {
+    if (slot.source === "chat") return null;
     if (slot.who) return picks[i];
     const pick = stage.find((t) => !used.has(t) && fits(slot, t));
     if (pick) used.add(pick);
@@ -306,16 +312,27 @@ export function resolveCustom(scene: Scene, stage: TrackReferenceOrPlaceholder[]
   });
 }
 
-function CustomStage({ scene, stage, pool, branding }: {
+function CustomStage({ scene, stage, pool, branding, chat }: {
   scene: Scene;
   stage: TrackReferenceOrPlaceholder[];
   pool: TrackReferenceOrPlaceholder[];
   branding: ProgramBranding;
+  chat: ChatMessage[];
 }) {
   const tracks = resolveCustom(scene, stage, pool);
   return (
     <>
       {scene.custom.map((slot, i) => {
+        if (slot.source === "chat") {
+          return (
+            <ChatPanel
+              key={`chat-${i}`}
+              messages={chat}
+              branding={branding}
+              rect={{ left: slot.x * CANVAS_W, top: slot.y * CANVAS_H, width: slot.w * CANVAS_W, height: slot.h * CANVAS_H, zIndex: i + 1 }}
+            />
+          );
+        }
         const t = tracks[i];
         if (!t) return null;
         const full = slot.w > 0.98 && slot.h > 0.98;
@@ -333,14 +350,15 @@ function CustomStage({ scene, stage, pool, branding }: {
   );
 }
 
-function Stage({ stage, scene, branding, box, pool }: {
+function Stage({ stage, scene, branding, box, pool, chat }: {
   stage: TrackReferenceOrPlaceholder[];
   scene: Scene;
   branding: ProgramBranding;
   box: Box;
   pool: TrackReferenceOrPlaceholder[];
+  chat: ChatMessage[];
 }) {
-  if (scene.layout === "custom") return <CustomStage scene={scene} stage={stage} pool={pool} branding={branding} />;
+  if (scene.layout === "custom") return <CustomStage scene={scene} stage={stage} pool={pool} branding={branding} chat={chat} />;
   if (stage.length === 0) return null;
   const featured = pickFeatured(stage, scene);
   const others = stage.filter((t) => t !== featured);
@@ -894,11 +912,24 @@ function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; 
 const CHAT_W = 330;
 
 // Latest YouTube chat messages beside the cameras ("Todos + chat").
-function ChatPanel({ messages, branding, top, bottom }: { messages: ChatMessage[]; branding: ProgramBranding; top: number; bottom: number }) {
+function ChatPanel({
+  messages,
+  branding,
+  top,
+  bottom,
+  rect,
+}: {
+  messages: ChatMessage[];
+  branding: ProgramBranding;
+  top?: number;
+  bottom?: number;
+  // A window of a drawn layout (instead of the right-side column).
+  rect?: React.CSSProperties;
+}) {
   return (
     <div
       className="chat-panel absolute flex flex-col overflow-hidden rounded-2xl shadow-2xl"
-      style={{ right: 24, top, bottom, width: CHAT_W, background: "#f4f1ea", border: `5px solid ${FRAME}` }}
+      style={{ ...(rect ?? { right: 24, top, bottom, width: CHAT_W }), background: "#f4f1ea", border: `5px solid ${FRAME}` }}
     >
       <span className="px-4 py-2 text-xl uppercase" style={{ ...CONDENSED, fontWeight: 700, background: branding.primaryColor, color: branding.accentColor }}>
         Chat ao vivo
@@ -1233,7 +1264,7 @@ export function ShowComposition({
           {mediaOn && scene.media.mode !== "full" ? (
             <MediaStage stage={stage} scene={scene} branding={branding} box={box} withSound={media === "play"} />
           ) : (
-            <Stage stage={stage} scene={scene} branding={branding} box={box} pool={pool} />
+            <Stage stage={stage} scene={scene} branding={branding} box={box} pool={pool} chat={show.chat ?? []} />
           )}
         </div>
         </CropContext.Provider>

@@ -103,6 +103,7 @@ export function CustomLayoutPanel() {
   }
 
   const label = (s: CustomSlot) => {
+    if (s.source === "chat") return "💬 Chat ao vivo";
     const person = s.who ? people.find((p) => p.identity === s.who)?.name || s.name || "pessoa fora da sala" : "Próximo da fila";
     return `${person}${s.source === "screen" ? " · tela" : ""}`;
   };
@@ -188,6 +189,7 @@ export function CustomLayoutPanel() {
       {sel && (
         <div className="flex flex-wrap items-end gap-3 rounded-md bg-neutral-900 p-3" style={{ borderLeft: `4px solid ${COLORS[selected % COLORS.length]}` }}>
           <span className="font-bold">Janela {selected + 1}</span>
+          {sel.source !== "chat" && (
           <label className="space-y-1">
             <span className="block text-[11px] text-neutral-400">Quem aparece</span>
             <select
@@ -207,14 +209,15 @@ export function CustomLayoutPanel() {
               {sel.who && !people.some((p) => p.identity === sel.who) && <option value={sel.who}>{sel.name || "pessoa fora da sala"}</option>}
             </select>
           </label>
+          )}
           <div className="flex overflow-hidden rounded-md border border-neutral-700">
-            {(["camera", "screen"] as const).map((src) => (
+            {(["camera", "screen", "chat"] as const).map((src) => (
               <button
                 key={src}
                 onClick={() => update(selected, { source: src })}
                 className={`px-3 py-1.5 text-xs ${sel.source === src ? "bg-[#DFFF00] font-semibold text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
               >
-                {src === "camera" ? "📷 Câmera" : "🖥 Tela compartilhada"}
+                {src === "camera" ? "📷 Câmera" : src === "screen" ? "🖥 Tela compartilhada" : "💬 Chat"}
               </button>
             ))}
           </div>
