@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
 import { hostProgram } from "@/lib/hostProgram";
 import { clearLive, getLiveState, markLive } from "@/lib/live";
+import { liveViewers } from "@/lib/youtubeChat";
 import { startYoutubeEgress, stopEgress } from "@/lib/livekit";
 import { getProgram, roomForProgram, syncProgramRoom } from "@/lib/programs";
 import { signLayoutViewToken } from "@/lib/signedLinks";
@@ -21,10 +22,13 @@ export async function GET(_request: Request, { params }: Params) {
   if (error) return error;
 
   const live = await getLiveState();
+  const here = live.programSlug === program.slug;
   return NextResponse.json({
-    live: live.programSlug === program.slug,
+    live: here,
     otherLive: await otherLiveName(live.programSlug, program.slug),
     lastError: live.lastError,
+    startedAt: here ? live.startedAt : null,
+    viewers: here ? await liveViewers().catch(() => null) : null,
   });
 }
 

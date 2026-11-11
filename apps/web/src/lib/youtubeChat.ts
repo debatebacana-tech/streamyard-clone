@@ -194,3 +194,29 @@ export function chatStatus(): ChatStatus {
 export function chatMessages(slug: string): ChatMessage[] {
   return state.slug === slug ? state.messages : [];
 }
+
+// People watching the live right now (YouTube's concurrent viewers), for the
+// director's header. The live is the one scheduled from the studio or the one
+// whose chat is being read. Cached 30 s (each call costs 1 unit of quota).
+let viewers: { at: number; videoId: string; count: number | null } | null = null;
+
+export async function liveViewers(): Promise<number | null> {
+  const settings = await prisma.showSettings.findUnique({ where: { id: "default" } });
+  const videoId = settings?.youtubeBroadcastId ?? state.videoId;
+  if (!videoId) return null;
+  if (viewers && viewers.videoId === videoId && Date.now() - viewers.at < 30_000) return viewers.count;
+  const key = await apiKey();
+  if (!key) return null;
+  let count: number | null = null;
+  try {
+    const params = new URLSearchParams({ part: "liveStreamingDetails", id: videoId });
+    const res = await fetch(`${API_BASE}/videos?${params}`, { headers: { "X-Goog-Api-Key": key }, signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const data = (await res.json()) as { items?: { liveStreamingDetails?: { concurrentViewers?: string } }[] };
+      const raw = data.items?.[0]?.liveStreamingDetails?.concurrentViewers;
+      count = raw !== undefined ? Number(raw) : null;
+    }
+  } catch {}
+  viewers = { at: Date.now(), videoId, count };
+  return count;
+}

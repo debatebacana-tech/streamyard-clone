@@ -56,7 +56,19 @@ function clientId(): string {
   }
 }
 
-type LiveStatus = { live: boolean; otherLive: string | null; lastError: string | null };
+type LiveStatus = { live: boolean; otherLive: string | null; lastError: string | null; startedAt: number | null; viewers: number | null };
+
+// How long the stream has been on, ticking every second.
+function LiveClock({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const s = Math.max(0, Math.floor((now - since) / 1000));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return <span className="font-mono tabular-nums">{`${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`}</span>;
+}
 
 function LiveControl({ slug }: { slug: string }) {
   const [status, setStatus] = useState<LiveStatus | null>(null);
@@ -95,7 +107,13 @@ function LiveControl({ slug }: { slug: string }) {
     <div className="flex items-center gap-3">
       {error && <span className="max-w-md truncate text-xs text-red-400" title={error}>{error}</span>}
       {status?.otherLive && !status.live && <span className="text-xs text-amber-400">{status.otherLive} está no ar</span>}
-      {status?.live && <span className="animate-pulse rounded bg-red-600 px-2 py-1 text-xs font-bold">● AO VIVO</span>}
+      {status?.live && (
+        <span className="flex items-center gap-2 rounded bg-red-600 px-2 py-1 text-xs font-bold">
+          <span className="animate-pulse">● AO VIVO</span>
+          {status.startedAt && <LiveClock since={status.startedAt} />}
+          <span title="Espectadores assistindo agora no YouTube">👁 {status.viewers ?? "—"}</span>
+        </span>
+      )}
       <button
         onClick={toggle}
         disabled={busy || !status || Boolean(status.otherLive && !status.live)}

@@ -7,6 +7,8 @@ export type LiveState = {
   egressId: string | null;
   // Set when the last stream ended on its own (e.g. YouTube rejected it).
   lastError: string | null;
+  // When the stream started (ms), from Egress.
+  startedAt: number | null;
 };
 
 const SETTINGS_ID = "default";
@@ -23,7 +25,7 @@ export async function clearLive() {
 export async function getLiveState(): Promise<LiveState> {
   const settings = await prisma.showSettings.findUnique({ where: { id: SETTINGS_ID } });
   if (!settings?.liveEgressId) {
-    return { programSlug: null, egressId: null, lastError: null };
+    return { programSlug: null, egressId: null, lastError: null, startedAt: null };
   }
 
   const [info] = await getEgressClient().listEgress({ egressId: settings.liveEgressId });
@@ -35,9 +37,10 @@ export async function getLiveState(): Promise<LiveState> {
 
   if (!active) {
     await clearLive();
-    return { programSlug: null, egressId: null, lastError: info?.error || null };
+    return { programSlug: null, egressId: null, lastError: info?.error || null, startedAt: null };
   }
-  return { programSlug: settings.liveProgramSlug, egressId: settings.liveEgressId, lastError: null };
+  const started = info.startedAt ? Number(info.startedAt / BigInt(1_000_000)) : 0;
+  return { programSlug: settings.liveProgramSlug, egressId: settings.liveEgressId, lastError: null, startedAt: started > 0 ? started : null };
 }
 
 export async function markLive(programSlug: string, egressId: string) {
