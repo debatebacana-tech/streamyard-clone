@@ -42,6 +42,7 @@ import { YoutubeLivePanel } from "./youtube";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
 import { ChatDock } from "./chatdock";
+import { RecordControl, RecordingsPanel } from "./recording";
 
 function clientId(): string {
   const key = "studio-client-id";
@@ -356,6 +357,7 @@ function Desk() {
         >
           ?
         </button>
+        <RecordControl slug={slug} />
         <LiveControl slug={slug} />
       </div>
     </header>
@@ -512,6 +514,9 @@ function Desk() {
             </Panel>
             <Panel title="Convidados">
               <InvitePanel />
+            </Panel>
+            <Panel title="Gravações (programa off-line)">
+              <RecordingsPanel />
             </Panel>
             <Panel title="Alertas de Pix (LivePix)">
               <AlertsPanel />

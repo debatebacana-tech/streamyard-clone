@@ -35,11 +35,14 @@ export function LayoutView({
   roomName,
   layoutViewToken,
   standby = false,
+  offline = false,
 }: {
   roomName: string;
   layoutViewToken: string;
   // A new version warming up behind the live one: silent until activated.
   standby?: boolean;
+  // Rendering an offline recording (not a live).
+  offline?: boolean;
 }) {
   const [active, setActive] = useState(!standby);
   const [credentials, setCredentials] = useState<{ token: string; wsUrl: string } | null>(null);
@@ -89,7 +92,7 @@ export function LayoutView({
       // would otherwise beat Tailwind and collapse the canvas to 0px.
       style={{ position: "fixed", inset: 0, background: "#000" }}
     >
-      <ShowComposition withAudio={active} media={active ? "play" : "silent"} />
+      <ShowComposition withAudio={active} media={active ? "play" : "silent"} offline={offline} />
       {standby && <ReadySignal onActivate={activate} />}
     </LiveKitRoom>
   );

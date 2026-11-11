@@ -13,8 +13,8 @@ type Frame = { key: number; src: string; active: boolean };
 const CHECK_MS = 20_000;
 const READY_TIMEOUT_MS = 60_000;
 
-export function LayoutHost({ roomName, token }: { roomName: string; token: string }) {
-  const base = `/layout-view/${encodeURIComponent(roomName)}/frame?token=${encodeURIComponent(token)}`;
+export function LayoutHost({ roomName, token, offline = false }: { roomName: string; token: string; offline?: boolean }) {
+  const base = `/layout-view/${encodeURIComponent(roomName)}/frame?token=${encodeURIComponent(token)}${offline ? "&rec=1" : ""}`;
   const [frames, setFrames] = useState<Frame[]>([{ key: 0, src: base, active: true }]);
   const version = useRef<string | null>(null);
   const swapping = useRef(false);

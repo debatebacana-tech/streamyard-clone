@@ -946,7 +946,7 @@ function LiveBug() {
   );
 }
 
-function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; bugOn: boolean }) {
+function Header({ scene, branding, live = true }: { scene: Scene; branding: ProgramBranding; bugOn: boolean; live?: boolean }) {
   const sponsorOn = scene.sponsor.visible && scene.sponsor.imageUrl;
   // Top-right corner, TV style: the program's logo right beside the live bug.
   return (
@@ -965,7 +965,7 @@ function Header({ scene, branding }: { scene: Scene; branding: ProgramBranding; 
               {branding.name}
             </span>
           ))}
-        <LiveBug />
+        {live && <LiveBug />}
       </div>
       {sponsorOn && (
         <div className="absolute top-[98px] right-6 rounded-md bg-white px-3 py-2 shadow-xl" style={{ border: `3px solid ${FRAME}` }}>
@@ -1185,7 +1185,10 @@ export function ShowComposition({
   media = "off",
   emptyHint,
   onArrange,
+  offline = false,
 }: {
+  // An offline recording: no "AO VIVO" badge.
+  offline?: boolean;
   // Renders this scene instead of the on-air one (preview monitor).
   scene?: Scene;
   // Plays on-stage participants' audio (the Egress output needs it).
@@ -1373,7 +1376,7 @@ export function ShowComposition({
         )}
         {chatOn && <ChatPanel messages={show.chat ?? []} branding={branding} top={box.top} bottom={box.bottom} />}
         {webOn && <WebOverlay scene={scene} box={box} />}
-        <Header scene={scene} branding={branding} bugOn={bugOn} />
+        <Header scene={scene} branding={branding} bugOn={bugOn} live={!offline} />
         {bugOn && <ScoreboardBug scene={scene} branding={branding} />}
         {barOn && <ScoreboardBar scene={scene} bottom={barBottom} />}
         {gcOn && <GcBar key={`${scene.gc.subtitle}|${scene.gc.title}`} scene={scene} branding={branding} bottom={gcBottom} />}

@@ -4,6 +4,7 @@ import { decrypt } from "@/lib/crypto";
 import { hostProgram } from "@/lib/hostProgram";
 import { clearLive, getLiveState, markLive } from "@/lib/live";
 import { liveViewers } from "@/lib/youtubeChat";
+import { getRecordingState } from "@/lib/recording";
 import { startYoutubeEgress, stopEgress } from "@/lib/livekit";
 import { getProgram, roomForProgram, syncProgramRoom } from "@/lib/programs";
 import { signLayoutViewToken } from "@/lib/signedLinks";
@@ -43,6 +44,9 @@ export async function POST(request: Request, { params }: Params) {
   }
   if (live.programSlug === program.slug) {
     return NextResponse.json({ ok: true });
+  }
+  if ((await getRecordingState()).programSlug) {
+    return NextResponse.json({ error: "Há uma gravação em andamento. Pare a gravação para ir ao vivo." }, { status: 409 });
   }
 
   const settings = await prisma.showSettings.findUnique({ where: { id: "default" } });

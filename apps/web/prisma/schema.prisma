@@ -28,6 +28,11 @@ model ShowSettings {
   // Only one program can be live at a time (one channel, one egress worth of CPU).
   liveProgramSlug         String?
   liveEgressId            String?
+  // Offline recording in progress (one at a time, never during a live).
+  recordEgressId          String?
+  recordProgramSlug       String?
+  recordFile              String?
+  recordStartedAt         DateTime?
   updatedAt               DateTime @updatedAt
 }
 

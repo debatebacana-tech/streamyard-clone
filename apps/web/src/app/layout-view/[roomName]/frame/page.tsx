@@ -7,10 +7,10 @@ export default async function LayoutFramePage({
   searchParams,
 }: {
   params: Promise<{ roomName: string }>;
-  searchParams: Promise<{ token?: string; standby?: string }>;
+  searchParams: Promise<{ token?: string; standby?: string; rec?: string }>;
 }) {
   const { roomName } = await params;
-  const { token, standby } = await searchParams;
+  const { token, standby, rec } = await searchParams;
   if (!token) return <div className="flex h-screen items-center justify-center bg-black text-white">Token ausente</div>;
-  return <LayoutView roomName={roomName} layoutViewToken={token} standby={standby === "1"} />;
+  return <LayoutView roomName={roomName} layoutViewToken={token} standby={standby === "1"} offline={rec === "1"} />;
 }
