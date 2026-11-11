@@ -1,66 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  GridLayout,
-  LiveKitRoom,
-  ParticipantTile,
-  RoomAudioRenderer,
-  useRoomInfo,
-  useTracks,
-} from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { useCallback, useEffect, useState } from "react";
+import { LiveKitRoom, useRoomContext } from "@livekit/components-react";
+import { RoomEvent } from "livekit-client";
 import "@livekit/components-styles";
+import { ShowComposition } from "@/components/ShowComposition";
 
-type ShowMetadata = {
-  lowerThirdText?: string;
-  logoUrl?: string;
-};
-
-function parseMetadata(raw: string | undefined): ShowMetadata {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as ShowMetadata;
-  } catch {
-    return {};
-  }
-}
-
-function Composition() {
-  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
-    onlySubscribed: true,
-  });
-  const { metadata } = useRoomInfo();
-  const { lowerThirdText, logoUrl } = parseMetadata(metadata);
-
-  return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black">
-      <GridLayout tracks={tracks} className="h-full w-full">
-        <ParticipantTile />
-      </GridLayout>
-      <RoomAudioRenderer />
-
-      {logoUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt="" className="absolute top-6 left-6 h-16 w-auto drop-shadow-lg" />
-      )}
-
-      {lowerThirdText && (
-        <div className="absolute bottom-10 left-10 right-10 rounded-md bg-black/70 px-6 py-3">
-          <p className="text-2xl font-semibold text-white">{lowerThirdText}</p>
-        </div>
-      )}
-    </div>
-  );
+// Inside the stream host: tells it when this version is connected and has
+// drawn the show (then it can take over), and listens for "activate".
+function ReadySignal({ onActivate }: { onActivate: () => void }) {
+  const room = useRoomContext();
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const ready = () => {
+      // A few seconds for the cameras to arrive and the first frames to draw.
+      timer ??= setTimeout(() => window.parent?.postMessage({ type: "layout-ready" }, window.location.origin), 5000);
+    };
+    if (room.metadata) ready();
+    room.on(RoomEvent.Connected, ready).on(RoomEvent.RoomMetadataChanged, ready);
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.type === "layout-activate") onActivate();
+    };
+    window.addEventListener("message", onMessage);
+    return () => {
+      if (timer) clearTimeout(timer);
+      room.off(RoomEvent.Connected, ready).off(RoomEvent.RoomMetadataChanged, ready);
+      window.removeEventListener("message", onMessage);
+    };
+  }, [room, onActivate]);
+  return null;
 }
 
 export function LayoutView({
   roomName,
   layoutViewToken,
+  standby = false,
+  offline = false,
 }: {
   roomName: string;
   layoutViewToken: string;
+  // A new version warming up behind the live one: silent until activated.
+  standby?: boolean;
+  // Rendering an offline recording (not a live).
+  offline?: boolean;
 }) {
+  const [active, setActive] = useState(!standby);
   const [credentials, setCredentials] = useState<{ token: string; wsUrl: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,6 +70,8 @@ export function LayoutView({
     };
   }, [layoutViewToken]);
 
+  const activate = useCallback(() => setActive(true), []);
+
   if (error) {
     return <div className="flex h-screen items-center justify-center bg-black text-red-400">{error}</div>;
   }
@@ -102,9 +88,12 @@ export function LayoutView({
       audio={false}
       video={false}
       data-lk-theme="default"
-      className="h-screen w-screen"
+      // Inline on purpose: the LiveKit stylesheet's .lk-room-container height
+      // would otherwise beat Tailwind and collapse the canvas to 0px.
+      style={{ position: "fixed", inset: 0, background: "#000" }}
     >
-      <Composition />
+      <ShowComposition withAudio={active} media={active ? "play" : "silent"} offline={offline} />
+      {standby && <ReadySignal onActivate={activate} />}
     </LiveKitRoom>
   );
 }

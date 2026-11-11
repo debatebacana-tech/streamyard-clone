@@ -1,0 +1,13 @@
+{$APP_DOMAIN} {
+	reverse_proxy web:3000
+}
+
+{$LIVEKIT_DOMAIN} {
+	# OBS WHIP ingest -> LiveKit Ingress
+	handle /w* {
+		reverse_proxy ingress:8080
+	}
+	handle {
+		reverse_proxy livekit:7880
+	}
+}

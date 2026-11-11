@@ -76,7 +76,7 @@ config do Egress + redimensionamento da VPS):
   docker-compose.yml   # redis, livekit, egress, caddy, web
   livekit.yaml          # chaves, endereço do redis, faixa de portas RTC
   egress.yaml           # endereço do redis
-  Caddyfile              # TLS + proxy reverso (app + WSS para LiveKit :7880)
+  caddy/Caddyfile        # TLS + proxy reverso (app, WSS do LiveKit, WHIP do OBS)
   .env                    # LIVEKIT_API_KEY/SECRET, config do Redis (rede interna apenas)
 ```
 

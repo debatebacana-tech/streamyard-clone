@@ -1,0 +1,18 @@
+
+# LiveKit Ingress (OBS into a program room). The api_key/api_secret lines are
+# copied from the generated egress.yaml at startup (see `configs` in
+# docker-compose.yml), so this file holds no secrets.
+ws_url: ws://livekit:7880
+redis:
+  address: redis:6379
+# RTMP always transcodes (CPU heavy on a small VPS); WHIP from OBS 30+ can
+# pass video through untouched.
+rtmp_port: 1935
+whip_port: 8080
+health_port: 8081
+rtc_config:
+  use_external_ip: true
+cpu_cost:
+  rtmp_cpu_cost: 1.5
+  whip_cpu_cost: 1.5
+  whip_bypass_transcoding_cpu_cost: 0.1
