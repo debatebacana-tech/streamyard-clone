@@ -42,6 +42,7 @@ import { AlertsPanel, PixQrPanel } from "./alerts";
 import { YoutubeLivePanel } from "./youtube";
 import { HotSoundsBar } from "./hotsounds";
 import { ChatTab } from "./chat";
+import { ChatDock } from "./chatdock";
 
 function clientId(): string {
   const key = "studio-client-id";
@@ -176,6 +177,22 @@ function Workspace() {
   const { scenes, direct, setDirect, sceneRequest, patch } = useDirector();
   const [cutting, setCutting] = useState(false);
   const pending = JSON.stringify(scenes.draft) !== JSON.stringify(scenes.live);
+  // The chat column beside the air monitor (remembered in this browser).
+  const [showChat, setShowChat] = useState(true);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        if (localStorage.getItem("studio-chat-dock") === "off") setShowChat(false);
+      } catch {}
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+  const toggleChat = (on: boolean) => {
+    setShowChat(on);
+    try {
+      localStorage.setItem("studio-chat-dock", on ? "on" : "off");
+    } catch {}
+  };
 
   return (
     <div className="space-y-4">
@@ -209,6 +226,13 @@ function Workspace() {
           <ShowComposition media="play" emptyHint="Ninguém em cena" onArrange={(p) => patch(p, { air: true })} />
           <AudioUnlock />
         </Monitor>
+        {showChat ? (
+          <ChatDock onClose={() => toggleChat(false)} />
+        ) : (
+          <button onClick={() => toggleChat(true)} className="studio-bar w-8 shrink-0 text-[10px] font-bold tracking-widest text-neutral-400 hover:text-white [writing-mode:vertical-rl]" title="Mostrar o chat">
+            CHAT
+          </button>
+        )}
       </div>
       <ControlBar controls={{ microphone: true, camera: true, screenShare: true, leave: false, chat: false }} />
     </div>
