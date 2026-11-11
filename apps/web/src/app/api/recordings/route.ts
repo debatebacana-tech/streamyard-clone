@@ -14,6 +14,11 @@ export async function DELETE(request: Request) {
   const name = new URL(request.url).searchParams.get("name") ?? "";
   const rec = await getRecordingState();
   if (rec.file === name) return NextResponse.json({ error: "Essa gravação ainda está em andamento" }, { status: 409 });
-  await deleteRecording(name).catch(() => {});
+  try {
+    await deleteRecording(name);
+  } catch (err) {
+    console.error("delete recording", err);
+    return NextResponse.json({ error: "Não consegui apagar esse arquivo no servidor" }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

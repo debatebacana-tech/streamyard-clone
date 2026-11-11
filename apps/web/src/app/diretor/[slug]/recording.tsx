@@ -129,7 +129,8 @@ export function RecordingsPanel() {
                 <button
                   onClick={async () => {
                     if (!confirm(`Apagar ${f.name} do servidor?`)) return;
-                    await fetch(`/api/recordings?name=${encodeURIComponent(f.name)}`, { method: "DELETE" });
+                    const res = await fetch(`/api/recordings?name=${encodeURIComponent(f.name)}`, { method: "DELETE" });
+                    if (!res.ok) alert((await res.json().catch(() => ({}))).error ?? "Não deu para apagar");
                     await load();
                   }}
                   className="text-xs text-red-400 hover:text-red-300"

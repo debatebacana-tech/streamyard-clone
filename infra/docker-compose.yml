@@ -29,7 +29,7 @@ services:
       sh -c "cat /in/egress.yaml /in/egress.extra.yaml > /out/egress.yaml
       && grep -E '^api_(key|secret):' /in/egress.yaml > /out/ingress.yaml
       && cat /in/ingress.extra.yaml >> /out/ingress.yaml
-      && chmod 1777 /recordings"
+      && chmod 0777 /recordings"
     volumes:
       - ./egress.yaml:/in/egress.yaml:ro
       - ./egress.extra.yaml:/in/egress.extra.yaml:ro
