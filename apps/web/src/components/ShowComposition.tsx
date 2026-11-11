@@ -1253,6 +1253,8 @@ export function ShowComposition({
   const order = new Map(ranked.map((id, i) => [id, i]));
   const stage = all
     .filter((t) => order.has(t.participant.identity))
+    // The grid ("Todos") is people only: a shared screen never takes a window.
+    .filter((t) => scene.layout !== "auto" || t.source !== Track.Source.ScreenShare)
     .sort((a, b) => order.get(a.participant.identity)! - order.get(b.participant.identity)!);
   // Everyone in the room (a drawn window can show someone not "on stage").
   const pool = all.filter((t) => !t.participant.identity.startsWith("layout-viewer"));
