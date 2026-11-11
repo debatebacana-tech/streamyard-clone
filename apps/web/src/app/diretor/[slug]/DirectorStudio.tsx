@@ -25,7 +25,6 @@ import {
   StagePanel,
   ThemePanel,
   TickerSponsorPanel,
-  WebPanel,
 } from "./panels";
 import { RundownBar, RundownSettings, useProgramConfig } from "./rundown";
 import { ScenesBar, TransitionPanel } from "./scenes";
@@ -396,25 +395,20 @@ function Desk() {
 
       {active === "cena" && (
         <div className="space-y-4">
-          <Panel title="Participantes">
-            <StagePanel />
+          <Panel title="Layout e título">
+            <LayoutPanel />
           </Panel>
-          <Panel title="Minha câmera: fundo e foto com a câmera desligada">
-            <LooksPanel />
-          </Panel>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Panel title="Layout e título">
-              <LayoutPanel />
-            </Panel>
-            <Panel title="Página web (widget)">
-              <WebPanel />
-            </Panel>
-          </div>
           <Panel title="Montar layout (personalizado)">
             <CustomLayoutPanel />
           </Panel>
           <Panel title="Recortar tela compartilhada (campinho)">
             <CropPanel />
+          </Panel>
+          <Panel title="Participantes">
+            <StagePanel />
+          </Panel>
+          <Panel title="Minha câmera: fundo e foto com a câmera desligada">
+            <LooksPanel />
           </Panel>
           <Panel title="Transição entre cenas">
             <TransitionPanel />
