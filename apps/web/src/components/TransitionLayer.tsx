@@ -15,8 +15,6 @@ const BUILT_IN_MS = 1150;
 const CARICATURE = "/brand/caricatura.png";
 const BRAND_LOGO = "/brand/debate-bacana.png";
 const LIME = "#aedf02";
-// Ignore cuts that started long ago (e.g. when the page loads).
-const MAX_AGE_MS = 1500;
 
 export function TransitionLayer({
   at,
@@ -34,9 +32,14 @@ export function TransitionLayer({
   // The team's video failed to load (deleted, unsupported): use the built-in one.
   const [broken, setBroken] = useState<string | null>(null);
   const mediaUrl = config.mediaUrl && config.mediaUrl !== broken ? config.mediaUrl : null;
+  // The cut already on record when this screen opened is old news: play only
+  // the ones that start while it is open. (Comparing with this computer's
+  // clock skipped every transition when the clock was a few seconds off.)
+  const seen = useRef(at);
 
   useEffect(() => {
-    if (!at || !config.enabled || Date.now() - at > MAX_AGE_MS) return;
+    if (!at || !config.enabled || at === seen.current) return;
+    seen.current = at;
     const start = setTimeout(() => setPlaying(at), 0);
     const el = video.current;
     if (mediaUrl && el) {
