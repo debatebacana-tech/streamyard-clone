@@ -286,12 +286,9 @@ function Desk() {
     { id: "cena", label: "Cenas", icon: "🎬" },
     { id: "audio", label: "Áudios", icon: "🔊" },
     { id: "chat", label: "Chat", icon: "💬" },
-    ...(scoreboard
-      ? [
-          { id: "placar" as const, label: "Placar", icon: "⚽" },
-          { id: "rodada" as const, label: "Rodada e tabela", icon: "🏆" },
-        ]
-      : []),
+    ...(scoreboard ? [{ id: "placar" as const, label: "Placar", icon: "⚽" }] : []),
+    // Fixtures, table and the live round: in every program (football talk is everywhere).
+    { id: "rodada" as const, label: "Rodada e tabela", icon: "🏆" },
     { id: "grafismos", label: "Textos", icon: "🅰️" },
     { id: "midia", label: "Foto e vídeo", icon: "🖼️" },
     { id: "tier", label: "Tier list", icon: "📊" },
