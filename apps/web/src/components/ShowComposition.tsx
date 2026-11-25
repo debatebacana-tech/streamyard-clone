@@ -20,6 +20,7 @@ import { competition as findCompetition } from "@/lib/competitions";
 
 const competitionLogo = (id: string | undefined) => (id ? (findCompetition(id)?.logo ?? null) : null);
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
+import { isPanelSlot, type LiveRoundData } from "@/lib/scene";
 import { TWEET_W, TweetCardView } from "./TweetCard";
 import { ProjectedMediaView } from "./ProjectedMedia";
 import { ANIMATED_CLOSING, ClosingScreen } from "./ClosingScreen";
@@ -298,7 +299,7 @@ export function resolveCustom(scene: Scene, stage: TrackReferenceOrPlaceholder[]
   const wantScreen = (s: CustomSlot) => s.source === "screen";
   const fits = (s: CustomSlot, t: TrackReferenceOrPlaceholder) => (t.source === Track.Source.ScreenShare) === wantScreen(s);
   const picks: (TrackReferenceOrPlaceholder | null)[] = scene.custom.map((slot) => {
-    if (!slot.who || slot.source === "chat") return null;
+    if (!slot.who || isPanelSlot(slot)) return null;
     const mine = (t: TrackReferenceOrPlaceholder) =>
       t.participant.identity === slot.who ||
       (slot.name !== "" && (t.participant.name || "").trim().toLowerCase() === slot.name.trim().toLowerCase());
@@ -307,7 +308,7 @@ export function resolveCustom(scene: Scene, stage: TrackReferenceOrPlaceholder[]
     return pick ?? null;
   });
   return scene.custom.map((slot, i) => {
-    if (slot.source === "chat") return null;
+    if (isPanelSlot(slot)) return null;
     if (slot.who) return picks[i];
     const pick = stage.find((t) => !used.has(t) && fits(slot, t));
     if (pick) used.add(pick);
@@ -315,27 +316,27 @@ export function resolveCustom(scene: Scene, stage: TrackReferenceOrPlaceholder[]
   });
 }
 
-function CustomStage({ scene, stage, pool, branding, chat }: {
+function CustomStage({ scene, stage, pool, branding, chat, round }: {
   scene: Scene;
   stage: TrackReferenceOrPlaceholder[];
   pool: TrackReferenceOrPlaceholder[];
   branding: ProgramBranding;
   chat: ChatMessage[];
+  round: LiveRoundData | null;
 }) {
   const tracks = resolveCustom(scene, stage, pool);
   return (
     <>
       {scene.custom.map((slot, i) => {
-        if (slot.source === "chat") {
-          return (
-            <ChatPanel
-              key={`chat-${i}`}
-              messages={chat}
-              branding={branding}
-              rect={{ left: slot.x * CANVAS_W, top: slot.y * CANVAS_H, width: slot.w * CANVAS_W, height: slot.h * CANVAS_H, zIndex: i + 1 }}
-            />
-          );
+        const rect = { left: slot.x * CANVAS_W, top: slot.y * CANVAS_H, width: slot.w * CANVAS_W, height: slot.h * CANVAS_H, zIndex: i + 1 };
+        if (slot.source === "chat") return <ChatPanel key={`chat-${i}`} messages={chat} branding={branding} rect={rect} />;
+        if (slot.source === "tabela") {
+          const o = scene.roundOverlay;
+          const rows = (round?.table[0]?.rows ?? []).filter((r) => r.rank >= o.from && r.rank <= o.to);
+          return <MiniTable key={`tabela-${i}`} rows={rows} title={o.title} logo={competitionLogo(round?.competition)} rect={rect} />;
         }
+        if (slot.source === "placares") return <RoundStrip key={`placares-${i}`} matches={round?.matches ?? []} logo={competitionLogo(round?.competition)} rect={rect} />;
+        if (slot.source === "tier") return <TierPanel key={`tier-${i}`} list={scene.tierList} rect={rect} />;
         const t = tracks[i];
         if (!t) return null;
         const full = slot.w > 0.98 && slot.h > 0.98;
@@ -353,15 +354,16 @@ function CustomStage({ scene, stage, pool, branding, chat }: {
   );
 }
 
-function Stage({ stage, scene, branding, box, pool, chat }: {
+function Stage({ stage, scene, branding, box, pool, chat, round }: {
   stage: TrackReferenceOrPlaceholder[];
   scene: Scene;
   branding: ProgramBranding;
   box: Box;
   pool: TrackReferenceOrPlaceholder[];
   chat: ChatMessage[];
+  round: LiveRoundData | null;
 }) {
-  if (scene.layout === "custom") return <CustomStage scene={scene} stage={stage} pool={pool} branding={branding} chat={chat} />;
+  if (scene.layout === "custom") return <CustomStage scene={scene} stage={stage} pool={pool} branding={branding} chat={chat} round={round} />;
   if (stage.length === 0) return null;
   const featured = pickFeatured(stage, scene);
   const others = stage.filter((t) => t !== featured);
@@ -1309,10 +1311,11 @@ export function ShowComposition({
   let y = tickerOn ? TICKER_H + 12 : 18;
   // Live round over the cameras: the scores strip sits just above the ticker.
   const round = show.round;
-  const stripOn = scene.roundOverlay.strip && Boolean(round?.matches.length);
+  const drawn = (src: string) => scene.layout === "custom" && scene.custom.some((c) => c.source === src);
+  const stripOn = scene.roundOverlay.strip && !drawn("placares") && Boolean(round?.matches.length);
   const stripBottom = y;
   if (stripOn) y += STRIP_H + 12;
-  const miniRows = scene.roundOverlay.table ? (round?.table[0]?.rows ?? []).filter((r) => r.rank >= scene.roundOverlay.from && r.rank <= scene.roundOverlay.to) : [];
+  const miniRows = scene.roundOverlay.table && !drawn("tabela") ? (round?.table[0]?.rows ?? []).filter((r) => r.rank >= scene.roundOverlay.from && r.rank <= scene.roundOverlay.to) : [];
   const miniOn = miniRows.length > 0;
   const barBottom = y;
   if (barOn) y += BAR_H + (themeTab ? 40 : 14);
@@ -1354,7 +1357,7 @@ export function ShowComposition({
           {mediaOn && scene.media.mode !== "full" ? (
             <MediaStage stage={stage} scene={scene} branding={branding} box={box} withSound={media === "play"} />
           ) : (
-            <Stage stage={stage} scene={scene} branding={branding} box={box} pool={pool} chat={show.chat ?? []} />
+            <Stage stage={stage} scene={scene} branding={branding} box={box} pool={pool} chat={show.chat ?? []} round={show.round ?? null} />
           )}
         </div>
         </CropContext.Provider>
@@ -1404,15 +1407,20 @@ export function ShowComposition({
             {emptyHint}
           </div>
         )}
-        {stripOn && round && <RoundStrip matches={round.matches} bottom={stripBottom} />}
+        {stripOn && round && (
+          <RoundStrip matches={round.matches} logo={competitionLogo(round.competition)} rect={{ left: 24, width: CANVAS_W - 48, top: CANVAS_H - stripBottom - STRIP_H, height: STRIP_H }} />
+        )}
         {miniOn && (
           <MiniTable
             rows={miniRows}
             title={scene.roundOverlay.title}
             logo={competitionLogo(round?.competition)}
-            top={top}
-            bottom={box.bottom}
-            right={24 + (chatOn ? CHAT_W + 16 : 0) + (qrSide === "right" ? QR_W + 16 : 0)}
+            rect={{
+              top,
+              left: CANVAS_W - MINI_W - (24 + (chatOn ? CHAT_W + 16 : 0) + (qrSide === "right" ? QR_W + 16 : 0)),
+              width: MINI_W,
+              height: CANVAS_H - top - box.bottom,
+            }}
           />
         )}
         {tierOn && !tierSplit && <TierScreen list={scene.tierList} branding={branding} />}

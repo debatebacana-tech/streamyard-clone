@@ -10,7 +10,12 @@ export type LayoutMode = "auto" | "spotlight" | "center" | "screen" | "solo" | "
 // as fractions of the 1280x720 frame, later windows on top. who = participant
 // identity (null = next person on stage); name lets a saved layout find the
 // same person when they join from another browser.
-export type CustomSlot = { x: number; y: number; w: number; h: number; who: string | null; name: string; source: "camera" | "screen" | "chat" };
+// source: a person's camera or shared screen, or a panel (chat, live table,
+// round scores, tier list) placed like any window.
+export type SlotSource = "camera" | "screen" | "chat" | "tabela" | "placares" | "tier";
+export const PANEL_SOURCES: SlotSource[] = ["chat", "tabela", "placares", "tier"];
+export const isPanelSlot = (s: { source: SlotSource }) => PANEL_SOURCES.includes(s.source);
+export type CustomSlot = { x: number; y: number; w: number; h: number; who: string | null; name: string; source: SlotSource };
 
 export const CUSTOM_PRESETS: { name: string; slots: CustomSlot[] }[] = [
   {
@@ -733,7 +738,7 @@ export function normalizeSlots(input: unknown[]): CustomSlot[] {
       h,
       who: typeof c.who === "string" && c.who.length <= 64 ? c.who : null,
       name: str(c.name, 60),
-      source: c.source === "screen" || c.source === "chat" ? c.source : "camera",
+      source: (["screen", ...PANEL_SOURCES] as unknown[]).includes(c.source) ? (c.source as SlotSource) : "camera",
     };
   });
 }

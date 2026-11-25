@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useParticipants } from "@livekit/components-react";
-import { CUSTOM_PRESETS, type CustomSlot, type SavedScene } from "@/lib/scene";
+import { CUSTOM_PRESETS, isPanelSlot, type CustomSlot, type SavedScene, type SlotSource } from "@/lib/scene";
 import { useDirector } from "./context";
 import { useProgramConfig } from "./rundown";
 
@@ -13,6 +13,16 @@ import { useProgramConfig } from "./rundown";
 const COLORS = ["#DFFF00", "#38bdf8", "#f472b6", "#fb923c", "#a78bfa", "#34d399", "#f87171", "#facc15", "#94a3b8"];
 const snap = (v: number) => Math.round(v * 100) / 100;
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+// What a window shows: a person (camera / shared screen) or a panel.
+const SOURCES: [SlotSource, string][] = [
+  ["camera", "📷 Câmera"],
+  ["screen", "🖥 Tela compartilhada"],
+  ["chat", "💬 Chat"],
+  ["tabela", "🏆 Classificação ao vivo"],
+  ["placares", "⚽ Placares da rodada"],
+  ["tier", "📊 Tier list"],
+];
 
 type Drag = { index: number; mode: "move" | "resize"; startX: number; startY: number; slot: CustomSlot };
 
@@ -104,6 +114,9 @@ export function CustomLayoutPanel() {
 
   const label = (s: CustomSlot) => {
     if (s.source === "chat") return "💬 Chat ao vivo";
+    if (s.source === "tabela") return "🏆 Classificação ao vivo";
+    if (s.source === "placares") return "⚽ Placares da rodada";
+    if (s.source === "tier") return "📊 Tier list";
     const person = s.who ? people.find((p) => p.identity === s.who)?.name || s.name || "pessoa fora da sala" : "Próximo da fila";
     return `${person}${s.source === "screen" ? " · tela" : ""}`;
   };
@@ -189,7 +202,7 @@ export function CustomLayoutPanel() {
       {sel && (
         <div className="flex flex-wrap items-end gap-3 rounded-md bg-neutral-900 p-3" style={{ borderLeft: `4px solid ${COLORS[selected % COLORS.length]}` }}>
           <span className="font-bold">Janela {selected + 1}</span>
-          {sel.source !== "chat" && (
+          {!isPanelSlot(sel) && (
           <label className="space-y-1">
             <span className="block text-[11px] text-neutral-400">Quem aparece</span>
             <select
@@ -210,14 +223,14 @@ export function CustomLayoutPanel() {
             </select>
           </label>
           )}
-          <div className="flex overflow-hidden rounded-md border border-neutral-700">
-            {(["camera", "screen", "chat"] as const).map((src) => (
+          <div className="flex flex-wrap overflow-hidden rounded-md border border-neutral-700">
+            {SOURCES.map(([src, text]) => (
               <button
                 key={src}
                 onClick={() => update(selected, { source: src })}
                 className={`px-3 py-1.5 text-xs ${sel.source === src ? "bg-[#DFFF00] font-semibold text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
               >
-                {src === "camera" ? "📷 Câmera" : src === "screen" ? "🖥 Tela compartilhada" : "💬 Chat"}
+                {text}
               </button>
             ))}
           </div>
@@ -233,6 +246,7 @@ export function CustomLayoutPanel() {
         </div>
       )}
       <p className="text-[11px] text-neutral-500">
+        Classificação e placares usam a rodada ao vivo (aba Rodada e tabela: ligue lá e escolha a faixa de posições, ex: 12º a 18º); a tier list usa a da aba Tier list.
         Clique numa janela para escolher quem aparece nela. “Próximo da fila” preenche com quem está no palco, na ordem. A pessoa escolhida aparece e é ouvida mesmo sem estar no palco. Um modelo salvo reconhece a pessoa pelo nome quando ela entra de outro computador.
       </p>
     </div>

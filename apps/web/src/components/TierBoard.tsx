@@ -138,10 +138,21 @@ export function TierScreen({ list, branding }: { list: TierList; branding: Progr
   );
 }
 
-// Panel version beside the cameras.
-export function TierPanel({ list, top, bottom }: { list: TierList; top: number; bottom: number }) {
-  const height = 720 - top - bottom;
-  const style: CSSProperties = { left: 24, top, width: TIER_W, height };
+// Panel version beside the cameras (or anywhere a drawn layout puts it).
+export function TierPanel({
+  list,
+  top = 0,
+  bottom = 0,
+  rect,
+}: {
+  list: TierList;
+  top?: number;
+  bottom?: number;
+  rect?: { left: number; top: number; width: number; height: number; zIndex?: number };
+}) {
+  const height = rect?.height ?? 720 - top - bottom;
+  const width = rect?.width ?? TIER_W;
+  const style: CSSProperties = rect ?? { left: 24, top, width: TIER_W, height };
   return (
     <div className="chat-panel absolute flex flex-col overflow-hidden rounded-2xl p-2.5" style={{ ...style, background: "rgba(5,5,5,0.88)", border: `2px solid ${LIME}` }}>
       <div className="flex items-baseline gap-3 px-1 pb-2">
@@ -152,7 +163,7 @@ export function TierPanel({ list, top, bottom }: { list: TierList; top: number; 
           {list.title}
         </span>
       </div>
-      <Rows list={list} width={TIER_W - 20} height={height - 20 - 42} labelW={70} />
+      <Rows list={list} width={width - 20} height={height - 20 - 42} labelW={width < 500 ? 52 : 70} />
     </div>
   );
 }

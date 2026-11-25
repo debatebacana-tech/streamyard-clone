@@ -153,20 +153,80 @@ function useTick(ms: number, active: boolean) {
 }
 
 // Every score of the round in a strip under the cameras, five at a time.
-export function RoundStrip({ matches, bottom }: { matches: BoardMatch[]; bottom: number }) {
+type Rect = { left: number; top: number; width: number; height: number; zIndex?: number };
+
+function matchClock(m: BoardMatch) {
+  return m.state === "in" ? m.detail : m.state === "post" ? "FIM" : new Date(m.date).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+}
+
+// Tall box (drawn layouts): the scores as a list, a page at a time.
+function ScoresList({ matches, logo, rect }: { matches: BoardMatch[]; logo: string | null; rect: Rect }) {
+  const head = 46;
+  const perPage = Math.max(1, Math.min(matches.length, Math.floor((rect.height - head - 4) / 40)));
+  const pages = Math.max(1, Math.ceil(matches.length / perPage));
+  const page = useTick(PAGE_MS, pages > 1) % pages;
+  const shown = matches.slice(page * perPage, page * perPage + perPage);
+  const rowH = Math.min(64, Math.floor((rect.height - head - 4) / perPage));
+  return (
+    <div className="absolute flex flex-col overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]" style={{ zIndex: 31, ...rect, background: "#0c0c0c", border: `2px solid ${LIME}` }}>
+      <div className="flex shrink-0 items-center gap-2 px-3" style={{ height: head, background: "#141414", borderBottom: `2px solid ${LIME}` }}>
+        {logo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="" className="h-8 w-8 shrink-0 object-contain" />
+        )}
+        <span className="flex-1 uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 20, color: LIME }}>
+          Jogos da rodada
+        </span>
+        <span className="live-dot text-[15px] font-bold text-red-500">●</span>
+      </div>
+      <div key={page} className="round-strip-page flex min-h-0 flex-1 flex-col">
+        {shown.map((m, i) => (
+          <div key={m.id ?? i} className="flex items-center justify-center gap-2 px-2" style={{ height: rowH, background: i % 2 ? "#181818" : "#121212" }}>
+            <span className="w-[52px] text-right text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 19 }}>
+              {m.home.abbr}
+            </span>
+            <Crest team={m.home} size={Math.min(34, rowH - 10)} />
+            <span className="flex w-[64px] flex-col items-center leading-none">
+              <span className="tabular-nums" style={{ ...DISPLAY, fontSize: 24, color: m.state === "pre" ? "#9a9a9a" : LIME }}>
+                {m.home.score === null ? "×" : `${m.home.score}-${m.away.score}`}
+              </span>
+              <span className={`text-[12px] font-bold ${m.state === "in" ? "text-red-500" : "text-neutral-400"}`} style={CONDENSED}>
+                {matchClock(m)}
+              </span>
+            </span>
+            <Crest team={m.away} size={Math.min(34, rowH - 10)} />
+            <span className="w-[52px] text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 19 }}>
+              {m.away.abbr}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function RoundStrip({ matches, logo, rect }: { matches: BoardMatch[]; logo: string | null; rect: Rect }) {
+  if (rect.height > rect.width * 0.45) return <ScoresList matches={matches} logo={logo} rect={rect} />;
+  return <ScoresStrip matches={matches} logo={logo} rect={rect} />;
+}
+
+function ScoresStrip({ matches, logo, rect }: { matches: BoardMatch[]; logo: string | null; rect: Rect }) {
   const pages = Math.max(1, Math.ceil(matches.length / PAGE));
   const page = useTick(PAGE_MS, pages > 1) % pages;
   const shown = matches.slice(page * PAGE, page * PAGE + PAGE);
   return (
     <div
       className="absolute z-[31] flex overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
-      style={{ left: 24, right: 24, bottom, height: STRIP_H, background: "#0c0c0c", border: `2px solid ${LIME}` }}
+      style={{ zIndex: 31, ...rect, background: "#0c0c0c", border: `2px solid ${LIME}` }}
     >
-      <div className="flex w-[92px] shrink-0 flex-col items-center justify-center text-black" style={{ background: LIME }}>
-        <span style={{ ...DISPLAY, fontSize: 22, lineHeight: 1 }}>RODADA</span>
-        <span className="live-dot text-[13px] font-bold text-red-700" style={CONDENSED}>
-          ● AO VIVO
-        </span>
+      {/* The competition's logo opens the strip. */}
+      <div className="flex shrink-0 items-center justify-center px-2" style={{ width: Math.max(64, rect.height * 1.25), background: "#141414", borderRight: `2px solid ${LIME}` }}>
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="" className="max-h-[86%] max-w-full object-contain" />
+        ) : (
+          <span style={{ ...DISPLAY, fontSize: 20, color: LIME }}>RODADA</span>
+        )}
       </div>
       <div key={page} className="round-strip-page flex min-w-0 flex-1">
         {shown.map((m, i) => (
@@ -180,7 +240,7 @@ export function RoundStrip({ matches, bottom }: { matches: BoardMatch[]; bottom:
                 {m.home.score === null ? "×" : `${m.home.score}-${m.away.score}`}
               </span>
               <span className={`text-[12px] font-bold ${m.state === "in" ? "text-red-500" : "text-neutral-400"}`} style={CONDENSED}>
-                {m.state === "in" ? m.detail : m.state === "post" ? "FIM" : new Date(m.date).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}
+                {matchClock(m)}
               </span>
             </span>
             <span className="text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 19 }}>
@@ -202,30 +262,16 @@ export function RoundStrip({ matches, bottom }: { matches: BoardMatch[]; bottom:
 }
 
 // A slice of the live table (e.g. 12º to 18º, the relegation fight) in the corner.
-export function MiniTable({
-  rows,
-  title,
-  logo,
-  top,
-  bottom,
-  right,
-}: {
-  rows: BoardRow[];
-  title: string;
-  logo: string | null;
-  top: number;
-  bottom: number;
-  right: number;
-}) {
+export function MiniTable({ rows, title, logo, rect }: { rows: BoardRow[]; title: string; logo: string | null; rect: Rect }) {
   const head = 46;
-  // The table fills the whole column, down to the scores strip (no gap under it).
-  const height = 720 - top - bottom;
+  // The table fills its whole box (no gap under it).
+  const height = rect.height;
   const rowH = Math.floor((height - head - 4) / Math.max(1, rows.length));
   const crest = Math.min(44, rowH - 14);
   return (
     <div
       className="absolute z-[31] flex flex-col overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
-      style={{ top, right, width: MINI_W, height, background: "#0c0c0c", border: `2px solid ${LIME}` }}
+      style={{ zIndex: 31, ...rect, background: "#0c0c0c", border: `2px solid ${LIME}` }}
     >
       <div className="flex shrink-0 items-center gap-2 px-3" style={{ height: head, background: "#141414", borderBottom: `2px solid ${LIME}` }}>
         {logo && (
