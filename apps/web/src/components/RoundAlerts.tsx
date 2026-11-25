@@ -218,13 +218,16 @@ export function MiniTable({
   right: number;
 }) {
   const head = 46;
-  const rowH = Math.min(46, Math.floor((720 - top - bottom - head) / Math.max(1, rows.length)));
+  // The table fills the whole column, down to the scores strip (no gap under it).
+  const height = 720 - top - bottom;
+  const rowH = Math.floor((height - head - 4) / Math.max(1, rows.length));
+  const crest = Math.min(44, rowH - 14);
   return (
     <div
-      className="absolute z-[31] overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
-      style={{ top, right, width: MINI_W, height: head + rowH * rows.length + 4, background: "#0c0c0c", border: `2px solid ${LIME}` }}
+      className="absolute z-[31] flex flex-col overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
+      style={{ top, right, width: MINI_W, height, background: "#0c0c0c", border: `2px solid ${LIME}` }}
     >
-      <div className="flex items-center gap-2 px-3" style={{ height: head, background: "#141414", borderBottom: `2px solid ${LIME}` }}>
+      <div className="flex shrink-0 items-center gap-2 px-3" style={{ height: head, background: "#141414", borderBottom: `2px solid ${LIME}` }}>
         {logo && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logo} alt="" className="h-8 w-8 shrink-0 object-contain" />
@@ -237,17 +240,17 @@ export function MiniTable({
       {rows.map((r, i) => (
         <div
           key={`${r.rank}-${r.team.name}-${r.points}`}
-          className="board-row flex items-center gap-1.5 pr-2"
-          style={{ height: rowH, background: i % 2 ? "#181818" : "#121212", borderLeft: `5px solid ${r.zone ?? "transparent"}`, animationDelay: `${i * 40}ms` }}
+          className="board-row flex min-h-0 flex-1 items-center gap-1.5 pr-2"
+          style={{ background: i % 2 ? "#181818" : "#121212", borderLeft: `5px solid ${r.zone ?? "transparent"}`, animationDelay: `${i * 40}ms` }}
         >
-          <span className="w-[34px] text-center tabular-nums" style={{ ...DISPLAY, color: LIME, fontSize: Math.min(26, rowH * 0.6) }}>
+          <span className="w-[34px] text-center tabular-nums" style={{ ...DISPLAY, color: LIME, fontSize: Math.min(32, rowH * 0.55) }}>
             {r.rank}
           </span>
           <span className="w-[30px] text-center tabular-nums" style={{ ...CONDENSED, fontWeight: 700, fontSize: 15, color: (r.move ?? 0) > 0 ? "#22c55e" : (r.move ?? 0) < 0 ? "#ef4444" : "#6b6b6b" }}>
             {(r.move ?? 0) > 0 ? `▲${r.move}` : (r.move ?? 0) < 0 ? `▼${-(r.move ?? 0)}` : "–"}
           </span>
-          <Crest team={r.team} size={rowH - 12} />
-          <span className="min-w-0 flex-1 truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: Math.min(21, rowH * 0.48) }}>
+          <Crest team={r.team} size={crest} />
+          <span className="min-w-0 flex-1 truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: Math.min(20, rowH * 0.45) }}>
             {r.team.name.length > 10 ? r.team.abbr || r.team.name : r.team.name}
           </span>
           {r.playing && (
@@ -255,7 +258,7 @@ export function MiniTable({
               {r.playing}
             </span>
           )}
-          <span className="w-[36px] text-right tabular-nums" style={{ ...DISPLAY, color: LIME, fontSize: Math.min(26, rowH * 0.6) }}>
+          <span className="w-[36px] text-right tabular-nums" style={{ ...DISPLAY, color: LIME, fontSize: Math.min(32, rowH * 0.55) }}>
             {r.points}
           </span>
         </div>
