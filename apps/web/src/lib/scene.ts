@@ -19,6 +19,16 @@ export type CustomSlot = { x: number; y: number; w: number; h: number; who: stri
 
 export const CUSTOM_PRESETS: { name: string; slots: CustomSlot[] }[] = [
   {
+    // Pitch in the middle, each team's lineup on a side (three shared windows),
+    // with room on top for the centered score tag.
+    name: "Campinho + escalações",
+    slots: [
+      { x: 0.02, y: 0.17, w: 0.235, h: 0.79, who: null, name: "", source: "screen" },
+      { x: 0.27, y: 0.17, w: 0.46, h: 0.79, who: null, name: "", source: "screen" },
+      { x: 0.745, y: 0.17, w: 0.235, h: 0.79, who: null, name: "", source: "screen" },
+    ],
+  },
+  {
     name: "Dois lado a lado",
     slots: [
       { x: 0.02, y: 0.16, w: 0.47, h: 0.6, who: null, name: "", source: "camera" },
@@ -325,7 +335,7 @@ export type ChatMessage = { id: string; author: string; text: string; avatarUrl:
 
 // badge: small score tag in the top-left corner.
 // badgeBig: the tag at 1.5x (when the screen is busy with the pitch, lineups...).
-export type RoundOverlay = { strip: boolean; table: boolean; badge: boolean; badgeBig: boolean; from: number; to: number; title: string };
+export type RoundOverlay = { strip: boolean; table: boolean; badge: boolean; badgeBig: boolean; badgeCenter: boolean; from: number; to: number; title: string };
 
 export type Scene = {
   // "all": everyone in the room is on stage automatically (join order);
@@ -504,7 +514,7 @@ export const DEFAULT_SCENE: Scene = {
   board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [], bracket: [] },
   tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true, labelWidth: 0, itemScale: 1 },
   tweet: { visible: false, mode: "side", card: null },
-  roundOverlay: { strip: false, table: false, badge: false, badgeBig: false, from: 12, to: 18, title: "CONTRA O REBAIXAMENTO" },
+  roundOverlay: { strip: false, table: false, badge: false, badgeBig: false, badgeCenter: false, from: 12, to: 18, title: "CONTRA O REBAIXAMENTO" },
   media: { visible: false, url: null, kind: "image", mode: "destaque", startedAt: null, pausedAt: null, loop: false, volume: 1 },
   transitionAt: null,
   step: "aovivo",
@@ -871,6 +881,7 @@ export function normalizeScene(input: unknown): Scene {
         table: bool(r.table, false),
         badge: bool(r.badge, false),
         badgeBig: bool(r.badgeBig, false),
+        badgeCenter: bool(r.badgeCenter, false),
         from,
         to: Math.max(from, Math.round(num(r.to, 18, 1, 24))),
         title: str(r.title, 40, "CONTRA O REBAIXAMENTO"),

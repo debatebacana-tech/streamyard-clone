@@ -168,7 +168,7 @@ export function RoundAlerts({
 }: {
   alerts: RoundAlertData[];
   withSound: boolean;
-  badge?: { matches: BoardMatch[]; logo: string | null; big?: boolean } | null;
+  badge?: { matches: BoardMatch[]; logo: string | null; big?: boolean; center?: boolean } | null;
 }) {
   const soundKey = [...new Set(alerts.map((a) => (a.kind === "gol" ? a.sound : null)).filter((u): u is string => Boolean(u)))].join("|");
   useEffect(() => {
@@ -194,7 +194,7 @@ export function RoundAlerts({
     return () => clearTimeout(id);
   }, [current, withSound]);
 
-  const tag = badge && badge.matches.length > 0 ? <ScoreBadge matches={badge.matches} logo={badge.logo} big={badge.big} /> : null;
+  const tag = badge && badge.matches.length > 0 ? <ScoreBadge matches={badge.matches} logo={badge.logo} big={badge.big} center={badge.center} /> : null;
   if (!current) return tag;
   if (badge && current.kind === "gol") {
     // The tag flashes first, then the goal grows out of it and folds back in.
@@ -206,7 +206,15 @@ export function RoundAlerts({
         <div
           key={current.id}
           className="goal-from-tag pointer-events-none absolute z-[57]"
-          style={{ left: 24, top: 22, width: 860, height: 132, animationDuration: `${SHOW_MS.gol}ms`, animationDelay: "650ms" }}
+          style={{
+            left: badge.center ? 210 : 24,
+            top: 22,
+            width: 860,
+            height: 132,
+            transformOrigin: badge.center ? "50% 0" : "0 0",
+            animationDuration: `${SHOW_MS.gol}ms`,
+            animationDelay: "650ms",
+          }}
         >
           <GoalBanner alert={current} />
         </div>
@@ -407,17 +415,29 @@ export function MiniTable({ rows, title, logo, rect }: { rows: BoardRow[]; title
 
 // Small score tag in the top-left corner: the games in progress (one at a
 // time when several), else the round's latest result or next game.
-export function ScoreBadge({ matches, logo, big = false }: { matches: BoardMatch[]; logo: string | null; big?: boolean }) {
+export function ScoreBadge({
+  matches,
+  logo,
+  big = false,
+  center = false,
+}: {
+  matches: BoardMatch[];
+  logo: string | null;
+  big?: boolean;
+  center?: boolean;
+}) {
   const live = matches.filter((m) => m.state === "in");
   const pool = live.length ? live : matches.filter((m) => m.state === "post").slice(-1).concat(matches.filter((m) => m.state === "pre").slice(0, 1)).slice(0, 1);
   const i = useTick(6000, pool.length > 1) % Math.max(1, pool.length);
   const m = pool[i];
   if (!m) return null;
+  // Top-left corner, or top center (e.g. lineups on the sides, the pitch in the middle).
   return (
+    <div className={`pointer-events-none absolute z-[31] flex ${center ? "inset-x-0 justify-center" : ""}`} style={{ top: 22, left: center ? 0 : 24 }}>
     <div
       key={m.id ?? i}
-      className="round-strip-page absolute z-[31] flex items-center gap-2 rounded-xl px-3 shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
-      style={{ left: big ? 16 : 24, top: big ? 15 : 22, height: 54, background: "#0c0c0c", border: `2px solid ${LIME}`, zoom: big ? 1.5 : undefined }}
+      className="score-tag round-strip-page flex items-center gap-2 rounded-xl px-3 shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
+      style={{ height: 54, background: "#0c0c0c", border: `2px solid ${LIME}`, zoom: big ? 1.5 : undefined }}
     >
       {logo && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -437,6 +457,7 @@ export function ScoreBadge({ matches, logo, big = false }: { matches: BoardMatch
       <span className={`ml-1 rounded px-1.5 text-[15px] font-bold ${m.state === "in" ? "live-dot bg-[#b91c1c] text-white" : "bg-neutral-800 text-neutral-300"}`} style={CONDENSED}>
         {matchClock(m)}
       </span>
+    </div>
     </div>
   );
 }

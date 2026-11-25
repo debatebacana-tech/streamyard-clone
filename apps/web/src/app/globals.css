@@ -343,7 +343,7 @@ body {
   100% { transform: scale(0.36, 0.41); opacity: 0; }
 }
 /* The corner tag blinks lime when a goal comes in, just before it grows. */
-.tag-flash > div {
+.tag-flash .score-tag {
   animation: tag-flash 0.16s ease-in-out 4 alternate;
 }
 @keyframes tag-flash {
