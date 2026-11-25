@@ -76,6 +76,11 @@ function CameraOverlay() {
         <button className={toggle(o.badge)} onClick={() => set({ badge: !o.badge })}>
           {o.badge ? "✓ Etiqueta no canto" : "Etiqueta no canto"}
         </button>
+        {o.badge && (
+          <button className={toggle(o.badgeBig)} onClick={() => set({ badgeBig: !o.badgeBig })}>
+            {o.badgeBig ? "✓ Etiqueta grande" : "Etiqueta grande"}
+          </button>
+        )}
         <button className={toggle(o.strip)} onClick={() => set({ strip: !o.strip })}>
           {o.strip ? "✓ Faixa de placares" : "Faixa de placares"}
         </button>

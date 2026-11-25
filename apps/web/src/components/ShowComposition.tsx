@@ -1408,7 +1408,7 @@ export function ShowComposition({
           </div>
         )}
         {/* Preview monitor: the tag alone (on air, the alerts layer draws it, so goals grow out of it). */}
-        {sceneOverride && scene.roundOverlay.badge && round && round.matches.length > 0 && <ScoreBadge matches={round.matches} logo={competitionLogo(round.competition)} />}
+        {sceneOverride && scene.roundOverlay.badge && round && round.matches.length > 0 && <ScoreBadge matches={round.matches} logo={competitionLogo(round.competition)} big={scene.roundOverlay.badgeBig} />}
         {stripOn && round && (
           <RoundStrip matches={round.matches} logo={competitionLogo(round.competition)} rect={{ left: 24, width: CANVAS_W - 48, top: CANVAS_H - stripBottom - STRIP_H, height: STRIP_H }} />
         )}
@@ -1452,7 +1452,7 @@ export function ShowComposition({
           <RoundAlerts
             alerts={show.round?.alerts ?? []}
             withSound={media === "play"}
-            badge={scene.roundOverlay.badge && show.round ? { matches: show.round.matches, logo: competitionLogo(show.round.competition) } : null}
+            badge={scene.roundOverlay.badge && show.round ? { matches: show.round.matches, logo: competitionLogo(show.round.competition), big: scene.roundOverlay.badgeBig } : null}
           />
         )}
         {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} step={scene.step} />}
