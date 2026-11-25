@@ -1,5 +1,5 @@
 import { competition, zoneColor } from "./competitions";
-import type { BoardGroup, BoardMatch, BoardTeam, BracketRound, BracketSide, BracketTie } from "./scene";
+import type { BoardGroup, BoardMatch, BoardTeam, MatchGoal, BracketRound, BracketSide, BracketTie } from "./scene";
 
 import { geBracket, geMatches, geStandings } from "./geGlobo";
 
@@ -15,9 +15,9 @@ const CACHE_MS = 30_000;
 const g = globalThis as unknown as { __footballCache?: Map<string, { at: number; data: unknown }> };
 const cache = (g.__footballCache ??= new Map());
 
-async function getJson(path: string): Promise<unknown> {
+async function getJson(path: string, maxAge = CACHE_MS): Promise<unknown> {
   const hit = cache.get(path);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
+  if (hit && Date.now() - hit.at < maxAge) return hit.data;
   const res = await fetch(`${BASE}${path}`, { headers: { Accept: "application/json", "User-Agent": "debate-bacana-studio" } });
   if (!res.ok) throw new Error(`ESPN ${res.status}`);
   const data = await res.json();
@@ -40,17 +40,18 @@ function team(raw: unknown): BoardTeam {
   const t = o(raw);
   const logo = httpsUrl(t.logo) ?? httpsUrl(o(a(t.logos)[0]).href);
   return {
+    id: s(t.id) || undefined,
     name: (s(t.shortDisplayName) || s(t.displayName) || s(t.name) || "?").slice(0, 30),
     abbr: (s(t.abbreviation) || s(t.shortDisplayName).slice(0, 3)).toUpperCase().slice(0, 5),
     logo,
   };
 }
 
-export async function fetchStandings(id: string): Promise<{ groups: BoardGroup[]; logo: string | null; round: number | null }> {
+export async function fetchStandings(id: string, maxAge = CACHE_MS): Promise<{ groups: BoardGroup[]; logo: string | null; round: number | null }> {
   const comp = competition(id);
   if (!comp) throw new Error("Competição desconhecida");
   if (comp.provider === "ge") return geStandings(comp);
-  const data = o(await getJson(`/v2/sports/soccer/${id}/standings`));
+  const data = o(await getJson(`/v2/sports/soccer/${id}/standings`, maxAge));
   const children = a(data.children).length ? a(data.children) : [data];
   const groups: BoardGroup[] = children
     .map((child) => {
@@ -119,7 +120,7 @@ function matchDetail(status: Raw): string {
 
 // Matches between two dates (inclusive, YYYY-MM-DD), one request per day
 // (the API refuses date ranges).
-export async function fetchMatches(id: string, from: string, to: string): Promise<{ matches: BoardMatch[]; logo: string | null }> {
+export async function fetchMatches(id: string, from: string, to: string, maxAge = CACHE_MS): Promise<{ matches: BoardMatch[]; logo: string | null }> {
   const known = competition(id);
   if (!known) throw new Error("Competição desconhecida");
   if (known.provider === "ge") return geMatches(known, from, to);
@@ -130,7 +131,7 @@ export async function fetchMatches(id: string, from: string, to: string): Promis
   for (let t = start; t <= end && days.length < 14; t += DAY_MS) days.push(t);
 
   let logo: string | null = null;
-  const pages = await Promise.all(days.map((day) => getJson(`/site/v2/sports/soccer/${id}/scoreboard?dates=${ymd(day)}`)));
+  const pages = await Promise.all(days.map((day) => getJson(`/site/v2/sports/soccer/${id}/scoreboard?dates=${ymd(day)}`, maxAge)));
   const byId = new Map<string, BoardMatch>();
   for (const page of pages) {
     const p = o(page);
@@ -145,7 +146,20 @@ export async function fetchMatches(id: string, from: string, to: string): Promis
       const status = o(ev.status);
       const state = s(o(status.type).state);
       const score = (c: Raw) => (state === "pre" ? null : Number.parseInt(s(c.score), 10) || 0);
+      const homeId = s(o(home.team).id);
+      const goals: MatchGoal[] = a(comp.details)
+        .map(o)
+        .filter((d) => d.scoringPlay === true && d.shootout !== true)
+        .map((d) => ({
+          side: s(o(d.team).id) === homeId ? "home" : "away",
+          minute: s(o(d.clock).displayValue),
+          player: s(o(a(d.athletesInvolved)[0]).shortName) || s(o(a(d.athletesInvolved)[0]).displayName),
+          ownGoal: d.ownGoal === true,
+          penalty: d.penaltyKick === true,
+        }));
       byId.set(s(ev.id), {
+        id: s(ev.id) || undefined,
+        goals,
         date: Date.parse(s(ev.date)) || 0,
         state: state === "in" || state === "post" ? state : "pre",
         detail: matchDetail(status),

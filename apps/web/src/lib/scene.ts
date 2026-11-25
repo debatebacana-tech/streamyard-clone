@@ -204,7 +204,8 @@ export const WEB_POSITIONS: { position: WebPosition; label: string }[] = [
 ];
 
 // Round fixtures / standings boards (football), filled from ESPN by the server.
-export type BoardTeam = { name: string; abbr: string; logo: string | null };
+// id: the data source's team id (server-side matching only).
+export type BoardTeam = { name: string; abbr: string; logo: string | null; id?: string };
 export type BoardRow = {
   rank: number;
   team: BoardTeam;
@@ -218,9 +219,17 @@ export type BoardRow = {
   points: number;
   // Stripe color of the table zone (Libertadores, relegation...).
   zone: string | null;
+  // Live table: places gained (+) or lost (-) since the round started, and
+  // the team's game in progress ("1×0", null = not playing now).
+  move?: number;
+  playing?: string | null;
 };
 export type BoardGroup = { name: string; rows: BoardRow[] };
+// A goal in a match (live round alerts).
+export type MatchGoal = { side: "home" | "away"; minute: string; player: string; ownGoal: boolean; penalty: boolean };
 export type BoardMatch = {
+  id?: string;
+  goals?: MatchGoal[];
   date: number;
   state: "pre" | "in" | "post";
   detail: string;
