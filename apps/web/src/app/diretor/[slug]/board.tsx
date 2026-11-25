@@ -73,6 +73,9 @@ function CameraOverlay() {
       <p className="text-xs font-semibold text-neutral-300">Na cena das câmeras (entra e sai na hora)</p>
       <p className="text-[11px] text-neutral-500">Aparecem quando as câmeras estão no ar: com os jogos ou a classificação em tela cheia, eles ficam por trás.</p>
       <div className="flex flex-wrap gap-2">
+        <button className={toggle(o.badge)} onClick={() => set({ badge: !o.badge })}>
+          {o.badge ? "✓ Etiqueta no canto" : "Etiqueta no canto"}
+        </button>
         <button className={toggle(o.strip)} onClick={() => set({ strip: !o.strip })}>
           {o.strip ? "✓ Faixa de placares" : "Faixa de placares"}
         </button>

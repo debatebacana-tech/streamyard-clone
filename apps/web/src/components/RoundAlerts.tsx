@@ -312,3 +312,39 @@ export function MiniTable({ rows, title, logo, rect }: { rows: BoardRow[]; title
     </div>
   );
 }
+
+// Small score tag in the top-left corner: the games in progress (one at a
+// time when several), else the round's latest result or next game.
+export function ScoreBadge({ matches, logo }: { matches: BoardMatch[]; logo: string | null }) {
+  const live = matches.filter((m) => m.state === "in");
+  const pool = live.length ? live : matches.filter((m) => m.state === "post").slice(-1).concat(matches.filter((m) => m.state === "pre").slice(0, 1)).slice(0, 1);
+  const i = useTick(6000, pool.length > 1) % Math.max(1, pool.length);
+  const m = pool[i];
+  if (!m) return null;
+  return (
+    <div
+      key={m.id ?? i}
+      className="round-strip-page absolute z-[31] flex items-center gap-2 rounded-xl px-3 shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
+      style={{ left: 24, top: 22, height: 54, background: "#0c0c0c", border: `2px solid ${LIME}` }}
+    >
+      {logo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logo} alt="" className="h-9 w-9 shrink-0 object-contain" />
+      )}
+      <Crest team={m.home} size={32} />
+      <span className="text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 22 }}>
+        {m.home.abbr}
+      </span>
+      <span className="tabular-nums" style={{ ...DISPLAY, fontSize: 30, color: m.state === "pre" ? "#9a9a9a" : LIME }}>
+        {m.home.score === null ? "×" : `${m.home.score}-${m.away.score}`}
+      </span>
+      <span className="text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 22 }}>
+        {m.away.abbr}
+      </span>
+      <Crest team={m.away} size={32} />
+      <span className={`ml-1 rounded px-1.5 text-[15px] font-bold ${m.state === "in" ? "live-dot bg-[#b91c1c] text-white" : "bg-neutral-800 text-neutral-300"}`} style={CONDENSED}>
+        {matchClock(m)}
+      </span>
+    </div>
+  );
+}

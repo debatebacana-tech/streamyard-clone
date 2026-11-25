@@ -15,7 +15,7 @@ import { MediaLayer } from "./MediaLayer";
 import { AUDIO_BLOCKED, AUDIO_UNLOCK, MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
-import { MINI_W, MiniTable, RoundAlerts, RoundStrip, STRIP_H, isLiveBoard, withLiveRound } from "./RoundAlerts";
+import { MINI_W, MiniTable, RoundAlerts, RoundStrip, STRIP_H, ScoreBadge, isLiveBoard, withLiveRound } from "./RoundAlerts";
 import { competition as findCompetition } from "@/lib/competitions";
 
 const competitionLogo = (id: string | undefined) => (id ? (findCompetition(id)?.logo ?? null) : null);
@@ -1407,6 +1407,7 @@ export function ShowComposition({
             {emptyHint}
           </div>
         )}
+        {scene.roundOverlay.badge && round && round.matches.length > 0 && <ScoreBadge matches={round.matches} logo={competitionLogo(round.competition)} />}
         {stripOn && round && (
           <RoundStrip matches={round.matches} logo={competitionLogo(round.competition)} rect={{ left: 24, width: CANVAS_W - 48, top: CANVAS_H - stripBottom - STRIP_H, height: STRIP_H }} />
         )}

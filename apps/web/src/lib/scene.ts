@@ -323,7 +323,8 @@ export type TweetCard = {
 // One YouTube live chat message, as shown on screen.
 export type ChatMessage = { id: string; author: string; text: string; avatarUrl: string | null };
 
-export type RoundOverlay = { strip: boolean; table: boolean; from: number; to: number; title: string };
+// badge: small score tag in the top-left corner.
+export type RoundOverlay = { strip: boolean; table: boolean; badge: boolean; from: number; to: number; title: string };
 
 export type Scene = {
   // "all": everyone in the room is on stage automatically (join order);
@@ -502,7 +503,7 @@ export const DEFAULT_SCENE: Scene = {
   board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [], bracket: [] },
   tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true, labelWidth: 0, itemScale: 1 },
   tweet: { visible: false, mode: "side", card: null },
-  roundOverlay: { strip: false, table: false, from: 12, to: 18, title: "CONTRA O REBAIXAMENTO" },
+  roundOverlay: { strip: false, table: false, badge: false, from: 12, to: 18, title: "CONTRA O REBAIXAMENTO" },
   media: { visible: false, url: null, kind: "image", mode: "destaque", startedAt: null, pausedAt: null, loop: false, volume: 1 },
   transitionAt: null,
   step: "aovivo",
@@ -867,6 +868,7 @@ export function normalizeScene(input: unknown): Scene {
       return {
         strip: bool(r.strip, false),
         table: bool(r.table, false),
+        badge: bool(r.badge, false),
         from,
         to: Math.max(from, Math.round(num(r.to, 18, 1, 24))),
         title: str(r.title, 40, "CONTRA O REBAIXAMENTO"),
