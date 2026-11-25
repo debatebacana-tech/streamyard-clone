@@ -245,6 +245,11 @@ export type MatchGoal = { side: "home" | "away"; minute: string; player: string;
 export type BoardMatch = {
   id?: string;
   goals?: MatchGoal[];
+  // Live game clock from the source (seconds played), the half (1, 2...) and
+  // whether it is stopped (half time).
+  clock?: number;
+  period?: number;
+  halftime?: boolean;
   date: number;
   state: "pre" | "in" | "post";
   detail: string;

@@ -160,6 +160,9 @@ export async function fetchMatches(id: string, from: string, to: string, maxAge 
       byId.set(s(ev.id), {
         id: s(ev.id) || undefined,
         goals,
+        clock: typeof status.clock === "number" ? status.clock : undefined,
+        period: typeof status.period === "number" ? status.period : undefined,
+        halftime: /HALFTIME|HALF_TIME/i.test(s(o(status.type).name)),
         date: Date.parse(s(ev.date)) || 0,
         state: state === "in" || state === "post" ? state : "pre",
         detail: matchDetail(status),

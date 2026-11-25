@@ -15,12 +15,12 @@ import { MediaLayer } from "./MediaLayer";
 import { AUDIO_BLOCKED, AUDIO_UNLOCK, MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
-import { LineupPanel, MINI_W, MiniTable, RoundAlerts, RoundStrip, STRIP_H, ScoreBadge, isLiveBoard, withLiveRound } from "./RoundAlerts";
+import { LineupPanel, MINI_W, MiniTable, RoundAlerts, RoundStrip, STRIP_H, isLiveBoard, withLiveRound } from "./RoundAlerts";
 import { competition as findCompetition } from "@/lib/competitions";
 
 const competitionLogo = (id: string | undefined) => (id ? (findCompetition(id)?.logo ?? null) : null);
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
-import { isPanelSlot, type LiveRoundData } from "@/lib/scene";
+import { THEME_PRESETS, isPanelSlot, type BoardMatch, type LiveRoundData } from "@/lib/scene";
 import { TWEET_W, TweetCardView } from "./TweetCard";
 import { ProjectedMediaView } from "./ProjectedMedia";
 import { ANIMATED_CLOSING, ClosingScreen } from "./ClosingScreen";
@@ -631,8 +631,48 @@ function PenaltyStrip({ scene, width }: { scene: Scene; width?: number }) {
   );
 }
 
-function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBranding }) {
+// Live round tag drawn as the scoreboard: the featured game (in progress, else
+// the last finished or next one) over the scene's scoreboard design.
+export function withRoundScoreboard(scene: Scene, round: LiveRoundData | null): Scene {
+  if (!scene.roundOverlay.badge || !round) return scene;
+  const ms = round.matches;
+  const m = ms.find((x) => x.state === "in") ?? ms.filter((x) => x.state === "post").slice(-1)[0] ?? ms.find((x) => x.state === "pre");
+  if (!m) return scene;
+  const sb = scene.scoreboard;
+  const team = (t: BoardMatch["home"], base: Team): Team => ({ ...base, name: t.abbr || t.name, score: t.score ?? 0, crestUrl: t.logo, redCards: 0 });
+  const running = m.state === "in" && !m.halftime && typeof m.clock === "number";
+  const period = m.state === "post" ? "FIM" : m.state === "pre" ? "" : m.halftime ? "INTERVALO" : m.period === 2 ? "2º T" : m.period === 1 ? "1º T" : (m.period ?? 0) > 2 ? "PRORROG." : "";
+  const brasileirao = THEME_PRESETS.find((t) => t.label === "Brasileirão")?.theme;
+  const theme = sb.theme.name || sb.theme.logoUrl ? sb.theme : { ...(round.competition.startsWith("bra.") && brasileirao ? brasileirao : sb.theme), logoUrl: competitionLogo(round.competition) };
+  return {
+    ...scene,
+    scoreboard: {
+      ...sb,
+      visible: true,
+      style: "bug",
+      theme,
+      home: team(m.home, sb.home),
+      away: team(m.away, sb.away),
+      clock: {
+        visible: m.state !== "pre",
+        running,
+        baseMs: (m.clock ?? 0) * 1000,
+        startedAt: running ? round.updatedAt : null,
+        period,
+        extra: 0,
+      },
+      penalties: { ...sb.penalties, active: false },
+      aggregate: "",
+    },
+  };
+}
+
+export function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBranding }) {
   const { home, away, clock, theme } = scene.scoreboard;
+  // Live round tag options: 1.5x and/or top center.
+  const o = scene.roundOverlay;
+  const big = o.badge && o.badgeBig;
+  const center = o.badge && o.badgeCenter;
   const team = (t: Team) => (
     <div className="relative z-10 flex items-center gap-2 px-3">
       <Crest team={t} size={40} />
@@ -644,7 +684,15 @@ function ScoreboardBug({ scene, branding }: { scene: Scene; branding: ProgramBra
   const st = pens.active ? shootoutState(pens) : null;
   const aggregate = scene.scoreboard.aggregate.trim();
   return (
-    <div className="absolute top-6 left-6 flex flex-col items-start">
+    <div
+      className={`absolute flex flex-col ${center ? "items-center" : "top-6 left-6 items-start"}`}
+      // zoom scales positions and widths too: center over a canvas-wide box measured in zoomed pixels.
+      style={
+        center
+          ? { top: 24 / (big ? 1.5 : 1), left: 0, width: CANVAS_W / (big ? 1.5 : 1), zoom: big ? 1.5 : undefined }
+          : { top: big ? 16 : undefined, left: big ? 16 : undefined, zoom: big ? 1.5 : undefined }
+      }
+    >
       <CompetitionTab theme={theme} className="ml-2" />
       <div className="relative flex h-14 items-stretch rounded-lg shadow-2xl" style={{ background: theme.light, color: theme.dark, border: `3px solid ${theme.dark}` }}>
         {team(home)}
@@ -1228,7 +1276,9 @@ export function ShowComposition({
   }
 
   const branding = show.program;
-  const scene = sceneOverride ?? show.scene;
+  // The corner tag of the live round uses the show's own scoreboard design,
+  // fed by the round (teams, score, running clock).
+  const scene = withRoundScoreboard(sceneOverride ?? show.scene, show.round ?? null);
   const all = dedupeTracks(tracks);
   // "all": everyone in the room, in join order; otherwise the director's picks.
   // In "all", the director's own browser only counts once it shows a camera.
@@ -1412,7 +1462,7 @@ export function ShowComposition({
           </div>
         )}
         {/* Preview monitor: the tag alone (on air, the alerts layer draws it, so goals grow out of it). */}
-        {sceneOverride && scene.roundOverlay.badge && round && round.matches.length > 0 && <ScoreBadge matches={round.matches} logo={competitionLogo(round.competition)} big={scene.roundOverlay.badgeBig} center={scene.roundOverlay.badgeCenter} />}
+
         {stripOn && round && (
           <RoundStrip matches={round.matches} logo={competitionLogo(round.competition)} rect={{ left: 24, width: CANVAS_W - 48, top: CANVAS_H - stripBottom - STRIP_H, height: STRIP_H }} />
         )}
@@ -1456,7 +1506,7 @@ export function ShowComposition({
           <RoundAlerts
             alerts={show.round?.alerts ?? []}
             withSound={media === "play"}
-            badge={scene.roundOverlay.badge && show.round ? { matches: show.round.matches, logo: competitionLogo(show.round.competition), big: scene.roundOverlay.badgeBig, center: scene.roundOverlay.badgeCenter } : null}
+            badge={scene.roundOverlay.badge && show.round ? { matches: show.round.matches, logo: competitionLogo(show.round.competition), big: scene.roundOverlay.badgeBig, center: scene.roundOverlay.badgeCenter, drawn: true } : null}
           />
         )}
         {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} step={scene.step} />}
