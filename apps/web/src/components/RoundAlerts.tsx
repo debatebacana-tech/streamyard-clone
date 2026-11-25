@@ -168,8 +168,7 @@ export function RoundAlerts({
 }: {
   alerts: RoundAlertData[];
   withSound: boolean;
-  // drawn: the tag itself is drawn elsewhere (as the show's scoreboard); only the goal grows from its spot.
-  badge?: { matches: BoardMatch[]; logo: string | null; big?: boolean; center?: boolean; drawn?: boolean } | null;
+  badge?: { matches: BoardMatch[]; logo: string | null; big?: boolean; center?: boolean } | null;
 }) {
   const soundKey = [...new Set(alerts.map((a) => (a.kind === "gol" ? a.sound : null)).filter((u): u is string => Boolean(u)))].join("|");
   useEffect(() => {
@@ -195,7 +194,7 @@ export function RoundAlerts({
     return () => clearTimeout(id);
   }, [current, withSound]);
 
-  const tag = badge && !badge.drawn && badge.matches.length > 0 ? <ScoreBadge matches={badge.matches} logo={badge.logo} big={badge.big} center={badge.center} /> : null;
+  const tag = badge && badge.matches.length > 0 ? <ScoreBadge matches={badge.matches} logo={badge.logo} big={badge.big} center={badge.center} /> : null;
   if (!current) return tag;
   if (badge && current.kind === "gol") {
     // The tag flashes first, then the goal grows out of it and folds back in.
