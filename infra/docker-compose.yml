@@ -18,31 +18,81 @@ services:
     depends_on:
       - redis
 
+  # Renders the Egress/Ingress configs from the server's generated egress.yaml
+  # (which holds the API secret) plus committed tuning, so config changes
+  # reach existing servers through git.
+  configs:
+    image: alpine:3
+    # The recordings folder is written by Egress and listed/deleted by the web
+    # app (different users), so it is opened up here.
+    command: >-
+      sh -c "cat /in/egress.yaml /in/egress.extra.yaml > /out/egress.yaml
+      && grep -E '^api_(key|secret):' /in/egress.yaml > /out/ingress.yaml
+      && cat /in/ingress.extra.yaml >> /out/ingress.yaml
+      && chmod 0777 /recordings"
+    volumes:
+      - ./egress.yaml:/in/egress.yaml:ro
+      - ./egress.extra.yaml:/in/egress.extra.yaml:ro
+      - ./ingress.extra.yaml:/in/ingress.extra.yaml:ro
+      - configs:/out
+      - recordings:/recordings
+
   egress:
     image: livekit/egress:latest
     restart: unless-stopped
+    # Chrome's sandbox inside the egress container needs this.
+    cap_add:
+      - SYS_ADMIN
     environment:
-      - EGRESS_CONFIG_FILE=/etc/egress.yaml
+      - EGRESS_CONFIG_FILE=/etc/egress/egress.yaml
     volumes:
-      - ./egress.yaml:/etc/egress.yaml:ro
+      - configs:/etc/egress:ro
       - egress-tmp:/tmp/livekit-egress
+      # Offline recordings (MP4), downloaded from the director's panel.
+      - recordings:/recordings
     # No published ports: Egress only makes outbound connections (to
     # LiveKit's ws, to the web app's layout-view page, and to YouTube's
     # RTMP ingest), reached by service name on the default compose network.
     depends_on:
-      - redis
-      - livekit
+      redis:
+        condition: service_started
+      livekit:
+        condition: service_started
+      configs:
+        condition: service_completed_successfully
+
+  # Brings OBS into a program room: WHIP (proxied by Caddy at /w on the
+  # LiveKit domain, media on 7885/udp) or RTMP on 1935.
+  ingress:
+    image: livekit/ingress:latest
+    restart: unless-stopped
+    environment:
+      - INGRESS_CONFIG_FILE=/etc/ingress/ingress.yaml
+    volumes:
+      - configs:/etc/ingress:ro
+    ports:
+      - "1935:1935/tcp"
+      - "7885:7885/udp"
+    depends_on:
+      redis:
+        condition: service_started
+      livekit:
+        condition: service_started
+      configs:
+        condition: service_completed_successfully
 
   web:
     build:
       context: ../apps/web
       args:
         NEXT_PUBLIC_LIVEKIT_WS_URL: wss://${LIVEKIT_DOMAIN}
+        APP_DOMAIN: ${APP_DOMAIN}
     restart: unless-stopped
     env_file:
       - ./web.env
     volumes:
       - web-data:/app/data
+      - recordings:/recordings
     ports:
       - "3000:3000"
     depends_on:
@@ -52,6 +102,9 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # The config dir (not the single file) is mounted and watched, so a git
+    # update of the Caddyfile is picked up without restarting the container.
+    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile --watch
     environment:
       - APP_DOMAIN=${APP_DOMAIN}
       - LIVEKIT_DOMAIN=${LIVEKIT_DOMAIN}
@@ -59,7 +112,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy:/etc/caddy:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
@@ -70,5 +123,7 @@ volumes:
   redis-data:
   web-data:
   egress-tmp:
+  recordings:
+  configs:
   caddy-data:
   caddy-config:

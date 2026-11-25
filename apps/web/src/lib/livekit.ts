@@ -1,6 +1,7 @@
 import {
   AccessToken,
   EgressClient,
+  IngressClient,
   EncodingOptionsPreset,
   RoomServiceClient,
   StreamOutput,
@@ -35,6 +36,18 @@ export function getRoomServiceClient(): RoomServiceClient {
 export function getEgressClient(): EgressClient {
   const { httpUrl, apiKey, apiSecret } = getCredentials();
   return new EgressClient(httpUrl, apiKey, apiSecret);
+}
+
+export function getIngressClient(): IngressClient {
+  const { httpUrl, apiKey, apiSecret } = getCredentials();
+  return new IngressClient(httpUrl, apiKey, apiSecret);
+}
+
+// Public OBS endpoints, derived from the public LiveKit host: Caddy proxies
+// /w on that host to Ingress (WHIP) and RTMP is published on port 1935.
+export function ingressEndpoints() {
+  const host = new URL(getCredentials().wsUrl).host;
+  return { whip: `https://${host}/w`, rtmp: `rtmp://${host.split(":")[0]}:1935/x` };
 }
 
 function grantForRole(room: string, role: ParticipantRole): VideoGrant {
@@ -79,7 +92,6 @@ export function getWsUrl(): string {
 }
 
 export async function startYoutubeEgress(params: {
-  roomName: string;
   layoutUrl: string;
   rtmpUrl: string;
 }) {
@@ -104,10 +116,4 @@ export async function startYoutubeEgress(params: {
 export async function stopEgress(egressId: string) {
   const egress = getEgressClient();
   return egress.stopEgress(egressId);
-}
-
-export async function listActiveEgress(roomName: string) {
-  const egress = getEgressClient();
-  const all = await egress.listEgress({ roomName, active: true });
-  return all;
 }

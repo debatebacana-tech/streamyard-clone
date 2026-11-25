@@ -1,18 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { ADAPTIVE_ROOM } from "@/lib/roomOptions";
 import {
   ControlBar,
   GridLayout,
   LiveKitRoom,
   ParticipantTile,
   RoomAudioRenderer,
+  useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
+import { SelfPhoto } from "@/components/SelfPhoto";
+import { CameraBackground } from "@/components/CameraBackground";
 import { Track } from "livekit-client";
 import "@livekit/components-styles";
 
-function RoomView() {
+function RoomView({ inviteToken }: { inviteToken: string }) {
+  const me = useLocalParticipant().localParticipant;
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
     onlySubscribed: true,
   });
@@ -25,8 +30,23 @@ function RoomView() {
         <RoomAudioRenderer />
       </div>
       <ControlBar controls={{ microphone: true, camera: true, screenShare: false, leave: true }} />
+      <CameraBackground />
+      <SelfPhoto name={me.name || ""} inviteToken={inviteToken} />
     </div>
   );
+}
+
+// Stable per-browser id: the director's "on stage" choice survives a refresh.
+function clientId(): string {
+  try {
+    const existing = localStorage.getItem("studio-client-id");
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem("studio-client-id", id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
 }
 
 export function JoinRoom({ inviteToken }: { inviteToken: string }) {
@@ -41,7 +61,7 @@ export function JoinRoom({ inviteToken }: { inviteToken: string }) {
     const res = await fetch("/api/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteToken, name: name.trim() || undefined }),
+      body: JSON.stringify({ inviteToken, name: name.trim() || undefined, clientId: clientId() }),
     });
     const data = await res.json();
     setLoading(false);
@@ -58,12 +78,13 @@ export function JoinRoom({ inviteToken }: { inviteToken: string }) {
         serverUrl={credentials.wsUrl}
         token={credentials.token}
         connect
+        options={ADAPTIVE_ROOM}
         audio
         video
         data-lk-theme="default"
         className="flex flex-1 flex-col"
       >
-        <RoomView />
+        <RoomView inviteToken={inviteToken} />
       </LiveKitRoom>
     );
   }
@@ -71,7 +92,7 @@ export function JoinRoom({ inviteToken }: { inviteToken: string }) {
   return (
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-8">
-        <h1 className="text-xl font-semibold">Entrar no programa</h1>
+        <h1 className="text-xl font-semibold">Entrar nos bastidores</h1>
         <input
           autoFocus
           placeholder="Seu nome"
