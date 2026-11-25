@@ -437,7 +437,26 @@ export type ShowMetadata = {
   alerts?: string | null;
   // Pix QR code box (shown while visible).
   qr?: { code: string | null; url: string | null; image: string | null; side: "left" | "right"; label: string; zoom: number } | null;
+  // Live round (scores, live table, goal/relegation alerts) while it is followed.
+  round?: LiveRoundData | null;
 };
+
+// Same shape as lib/liveRound's LiveRound (kept here for the client).
+export type RoundAlertData =
+  | {
+      id: string;
+      kind: "gol";
+      at: number;
+      team: BoardTeam;
+      home: BoardTeam & { score: number };
+      away: BoardTeam & { score: number };
+      side: "home" | "away";
+      minute: string;
+      player: string;
+      sound: string | null;
+    }
+  | { id: string; kind: "z4"; at: number; entered: BoardTeam[]; left: BoardTeam[] };
+export type LiveRoundData = { competition: string; matches: BoardMatch[]; table: BoardGroup[]; alerts: RoundAlertData[]; updatedAt: number };
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A", redCards: 0 };
 
@@ -907,6 +926,17 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
         return code || link || image
           ? { code, url: link, image, side: q.side === "left" ? "left" : "right", label: str(q.label, 40, "FAÇA SEU PIX"), zoom: num(q.zoom, 1.8, 1, 4) }
           : null;
+      })(),
+      round: (() => {
+        const r = obj(parsed.round);
+        if (typeof r.competition !== "string") return null;
+        return {
+          competition: r.competition,
+          matches: Array.isArray(r.matches) ? (r.matches as BoardMatch[]).slice(0, 20) : [],
+          table: Array.isArray(r.table) ? (r.table as BoardGroup[]).slice(0, 2) : [],
+          alerts: Array.isArray(r.alerts) ? (r.alerts as RoundAlertData[]).slice(-8) : [],
+          updatedAt: typeof r.updatedAt === "number" ? r.updatedAt : 0,
+        };
       })(),
       sounds: Array.isArray(parsed.sounds)
         ? parsed.sounds.filter((u): u is string => typeof u === "string" && u.startsWith("/media/")).slice(0, 80)

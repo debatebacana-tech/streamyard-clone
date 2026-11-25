@@ -72,6 +72,15 @@ function warmVideo(url: string) {
     .finally(() => videoLoading.delete(url));
 }
 
+// Plays a quick sound once from the start (e.g. the goal alert's sound).
+export function playQuickSound(url: string, volume = 1) {
+  if (typeof window === "undefined" || !url.startsWith("/media/")) return;
+  const el = audioFor(url);
+  el.volume = Math.min(1, Math.max(0, volume));
+  el.currentTime = 0;
+  el.play().catch(() => {});
+}
+
 export function preloadSounds(urls: string[]) {
   if (typeof window === "undefined") return;
   for (const url of urls) {

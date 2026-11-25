@@ -8,7 +8,7 @@ import { CONDENSED, DISPLAY } from "./showStyle";
 // closing track plays over it.
 
 // The programs whose closing is this screen (it carries the Debate Bacana signature).
-export const ANIMATED_CLOSING = new Set(["debate-bacana", "futebol-bacana"]);
+export const ANIMATED_CLOSING = new Set(["debate-bacana", "futebol-bacana", "especial-brasileirao"]);
 
 const LIME = "#c8f000";
 const BRAND_LOGO = "/brand/debate-bacana.png";

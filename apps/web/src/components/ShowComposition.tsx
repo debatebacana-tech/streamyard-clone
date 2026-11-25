@@ -15,6 +15,7 @@ import { MediaLayer } from "./MediaLayer";
 import { AUDIO_BLOCKED, AUDIO_UNLOCK, MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
+import { RoundAlerts, isLiveBoard, withLiveRound } from "./RoundAlerts";
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
 import { TWEET_W, TweetCardView } from "./TweetCard";
 import { ProjectedMediaView } from "./ProjectedMedia";
@@ -1390,7 +1391,7 @@ export function ShowComposition({
           </div>
         )}
         {tierOn && !tierSplit && <TierScreen list={scene.tierList} branding={branding} />}
-        {scene.board.kind !== "none" && <BoardScreen board={scene.board} branding={branding} />}
+        {scene.board.kind !== "none" && <BoardScreen board={withLiveRound(scene.board, show.round)} branding={branding} live={isLiveBoard(scene.board, show.round)} />}
         {scene.screen.kind !== "none" &&
           (scene.screen.mediaUrl ? (
             <ScreenMedia scene={scene} withSound={media === "play"} />
@@ -1412,6 +1413,7 @@ export function ShowComposition({
             style={{ width: 1920, height: 1080, transform: `scale(${CANVAS_W / 1920})`, background: "transparent", colorScheme: "normal" }}
           />
         )}
+        {!sceneOverride && <RoundAlerts alerts={show.round?.alerts ?? []} withSound={media === "play"} />}
         {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} step={scene.step} />}
         {!sceneOverride && media !== "off" && (
           <TransitionLayer at={scene.transitionAt} config={show.transition} branding={branding} withSound={media === "play"} />

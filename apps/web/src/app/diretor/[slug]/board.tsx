@@ -43,6 +43,116 @@ const label = (id: string) => COMPETITIONS.find((c) => c.id === id)?.label ?? ""
 const short = (id: string) => COMPETITIONS.find((c) => c.id === id)?.short ?? "";
 const comp = (id: string) => COMPETITIONS.find((c) => c.id === id);
 
+type RoundStatus = {
+  running: boolean;
+  competition: string | null;
+  from: string | null;
+  to: string | null;
+  updatedAt: number | null;
+  live: number;
+  finished: number;
+  error: string | null;
+};
+
+// Live round: the server follows the matches by itself; the screens update and
+// goals pop up on the stream with the Gol Bacana sound.
+function LiveRoundBox({ competition, from, to, title, subtitle }: { competition: string; from: string; to: string; title: string; subtitle: string }) {
+  const { slug, patch } = useDirector();
+  const [status, setStatus] = useState<RoundStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const res = await fetch(`/api/programs/${slug}/round`).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      if (alive && data?.status) setStatus(data.status);
+      if (alive) setNow(Date.now());
+    };
+    void load();
+    const id = setInterval(load, 5000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [slug]);
+
+  async function act(body: Record<string, unknown>) {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/programs/${slug}/round`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+    const data = await res?.json().catch(() => null);
+    if (!res?.ok) setError(data?.error ?? "Falha");
+    if (data?.status) setStatus(data.status);
+    setBusy(false);
+  }
+
+  const running = status?.running ?? false;
+  const followed = status?.competition ?? competition;
+  const onAir = (kind: "jogos" | "tabela") =>
+    patch(
+      {
+        board: {
+          kind,
+          competition: followed,
+          title: title || (kind === "jogos" ? "JOGOS AO VIVO" : "AO VIVO"),
+          subtitle: subtitle || short(followed),
+          logo: comp(followed)?.logo ?? null,
+          groups: [],
+          matches: [],
+          bracket: [],
+        },
+      },
+      { air: true },
+    );
+  const ago = status?.updatedAt ? Math.max(0, Math.round((now - status.updatedAt) / 1000)) : null;
+
+  return (
+    <div className="space-y-2 rounded-md border-2 border-[#DFFF00]/60 bg-neutral-950 p-3">
+      <p className="text-sm font-bold">⚽ Rodada ao vivo (placares, tabela e gols sozinhos)</p>
+      {!running ? (
+        <>
+          <p className="text-[11px] text-neutral-400">
+            Usa a competição e as datas acima. Ligue antes dos jogos começarem: o servidor acompanha os placares (a cada ~20 s), recalcula a classificação “se
+            terminasse agora” e avisa cada gol na tela, com o som do Gol Bacana.
+          </p>
+          <button className={btnGo} disabled={busy} onClick={() => act({ action: "start", competition, from, to })}>
+            {busy ? "Ligando..." : `Ligar rodada ao vivo · ${short(competition) || label(competition)}`}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-neutral-300">
+            <span className="font-bold text-emerald-400">● Acompanhando</span> {label(followed)} · {status?.live ?? 0} ao vivo · {status?.finished ?? 0} encerrados
+            {ago !== null && <span className="text-neutral-500"> · atualizado há {ago}s</span>}
+          </p>
+          {status?.error && <p className="text-xs text-amber-400">{status.error}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button className={btnOn} onClick={() => onAir("jogos")}>
+              No ar: jogos ao vivo
+            </button>
+            <button className={btnOn} onClick={() => onAir("tabela")}>
+              No ar: classificação ao vivo
+            </button>
+            <button className={btn} disabled={busy} onClick={() => act({ action: "test" })}>
+              Testar aviso de gol
+            </button>
+            <button className={btn} disabled={busy} onClick={() => act({ action: "stop" })}>
+              Desligar
+            </button>
+          </div>
+          <p className="text-[11px] text-neutral-500">
+            Os avisos de gol aparecem em qualquer cena, até com as câmeras. A fonte (ESPN) costuma atrasar 30 a 60 s em relação à TV.
+          </p>
+        </>
+      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 export function BoardPanel() {
   const { scenes, patch, direct } = useDirector();
   const [competition, setCompetition] = useState(scenes.draft.board.competition || "bra.1");
@@ -111,6 +221,8 @@ export function BoardPanel() {
             <input className={`${input} w-full`} value={title} maxLength={60} placeholder="ex: 33ª RODADA" onChange={(e) => setTitle(e.target.value)} />
           </label>
         </div>
+
+        {!comp(competition)?.cup && <LiveRoundBox competition={competition} from={from} to={to} title={title.trim()} subtitle={subtitle.trim()} />}
 
         {comp(competition)?.knockout && (
           <div className="space-y-2 rounded-md bg-neutral-950 p-3">

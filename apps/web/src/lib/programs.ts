@@ -1,3 +1,4 @@
+import { liveRoundOf } from "./liveRound";
 import type { Program } from "@prisma/client";
 import { prisma } from "./db";
 import { withLock } from "./locks";
@@ -100,6 +101,7 @@ async function metadataFor(program: Program): Promise<string> {
     looks: configOf(program).looks,
     alerts: configOf(program).alertsUrl,
     qr: configOf(program).qr.visible ? configOf(program).qr : null,
+    round: liveRoundOf(program.slug),
   };
   return JSON.stringify(metadata);
 }

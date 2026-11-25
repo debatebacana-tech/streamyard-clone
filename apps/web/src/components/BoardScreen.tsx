@@ -276,7 +276,7 @@ function dateLine(m: BoardMatch): string {
   return [date, time, m.venue].filter(Boolean).join("  •  ");
 }
 
-function MatchCard({ m, top, height, width, left, index }: { m: BoardMatch; top: number; height: number; width: number; left: number; index: number }) {
+function MatchCard({ m, top, height, width, left, index, live: liveBoard }: { m: BoardMatch; top: number; height: number; width: number; left: number; index: number; live: boolean }) {
   const crest = Math.round(height * 0.86);
   const name = Math.min(30, height * 0.4);
   const score = Math.min(64, height * 0.78);
@@ -321,6 +321,8 @@ function MatchCard({ m, top, height, width, left, index }: { m: BoardMatch; top:
             <span className="live-dot font-bold text-red-500">● AO VIVO {m.detail}</span>
           ) : m.detail === "ADIADO" ? (
             "ADIADO"
+          ) : liveBoard && m.state === "post" ? (
+            <span className="font-bold">ENCERRADO</span>
           ) : (
             dateLine(m)
           )}
@@ -330,7 +332,7 @@ function MatchCard({ m, top, height, width, left, index }: { m: BoardMatch; top:
   );
 }
 
-function Matches({ matches }: { matches: BoardMatch[] }) {
+function Matches({ matches, live }: { matches: BoardMatch[]; live: boolean }) {
   const cols = matches.length <= 5 ? 1 : 2;
   const perCol = Math.ceil(matches.length / cols);
   const pitch = Math.min(102, Math.floor((BODY.bottom - BODY.top) / perCol));
@@ -344,7 +346,7 @@ function Matches({ matches }: { matches: BoardMatch[] }) {
       {matches.map((m, i) => {
         const c = Math.floor(i / perCol);
         const r = i % perCol;
-        return <MatchCard key={`${m.date}${m.home.name}`} m={m} index={i} top={BODY.top + 8 + r * pitch} left={lefts[c]} width={colW} height={height} />;
+        return <MatchCard key={`${m.date}${m.home.name}`} m={m} index={i} live={live} top={BODY.top + 8 + r * pitch} left={lefts[c]} width={colW} height={height} />;
       })}
     </>
   );
@@ -365,8 +367,35 @@ const COLS: Col[] = [
   { label: "SG", width: 46, value: (r) => r.gd },
 ];
 const COMPACT: Col[] = [COLS[0], COLS[1], COLS[7]];
+// Live table: no GP/GC, so the names fit beside the game in progress.
+const LIVE_COLS: Col[] = COLS.filter((c) => c.label !== "GP" && c.label !== "GC");
 
-function TablePanel({ rows, cols, name, start, rowH, style }: { rows: BoardRow[]; cols: Col[]; name?: string; start: number; rowH: number; style: CSSProperties }) {
+// Live table: places gained (green ▲) or lost (red ▼) since the round started.
+function Move({ move, size }: { move: number; size: number }) {
+  return (
+    <span className="w-[38px] shrink-0 text-center tabular-nums" style={{ ...CONDENSED, fontWeight: 700, fontSize: size, color: move > 0 ? "#22c55e" : move < 0 ? "#ef4444" : "#6b6b6b" }}>
+      {move > 0 ? `▲${move}` : move < 0 ? `▼${-move}` : "–"}
+    </span>
+  );
+}
+
+function TablePanel({
+  rows,
+  cols,
+  name,
+  start,
+  rowH,
+  style,
+  live = false,
+}: {
+  rows: BoardRow[];
+  cols: Col[];
+  name?: string;
+  start: number;
+  rowH: number;
+  style: CSSProperties;
+  live?: boolean;
+}) {
   const big = Math.min(32, rowH * 0.66);
   const text = Math.min(23, rowH * 0.48);
   return (
@@ -376,6 +405,7 @@ function TablePanel({ rows, cols, name, start, rowH, style }: { rows: BoardRow[]
         style={{ ...CONDENSED, fontWeight: 600, height: 44, borderLeft: `5px solid ${LIME}`, background: "#121212" }}
       >
         <span className="w-[52px] pl-3">{name ? "" : "POS"}</span>
+        {live && <span className="w-[38px]" />}
         <span className="flex-1 pl-[46px]" style={name ? { color: LIME, fontWeight: 700, fontSize: 19, paddingLeft: 0 } : undefined}>
           {name || "CLUBE"}
         </span>
@@ -387,13 +417,14 @@ function TablePanel({ rows, cols, name, start, rowH, style }: { rows: BoardRow[]
       </div>
       {rows.map((r, i) => (
         <div
-          key={r.rank + r.team.name}
+          key={live ? `${r.rank}-${r.team.name}-${r.points}` : r.rank + r.team.name}
           className="board-row flex items-center"
           style={{ ...delay(start + i), height: rowH, background: i % 2 ? "#181818" : "#121212", borderLeft: `5px solid ${r.zone ?? "transparent"}` }}
         >
           <span className="w-[52px] pl-3 tabular-nums" style={{ ...DISPLAY, color: LIME, fontSize: big }}>
             {r.rank}
           </span>
+          {live && <Move move={r.move ?? 0} size={text * 0.8} />}
           <span className="flex w-[46px] justify-center">
             <Crest team={r.team} size={rowH - 10} />
           </span>
@@ -403,6 +434,11 @@ function TablePanel({ rows, cols, name, start, rowH, style }: { rows: BoardRow[]
           >
             {cols === COMPACT ? r.team.abbr || r.team.name : r.team.name}
           </span>
+          {live && r.playing && (
+            <span className="live-dot mr-2 shrink-0 rounded px-1.5 tabular-nums text-white" style={{ ...CONDENSED, fontWeight: 700, fontSize: text * 0.8, background: "#b91c1c" }}>
+              {r.playing}
+            </span>
+          )}
           {cols.map((c) => (
             <span
               key={c.label}
@@ -418,7 +454,7 @@ function TablePanel({ rows, cols, name, start, rowH, style }: { rows: BoardRow[]
   );
 }
 
-function Standings({ groups }: { groups: BoardGroup[] }) {
+function Standings({ groups, live }: { groups: BoardGroup[]; live: boolean }) {
   const height = BODY.bottom - BODY.top - 4;
   if (groups.length === 1) {
     const rows = groups[0].rows;
@@ -433,9 +469,10 @@ function Standings({ groups }: { groups: BoardGroup[] }) {
           <TablePanel
             key={c}
             rows={col}
-            cols={COLS}
+            cols={live ? LIVE_COLS : COLS}
             start={c * perCol}
             rowH={rowH}
+            live={live}
             style={{ top: BODY.top, left: BODY.left + c * (w + gap), width: w, height: 44 + rowH * col.length + 2 }}
           />
         ))}
@@ -471,12 +508,20 @@ function Standings({ groups }: { groups: BoardGroup[] }) {
   );
 }
 
-export function BoardScreen({ board, branding }: { board: Board; branding: ProgramBranding }) {
+export function BoardScreen({ board, branding, live = false }: { board: Board; branding: ProgramBranding; live?: boolean }) {
   const empty = board.kind === "tabela" ? board.groups.length === 0 : board.kind === "chave" ? board.bracket.length === 0 : board.matches.length === 0;
   return (
     <div className="absolute inset-0 z-[35] overflow-hidden" style={{ background: "radial-gradient(ellipse at 50% 35%, #161616, #050505 75%)" }}>
       <Corners />
       <Header board={board} branding={branding} />
+      {live && (
+        <span
+          className="live-dot absolute rounded-md px-3 text-white uppercase"
+          style={{ ...CONDENSED, fontWeight: 700, fontSize: 18, lineHeight: "26px", bottom: 3, left: "50%", transform: "translateX(-50%)", background: "#b91c1c", letterSpacing: "0.08em", whiteSpace: "nowrap" }}
+        >
+          ● Ao vivo{board.kind === "tabela" ? " • se terminasse agora" : ""}
+        </span>
+      )}
       {empty ? (
         <span className="absolute inset-x-0 text-center text-4xl text-white/80 uppercase" style={{ ...CONDENSED, fontWeight: 700, top: 400 }}>
           {board.kind === "tabela" ? "Tabela indisponível" : board.kind === "chave" ? "Chaveamento indisponível" : "Sem jogos nesse período"}
@@ -484,9 +529,9 @@ export function BoardScreen({ board, branding }: { board: Board; branding: Progr
       ) : board.kind === "chave" ? (
         <Bracket rounds={board.bracket} />
       ) : board.kind === "tabela" ? (
-        <Standings groups={board.groups} />
+        <Standings groups={board.groups} live={live} />
       ) : (
-        <Matches matches={board.matches} />
+        <Matches matches={board.matches} live={live} />
       )}
     </div>
   );
