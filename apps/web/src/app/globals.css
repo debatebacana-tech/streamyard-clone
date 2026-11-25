@@ -297,3 +297,35 @@ body {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+/* Goal alert: the ball pops out of the new score and keeps bouncing above it. */
+.goal-ball {
+  animation:
+    goal-ball-pop 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) 0.45s both,
+    goal-ball-bounce 0.7s ease-in-out 1.35s infinite alternate;
+}
+@keyframes goal-ball-pop {
+  0% { transform: translateY(30px) scale(0.1) rotate(0deg); opacity: 0; }
+  60% { transform: translateY(-46px) scale(1.25) rotate(300deg); opacity: 1; }
+  100% { transform: translateY(-30px) scale(1) rotate(360deg); opacity: 1; }
+}
+@keyframes goal-ball-bounce {
+  from { transform: translateY(-30px) scale(1); }
+  to { transform: translateY(-38px) scale(1.06); }
+}
+.goal-side {
+  animation: goal-side 0.6s ease-out 0.35s both;
+}
+@keyframes goal-side {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+/* Goal alert: the scoring team's crest pulses. */
+.goal-crest {
+  animation: goal-crest 0.55s ease-in-out 0.5s infinite alternate;
+  filter: drop-shadow(0 0 12px rgba(223, 255, 0, 0.7));
+}
+@keyframes goal-crest {
+  from { transform: scale(1); }
+  to { transform: scale(1.18); }
+}

@@ -13,8 +13,11 @@ async function pushToRoom(slug: string) {
 
 const GOL = /gol/i;
 
-// The program's "Gol Bacana" quick sound, or the first program that has one.
-async function goalSound(slug: string): Promise<string | null> {
+// The team's own goal call for the live round (shipped with the studio).
+const GOAL_SOUND = "/sounds/gol-rodada.mp3";
+
+// Fallback: the program's "Gol Bacana" quick sound, or the first program that has one.
+async function goalSoundFallback(slug: string): Promise<string | null> {
   const programs = await listPrograms();
   const own = programs.find((p) => p.slug === slug);
   for (const p of own ? [own, ...programs.filter((x) => x !== own)] : programs) {
@@ -44,7 +47,7 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Escolha a competição e as datas da rodada" }, { status: 400 });
     }
     try {
-      const status = startLiveRound(program.slug, { competition, from, to, sound: await goalSound(program.slug) }, (slug) => void pushToRoom(slug));
+      const status = startLiveRound(program.slug, { competition, from, to, sound: GOAL_SOUND ?? (await goalSoundFallback(program.slug)) }, (slug) => void pushToRoom(slug));
       return NextResponse.json({ status });
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Falha" }, { status: 400 });

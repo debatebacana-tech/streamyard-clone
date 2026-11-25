@@ -103,7 +103,23 @@ function CameraOverlay() {
   );
 }
 
-function LiveRoundBox({ competition, from, to, title, subtitle }: { competition: string; from: string; to: string; title: string; subtitle: string }) {
+function LiveRoundBox({
+  competition,
+  from,
+  to,
+  setFrom,
+  setTo,
+  title,
+  subtitle,
+}: {
+  competition: string;
+  from: string;
+  to: string;
+  setFrom: (v: string) => void;
+  setTo: (v: string) => void;
+  title: string;
+  subtitle: string;
+}) {
   const { slug, patch } = useDirector();
   const [status, setStatus] = useState<RoundStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -165,6 +181,13 @@ function LiveRoundBox({ competition, from, to, title, subtitle }: { competition:
             Usa a competição e as datas acima. Ligue antes dos jogos começarem: o servidor acompanha os placares (a cada ~20 s), recalcula a classificação “se
             terminasse agora” e avisa cada gol na tela, com o som do Gol Bacana.
           </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+            Jogos de <input type="date" className={input} value={from} onChange={(e) => setFrom(e.target.value)} />
+            até <input type="date" className={input} value={to} onChange={(e) => setTo(e.target.value)} />
+            <button className="rounded-md bg-neutral-800 px-2 py-1 hover:bg-neutral-700" onClick={() => (setFrom(isoDay(0)), setTo(isoDay(0)))}>
+              Só hoje
+            </button>
+          </div>
           <button className={btnGo} disabled={busy} onClick={() => act({ action: "start", competition, from, to })}>
             {busy ? "Ligando..." : `Ligar rodada ao vivo · ${short(competition) || label(competition)}`}
           </button>
@@ -174,6 +197,13 @@ function LiveRoundBox({ competition, from, to, title, subtitle }: { competition:
           <p className="text-xs text-neutral-300">
             <span className="font-bold text-emerald-400">● Acompanhando</span> {label(followed)} · {status?.live ?? 0} ao vivo · {status?.finished ?? 0} encerrados
             {ago !== null && <span className="text-neutral-500"> · atualizado há {ago}s</span>}
+            {status?.from && (
+              <span className="text-neutral-500">
+                {" "}
+                · jogos de {status.from.split("-").reverse().join("/")}
+                {status.to !== status.from && ` a ${status.to?.split("-").reverse().join("/")}`} (para trocar: Desligar)
+              </span>
+            )}
           </p>
           {status?.error && <p className="text-xs text-amber-400">{status.error}</p>}
           <div className="flex flex-wrap gap-2">
@@ -273,7 +303,7 @@ export function BoardPanel() {
           </label>
         </div>
 
-        {!comp(competition)?.cup && <LiveRoundBox competition={competition} from={from} to={to} title={title.trim()} subtitle={subtitle.trim()} />}
+        {!comp(competition)?.cup && <LiveRoundBox competition={competition} from={from} to={to} setFrom={setFrom} setTo={setTo} title={title.trim()} subtitle={subtitle.trim()} />}
 
         {comp(competition)?.knockout && (
           <div className="space-y-2 rounded-md bg-neutral-950 p-3">

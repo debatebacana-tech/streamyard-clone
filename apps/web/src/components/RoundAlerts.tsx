@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Board, BoardMatch, BoardRow, BoardTeam, LiveRoundData, RoundAlertData } from "@/lib/scene";
 import { LIME } from "./BoardScreen";
-import { playQuickSound } from "./MediaLayer";
+import { playQuickSound, preloadSounds } from "./MediaLayer";
 import { CONDENSED, DISPLAY } from "./showStyle";
 
 // Live round on screen: the fixtures/table boards take the live data while the
@@ -33,37 +33,93 @@ function Crest({ team, size }: { team: BoardTeam; size: number }) {
   );
 }
 
-function GoalBanner({ alert }: { alert: Extract<RoundAlertData, { kind: "gol" }> }) {
-  const scored = (side: "home" | "away") => (alert.side === side ? LIME : "#fff");
+// A football drawn in SVG (emoji fonts are not on every output machine).
+function Ball({ size }: { size: number }) {
   return (
-    <div className="flex h-full items-stretch overflow-hidden rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.7)]" style={{ background: "#0c0c0c", border: `3px solid ${LIME}` }}>
-      <div className="round-alert-flash flex w-[190px] shrink-0 items-center justify-center" style={{ background: LIME }}>
-        <span className="text-black" style={{ ...DISPLAY, fontSize: 74, lineHeight: 1 }}>
+    <svg width={size} height={size} viewBox="0 0 100 100" className="drop-shadow-[0_0_10px_rgba(223,255,0,0.8)]">
+      <circle cx="50" cy="50" r="47" fill="#fff" stroke="#111" strokeWidth="4" />
+      <polygon points="50,30 69,44 62,66 38,66 31,44" fill="#111" />
+      <path d="M50 30 L50 4 M69 44 L93 36 M62 66 L77 88 M38 66 L23 88 M31 44 L7 36" stroke="#111" strokeWidth="4" />
+    </svg>
+  );
+}
+
+function GoalBanner({ alert }: { alert: Extract<RoundAlertData, { kind: "gol" }> }) {
+  // The side that scored stands out (bigger crest, lime name); the other steps back.
+  const side = (s: "home" | "away") => {
+    const team = s === "home" ? alert.home : alert.away;
+    const mine = alert.side === s;
+    const crest = mine ? (
+      <span className="goal-crest flex">
+        <Crest team={team} size={80} />
+      </span>
+    ) : (
+      <Crest team={team} size={40} />
+    );
+    const name = (
+      <span
+        className="min-w-0 truncate uppercase"
+        style={{ ...CONDENSED, fontWeight: 700, fontSize: mine ? 36 : 26, color: mine ? LIME : "rgba(255,255,255,0.55)", textShadow: mine ? "0 0 14px rgba(223,255,0,0.55)" : undefined }}
+      >
+        {team.abbr || team.name}
+      </span>
+    );
+    return (
+      <span className={`flex items-center gap-3 ${mine ? "goal-side" : "opacity-80"}`}>
+        {s === "home" ? (
+          <>
+            {crest}
+            {name}
+          </>
+        ) : (
+          <>
+            {name}
+            {crest}
+          </>
+        )}
+      </span>
+    );
+  };
+  const number = (s: "home" | "away") => {
+    const mine = alert.side === s;
+    return (
+      <span className="relative" style={{ color: mine ? LIME : "#fff" }}>
+        {s === "home" ? alert.home.score : alert.away.score}
+        {/* The ball pops out of the score that changed and stays above it. */}
+        {mine && (
+          <span className="goal-ball absolute left-1/2" style={{ top: -10, marginLeft: -23 }}>
+            <Ball size={46} />
+          </span>
+        )}
+      </span>
+    );
+  };
+  return (
+    // Not clipped: the ball rises above the banner's edge.
+    <div className="flex h-full items-stretch rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.7)]" style={{ background: "#0c0c0c", border: `3px solid ${LIME}` }}>
+      <div className="round-alert-flash flex w-[170px] shrink-0 items-center justify-center rounded-l-[13px]" style={{ background: LIME }}>
+        <span className="text-black" style={{ ...DISPLAY, fontSize: 70, lineHeight: 1 }}>
           GOL!
         </span>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-6">
+      <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-5">
         <div className="flex items-center gap-4">
-          <Crest team={alert.home} size={56} />
-          <span className="min-w-0 truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 32 }}>
-            {alert.home.abbr || alert.home.name}
-          </span>
+          {side("home")}
           <span className="flex items-baseline gap-3 tabular-nums" style={{ ...DISPLAY, fontSize: 60, lineHeight: 1 }}>
-            <span style={{ color: scored("home") }}>{alert.home.score}</span>
-            <span className="text-white/70" style={{ fontSize: 36 }}>
+            {number("home")}
+            <span className="text-white/60" style={{ fontSize: 34 }}>
               ×
             </span>
-            <span style={{ color: scored("away") }}>{alert.away.score}</span>
+            {number("away")}
           </span>
-          <span className="min-w-0 truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 32 }}>
-            {alert.away.abbr || alert.away.name}
-          </span>
-          <Crest team={alert.away} size={56} />
+          {side("away")}
         </div>
-        <p className="mt-1 truncate text-white/85 uppercase" style={{ ...CONDENSED, fontWeight: 600, fontSize: 24 }}>
-          <span style={{ color: LIME }}>{alert.team.name}</span>
-          {alert.minute && <span> · {alert.minute}</span>}
-          {alert.player && <span> · {alert.player}</span>}
+        <p className="mt-1 truncate uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 25 }}>
+          <span style={{ color: LIME }}>GOL DO {alert.team.name}</span>
+          <span className="text-white/80">
+            {alert.minute && ` · ${alert.minute}`}
+            {alert.player && ` · ${alert.player}`}
+          </span>
         </p>
       </div>
     </div>
@@ -103,6 +159,10 @@ function Z4Banner({ alert }: { alert: Extract<RoundAlertData, { kind: "z4" }> })
 }
 
 export function RoundAlerts({ alerts, withSound }: { alerts: RoundAlertData[]; withSound: boolean }) {
+  const soundKey = [...new Set(alerts.map((a) => (a.kind === "gol" ? a.sound : null)).filter((u): u is string => Boolean(u)))].join("|");
+  useEffect(() => {
+    if (withSound && soundKey) preloadSounds(soundKey.split("|"));
+  }, [soundKey, withSound]);
   // Alerts already there when this screen opened are old news.
   const [seen] = useState(() => new Set(alerts.map((a) => a.id)));
   const [queue, setQueue] = useState<RoundAlertData[]>([]);
