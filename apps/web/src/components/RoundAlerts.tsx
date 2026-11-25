@@ -98,7 +98,7 @@ function GoalBanner({ alert }: { alert: Extract<RoundAlertData, { kind: "gol" }>
     // Not clipped: the ball rises above the banner's edge.
     <div className="flex h-full items-stretch rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.7)]" style={{ background: "#0c0c0c", border: `3px solid ${LIME}` }}>
       <div className="round-alert-flash flex w-[170px] shrink-0 items-center justify-center rounded-l-[13px]" style={{ background: LIME }}>
-        <span className="text-black" style={{ ...DISPLAY, fontSize: 70, lineHeight: 1 }}>
+        <span className="goal-word text-black" style={{ ...DISPLAY, fontSize: 70, lineHeight: 1 }}>
           GOL!
         </span>
       </div>
@@ -158,7 +158,18 @@ function Z4Banner({ alert }: { alert: Extract<RoundAlertData, { kind: "z4" }> })
   );
 }
 
-export function RoundAlerts({ alerts, withSound }: { alerts: RoundAlertData[]; withSound: boolean }) {
+// badge: the corner score tag is on screen. Goals then grow out of the tag
+// (top-left) instead of dropping in at the top center, and the tag hides
+// while the goal is up.
+export function RoundAlerts({
+  alerts,
+  withSound,
+  badge = null,
+}: {
+  alerts: RoundAlertData[];
+  withSound: boolean;
+  badge?: { matches: BoardMatch[]; logo: string | null } | null;
+}) {
   const soundKey = [...new Set(alerts.map((a) => (a.kind === "gol" ? a.sound : null)).filter((u): u is string => Boolean(u)))].join("|");
   useEffect(() => {
     if (withSound && soundKey) preloadSounds(soundKey.split("|"));
@@ -183,8 +194,22 @@ export function RoundAlerts({ alerts, withSound }: { alerts: RoundAlertData[]; w
     return () => clearTimeout(id);
   }, [current, withSound]);
 
-  if (!current) return null;
+  const tag = badge && badge.matches.length > 0 ? <ScoreBadge matches={badge.matches} logo={badge.logo} /> : null;
+  if (!current) return tag;
+  if (badge && current.kind === "gol") {
+    return (
+      <div
+        key={current.id}
+        className="goal-from-tag pointer-events-none absolute z-[57]"
+        style={{ left: 24, top: 22, width: 860, height: 132, animationDuration: `${SHOW_MS.gol}ms` }}
+      >
+        <GoalBanner alert={current} />
+      </div>
+    );
+  }
   return (
+    <>
+    {tag}
     <div
       key={current.id}
       className="round-alert pointer-events-none absolute left-1/2 z-[57]"
@@ -192,6 +217,7 @@ export function RoundAlerts({ alerts, withSound }: { alerts: RoundAlertData[]; w
     >
       {current.kind === "gol" ? <GoalBanner alert={current} /> : <Z4Banner alert={current} />}
     </div>
+    </>
   );
 }
 

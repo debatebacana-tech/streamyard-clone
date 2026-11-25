@@ -1407,7 +1407,8 @@ export function ShowComposition({
             {emptyHint}
           </div>
         )}
-        {scene.roundOverlay.badge && round && round.matches.length > 0 && <ScoreBadge matches={round.matches} logo={competitionLogo(round.competition)} />}
+        {/* Preview monitor: the tag alone (on air, the alerts layer draws it, so goals grow out of it). */}
+        {sceneOverride && scene.roundOverlay.badge && round && round.matches.length > 0 && <ScoreBadge matches={round.matches} logo={competitionLogo(round.competition)} />}
         {stripOn && round && (
           <RoundStrip matches={round.matches} logo={competitionLogo(round.competition)} rect={{ left: 24, width: CANVAS_W - 48, top: CANVAS_H - stripBottom - STRIP_H, height: STRIP_H }} />
         )}
@@ -1447,7 +1448,13 @@ export function ShowComposition({
             style={{ width: 1920, height: 1080, transform: `scale(${CANVAS_W / 1920})`, background: "transparent", colorScheme: "normal" }}
           />
         )}
-        {!sceneOverride && <RoundAlerts alerts={show.round?.alerts ?? []} withSound={media === "play"} />}
+        {!sceneOverride && (
+          <RoundAlerts
+            alerts={show.round?.alerts ?? []}
+            withSound={media === "play"}
+            badge={scene.roundOverlay.badge && show.round ? { matches: show.round.matches, logo: competitionLogo(show.round.competition) } : null}
+          />
+        )}
         {media !== "off" && <MediaLayer silent={media === "silent"} preload={show.sounds} step={scene.step} />}
         {!sceneOverride && media !== "off" && (
           <TransitionLayer at={scene.transitionAt} config={show.transition} branding={branding} withSound={media === "play"} />
