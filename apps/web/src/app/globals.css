@@ -335,11 +335,20 @@ body {
   animation: goal-from-tag 7s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 @keyframes goal-from-tag {
-  0% { transform: scale(0.42, 0.41); opacity: 0.9; }
+  0% { transform: scale(0.36, 0.41); opacity: 0; }
+  1% { transform: scale(0.36, 0.41); opacity: 1; }
   7% { transform: scale(1.05); opacity: 1; }
   10% { transform: scale(1); }
   92% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(0.42, 0.41); opacity: 0; }
+  100% { transform: scale(0.36, 0.41); opacity: 0; }
+}
+/* The corner tag blinks lime when a goal comes in, just before it grows. */
+.tag-flash > div {
+  animation: tag-flash 0.16s ease-in-out 4 alternate;
+}
+@keyframes tag-flash {
+  from { background: #0c0c0c; transform: scale(1); }
+  to { background: #dfff00; transform: scale(1.12); }
 }
 /* "GOL!" pulses while the alert is up. */
 .goal-word {

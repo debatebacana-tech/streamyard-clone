@@ -197,14 +197,20 @@ export function RoundAlerts({
   const tag = badge && badge.matches.length > 0 ? <ScoreBadge matches={badge.matches} logo={badge.logo} /> : null;
   if (!current) return tag;
   if (badge && current.kind === "gol") {
+    // The tag flashes first, then the goal grows out of it and folds back in.
     return (
-      <div
-        key={current.id}
-        className="goal-from-tag pointer-events-none absolute z-[57]"
-        style={{ left: 24, top: 22, width: 860, height: 132, animationDuration: `${SHOW_MS.gol}ms` }}
-      >
-        <GoalBanner alert={current} />
-      </div>
+      <>
+        <div key={`flash-${current.id}`} className="tag-flash">
+          {tag}
+        </div>
+        <div
+          key={current.id}
+          className="goal-from-tag pointer-events-none absolute z-[57]"
+          style={{ left: 24, top: 22, width: 860, height: 132, animationDuration: `${SHOW_MS.gol}ms`, animationDelay: "650ms" }}
+        >
+          <GoalBanner alert={current} />
+        </div>
+      </>
     );
   }
   return (
