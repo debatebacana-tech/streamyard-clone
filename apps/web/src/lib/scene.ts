@@ -12,20 +12,20 @@ export type LayoutMode = "auto" | "spotlight" | "center" | "screen" | "solo" | "
 // same person when they join from another browser.
 // source: a person's camera or shared screen, or a panel (chat, live table,
 // round scores, tier list) placed like any window.
-export type SlotSource = "camera" | "screen" | "chat" | "tabela" | "placares" | "tier";
-export const PANEL_SOURCES: SlotSource[] = ["chat", "tabela", "placares", "tier"];
+export type SlotSource = "camera" | "screen" | "chat" | "tabela" | "placares" | "tier" | "escalacao-casa" | "escalacao-fora";
+export const PANEL_SOURCES: SlotSource[] = ["chat", "tabela", "placares", "tier", "escalacao-casa", "escalacao-fora"];
 export const isPanelSlot = (s: { source: SlotSource }) => PANEL_SOURCES.includes(s.source);
 export type CustomSlot = { x: number; y: number; w: number; h: number; who: string | null; name: string; source: SlotSource };
 
 export const CUSTOM_PRESETS: { name: string; slots: CustomSlot[] }[] = [
   {
-    // Pitch in the middle, each team's lineup on a side (three shared windows),
+    // Pitch (shared screen) in the middle, each team's lineup (from the live round) on a side,
     // with room on top for the centered score tag.
     name: "Campinho + escalações",
     slots: [
-      { x: 0.02, y: 0.17, w: 0.235, h: 0.79, who: null, name: "", source: "screen" },
+      { x: 0.02, y: 0.17, w: 0.235, h: 0.79, who: null, name: "", source: "escalacao-casa" },
       { x: 0.27, y: 0.17, w: 0.46, h: 0.79, who: null, name: "", source: "screen" },
-      { x: 0.745, y: 0.17, w: 0.235, h: 0.79, who: null, name: "", source: "screen" },
+      { x: 0.745, y: 0.17, w: 0.235, h: 0.79, who: null, name: "", source: "escalacao-fora" },
     ],
   },
   {
@@ -478,7 +478,18 @@ export type RoundAlertData =
       sound: string | null;
     }
   | { id: string; kind: "z4"; at: number; entered: BoardTeam[]; left: BoardTeam[] };
-export type LiveRoundData = { competition: string; matches: BoardMatch[]; table: BoardGroup[]; alerts: RoundAlertData[]; updatedAt: number };
+// A team's lineup (live round): starters in formation order, then the bench.
+export type LineupPlayer = { number: string; name: string; pos: string };
+export type Lineup = { team: BoardTeam; formation: string; starters: LineupPlayer[]; bench: LineupPlayer[] };
+export type LiveRoundData = {
+  competition: string;
+  matches: BoardMatch[];
+  table: BoardGroup[];
+  alerts: RoundAlertData[];
+  updatedAt: number;
+  // Lineups of the featured match (the first in progress, else the next one).
+  lineups?: { home: Lineup; away: Lineup } | null;
+};
 
 const DEFAULT_TEAM: Team = { name: "", score: 0, crestUrl: null, color: "#1E3A8A", redCards: 0 };
 
@@ -973,6 +984,7 @@ export function parseShowMetadata(raw: string | undefined): ShowMetadata | null 
           matches: Array.isArray(r.matches) ? (r.matches as BoardMatch[]).slice(0, 20) : [],
           table: Array.isArray(r.table) ? (r.table as BoardGroup[]).slice(0, 2) : [],
           alerts: Array.isArray(r.alerts) ? (r.alerts as RoundAlertData[]).slice(-8) : [],
+          lineups: r.lineups && typeof r.lineups === "object" ? (r.lineups as LiveRoundData["lineups"]) : null,
           updatedAt: typeof r.updatedAt === "number" ? r.updatedAt : 0,
         };
       })(),

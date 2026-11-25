@@ -1,5 +1,5 @@
 import { competition, zoneColor } from "./competitions";
-import type { BoardGroup, BoardMatch, BoardTeam, MatchGoal, BracketRound, BracketSide, BracketTie } from "./scene";
+import type { BoardGroup, BoardMatch, BoardTeam, Lineup, LineupPlayer, MatchGoal, BracketRound, BracketSide, BracketTie } from "./scene";
 
 import { geBracket, geMatches, geStandings } from "./geGlobo";
 
@@ -318,4 +318,27 @@ export async function fetchBracket(id: string): Promise<{ bracket: BracketRound[
   }
   if (!bracket.some((r) => r.ties.some((t) => t.a || t.b))) throw new Error("O mata-mata dessa competição ainda não começou");
   return { bracket, logo: await leagueLogo(id) };
+}
+
+const POS_PT: Record<string, string> = { G: "GOL", D: "DEF", M: "MEI", F: "ATA", SUB: "" };
+
+// Both lineups of a match (ESPN summary), or null while not announced yet.
+export async function fetchLineups(id: string, eventId: string, maxAge = 120_000): Promise<{ home: Lineup; away: Lineup } | null> {
+  const data = o(await getJson(`/site/v2/sports/soccer/${id}/summary?event=${encodeURIComponent(eventId)}`, maxAge));
+  const rosters = a(data.rosters).map(o);
+  const side = (r: Raw): Lineup | null => {
+    const players = a(r.roster).map(o);
+    if (!players.length) return null;
+    const player = (p: Raw): LineupPlayer => {
+      const ath = o(p.athlete);
+      return { number: s(p.jersey).slice(0, 3), name: (s(ath.shortName) || s(ath.displayName)).slice(0, 28), pos: POS_PT[s(o(p.position).abbreviation)] ?? s(o(p.position).abbreviation).slice(0, 4) };
+    };
+    const starters = players.filter((p) => p.starter === true).sort((x, y) => Number(x.formationPlace ?? 0) - Number(y.formationPlace ?? 0));
+    return { team: team(r.team), formation: s(r.formation).slice(0, 12), starters: starters.map(player).slice(0, 11), bench: players.filter((p) => p.starter !== true).map(player).slice(0, 12) };
+  };
+  const home = rosters.find((r) => r.homeAway === "home") ?? rosters[0];
+  const away = rosters.find((r) => r.homeAway === "away") ?? rosters[1];
+  const h = home && side(home);
+  const w = away && side(away);
+  return h && w && h.starters.length && w.starters.length ? { home: h, away: w } : null;
 }

@@ -22,6 +22,8 @@ const SOURCES: [SlotSource, string][] = [
   ["tabela", "🏆 Classificação ao vivo"],
   ["placares", "⚽ Placares da rodada"],
   ["tier", "📊 Tier list"],
+  ["escalacao-casa", "📋 Escalação mandante"],
+  ["escalacao-fora", "📋 Escalação visitante"],
 ];
 
 type Drag = { index: number; mode: "move" | "resize"; startX: number; startY: number; slot: CustomSlot };
@@ -117,6 +119,8 @@ export function CustomLayoutPanel() {
     if (s.source === "tabela") return "🏆 Classificação ao vivo";
     if (s.source === "placares") return "⚽ Placares da rodada";
     if (s.source === "tier") return "📊 Tier list";
+    if (s.source === "escalacao-casa") return "📋 Escalação mandante";
+    if (s.source === "escalacao-fora") return "📋 Escalação visitante";
     const person = s.who ? people.find((p) => p.identity === s.who)?.name || s.name || "pessoa fora da sala" : "Próximo da fila";
     return `${person}${s.source === "screen" ? " · tela" : ""}`;
   };
@@ -246,7 +250,7 @@ export function CustomLayoutPanel() {
         </div>
       )}
       <p className="text-[11px] text-neutral-500">
-        Classificação e placares usam a rodada ao vivo (aba Rodada e tabela: ligue lá e escolha a faixa de posições, ex: 12º a 18º); a tier list usa a da aba Tier list.
+        Classificação, placares e escalações (da ESPN, do jogo em andamento ou do próximo) usam a rodada ao vivo (aba Rodada e tabela: ligue lá e escolha a faixa de posições, ex: 12º a 18º); a tier list usa a da aba Tier list.
         Clique numa janela para escolher quem aparece nela. “Próximo da fila” preenche com quem está no palco, na ordem. A pessoa escolhida aparece e é ouvida mesmo sem estar no palco. Um modelo salvo reconhece a pessoa pelo nome quando ela entra de outro computador.
       </p>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Board, BoardMatch, BoardRow, BoardTeam, LiveRoundData, RoundAlertData } from "@/lib/scene";
+import type { Board, BoardMatch, BoardRow, BoardTeam, Lineup, LiveRoundData, RoundAlertData } from "@/lib/scene";
 import { LIME } from "./BoardScreen";
 import { playQuickSound, preloadSounds } from "./MediaLayer";
 import { CONDENSED, DISPLAY } from "./showStyle";
@@ -458,6 +458,67 @@ export function ScoreBadge({
         {matchClock(m)}
       </span>
     </div>
+    </div>
+  );
+}
+
+// A team's lineup (ESPN, from the live round): crest, name and formation over
+// the eleven starters; the bench below when the box has room.
+export function LineupPanel({ lineup, rect }: { lineup: Lineup | null; rect: Rect }) {
+  const head = 64;
+  const benchRows = lineup ? Math.max(0, Math.floor((rect.height - head - 11 * 34 - 34) / 24)) : 0;
+  const bench = lineup ? lineup.bench.slice(0, Math.min(benchRows * 2, lineup.bench.length)) : [];
+  const rowH = lineup ? Math.min(44, Math.floor((rect.height - head - 6 - (bench.length ? 30 + Math.ceil(bench.length / 2) * 24 : 0)) / 11)) : 0;
+  return (
+    <div className="absolute flex flex-col overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]" style={{ zIndex: 31, ...rect, background: "#0c0c0c", border: `2px solid ${LIME}` }}>
+      {!lineup ? (
+        <div className="flex flex-1 items-center justify-center p-4 text-center text-white/60 uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 20 }}>
+          Escalação ainda não divulgada
+        </div>
+      ) : (
+        <>
+          <div className="flex shrink-0 items-center gap-2 px-3" style={{ height: head, background: "#141414", borderBottom: `2px solid ${LIME}` }}>
+            <Crest team={lineup.team} size={44} />
+            <span className="flex min-w-0 flex-1 flex-col leading-none">
+              <span className="truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 22 }}>
+                {lineup.team.name}
+              </span>
+              {lineup.formation && (
+                <span className="mt-1 uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 16, color: LIME }}>
+                  {lineup.formation}
+                </span>
+              )}
+            </span>
+          </div>
+          {lineup.starters.map((p, i) => (
+            <div key={i} className="flex shrink-0 items-center gap-2 px-3" style={{ height: rowH, background: i % 2 ? "#181818" : "#121212" }}>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full tabular-nums text-black" style={{ ...DISPLAY, fontSize: 16, background: LIME }}>
+                {p.number}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: Math.min(20, rowH * 0.5) }}>
+                {p.name}
+              </span>
+              <span className="shrink-0 text-[13px] text-white/50" style={CONDENSED}>
+                {p.pos}
+              </span>
+            </div>
+          ))}
+          {bench.length > 0 && (
+            <div className="min-h-0 flex-1 px-3 pt-1">
+              <p className="uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 14, color: LIME, letterSpacing: "0.1em" }}>
+                Reservas
+              </p>
+              <div className="grid grid-cols-2 gap-x-2">
+                {bench.map((p, i) => (
+                  <span key={i} className="truncate text-[14px] leading-6 text-white/75 uppercase" style={CONDENSED}>
+                    {p.number} {p.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

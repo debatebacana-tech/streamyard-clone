@@ -1,5 +1,5 @@
 import { competition, zoneColor } from "./competitions";
-import { fetchMatches, fetchStandings } from "./football";
+import { fetchLineups, fetchMatches, fetchStandings } from "./football";
 import type { BoardMatch, BoardRow, BoardTeam, LiveRoundData, RoundAlertData } from "./scene";
 
 // "Rodada ao vivo": while it runs for a program, the server follows the
@@ -134,9 +134,12 @@ async function poll(st: State, generation: number) {
       fetchStandings(st.competition, TABLE_MAX_AGE).catch(() => null),
     ]);
     if (rounds.get(st.slug) !== st) return;
-    const before = JSON.stringify(st.data && { m: st.data.matches, t: st.data.table, a: st.data.alerts.length });
+    const before = JSON.stringify(st.data && { m: st.data.matches, t: st.data.table, a: st.data.alerts.length, l: st.data.lineups });
     const data: LiveRound = st.data ?? { competition: st.competition, matches: [], table: [], alerts: [], updatedAt: 0 };
     data.matches = matches;
+    // Lineups of the featured match: the first in progress, else the next to start.
+    const featured = matches.find((m) => m.state === "in") ?? matches.find((m) => m.state === "pre") ?? matches[matches.length - 1];
+    if (featured?.id) data.lineups = await fetchLineups(st.competition, featured.id).catch(() => data.lineups ?? null);
     const now = Date.now();
 
     // Goals: a side's score went up since the last poll.
@@ -187,7 +190,7 @@ async function poll(st: State, generation: number) {
     data.updatedAt = now;
     st.data = data;
     st.error = null;
-    const after = JSON.stringify({ m: data.matches, t: data.table, a: data.alerts.length });
+    const after = JSON.stringify({ m: data.matches, t: data.table, a: data.alerts.length, l: data.lineups });
     if (before !== after) st.onUpdate(st.slug);
   } catch (err) {
     st.error = err instanceof Error && !err.message.startsWith("ESPN") ? err.message : "Não consegui buscar os placares agora (tento de novo em instantes)";

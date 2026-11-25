@@ -15,7 +15,7 @@ import { MediaLayer } from "./MediaLayer";
 import { AUDIO_BLOCKED, AUDIO_UNLOCK, MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
-import { MINI_W, MiniTable, RoundAlerts, RoundStrip, STRIP_H, ScoreBadge, isLiveBoard, withLiveRound } from "./RoundAlerts";
+import { LineupPanel, MINI_W, MiniTable, RoundAlerts, RoundStrip, STRIP_H, ScoreBadge, isLiveBoard, withLiveRound } from "./RoundAlerts";
 import { competition as findCompetition } from "@/lib/competitions";
 
 const competitionLogo = (id: string | undefined) => (id ? (findCompetition(id)?.logo ?? null) : null);
@@ -337,6 +337,10 @@ function CustomStage({ scene, stage, pool, branding, chat, round }: {
         }
         if (slot.source === "placares") return <RoundStrip key={`placares-${i}`} matches={round?.matches ?? []} logo={competitionLogo(round?.competition)} rect={rect} />;
         if (slot.source === "tier") return <TierPanel key={`tier-${i}`} list={scene.tierList} rect={rect} />;
+        if (slot.source === "escalacao-casa" || slot.source === "escalacao-fora") {
+          const lineup = round?.lineups ? (slot.source === "escalacao-casa" ? round.lineups.home : round.lineups.away) : null;
+          return <LineupPanel key={`${slot.source}-${i}`} lineup={lineup} rect={rect} />;
+        }
         const t = tracks[i];
         if (!t) return null;
         const full = slot.w > 0.98 && slot.h > 0.98;
