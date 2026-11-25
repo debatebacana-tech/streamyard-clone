@@ -56,6 +56,49 @@ type RoundStatus = {
 
 // Live round: the server follows the matches by itself; the screens update and
 // goals pop up on the stream with the Gol Bacana sound.
+const RANGES = [
+  { label: "Libertadores (4º–9º)", from: 4, to: 9, title: "BRIGA PELA LIBERTADORES" },
+  { label: "Rebaixamento (12º–18º)", from: 12, to: 18, title: "CONTRA O REBAIXAMENTO" },
+  { label: "Rebaixamento (12º–20º)", from: 12, to: 20, title: "CONTRA O REBAIXAMENTO" },
+];
+
+// Over the cameras: scores strip at the bottom and a mini table in the corner.
+function CameraOverlay() {
+  const { scenes, patch } = useDirector();
+  const o = scenes.live.roundOverlay;
+  const set = (p: Partial<typeof o>) => patch({ roundOverlay: p }, { air: true });
+  const toggle = (on: boolean) => (on ? btnOn : btn);
+  return (
+    <div className="space-y-2 rounded-md bg-neutral-900 p-2">
+      <p className="text-xs font-semibold text-neutral-300">Na cena das câmeras (entra e sai na hora)</p>
+      <div className="flex flex-wrap gap-2">
+        <button className={toggle(o.strip)} onClick={() => set({ strip: !o.strip })}>
+          {o.strip ? "✓ Faixa de placares" : "Faixa de placares"}
+        </button>
+        <button className={toggle(o.table)} onClick={() => set({ table: !o.table })}>
+          {o.table ? "✓ Mini tabela" : "Mini tabela"}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+        {RANGES.map((r) => (
+          <button
+            key={r.label}
+            className={`rounded-md px-2 py-1 ${o.from === r.from && o.to === r.to ? "bg-[#DFFF00] font-bold text-black" : "bg-neutral-800 hover:bg-neutral-700"}`}
+            onClick={() => set({ from: r.from, to: r.to, title: r.title, table: true })}
+          >
+            {r.label}
+          </button>
+        ))}
+        <span>
+          do <input type="number" min={1} max={20} className={`${input} w-14`} value={o.from} onChange={(e) => set({ from: Number(e.target.value) || 1 })} />º ao{" "}
+          <input type="number" min={1} max={20} className={`${input} w-14`} value={o.to} onChange={(e) => set({ to: Number(e.target.value) || 1 })} />º
+        </span>
+      </div>
+      <input className={`${input} w-full`} value={o.title} maxLength={40} placeholder="Título da mini tabela" onChange={(e) => set({ title: e.target.value })} />
+    </div>
+  );
+}
+
 function LiveRoundBox({ competition, from, to, title, subtitle }: { competition: string; from: string; to: string; title: string; subtitle: string }) {
   const { slug, patch } = useDirector();
   const [status, setStatus] = useState<RoundStatus | null>(null);
@@ -143,6 +186,7 @@ function LiveRoundBox({ competition, from, to, title, subtitle }: { competition:
               Desligar
             </button>
           </div>
+          <CameraOverlay />
           <p className="text-[11px] text-neutral-500">
             Os avisos de gol aparecem em qualquer cena, até com as câmeras. A fonte (ESPN) costuma atrasar 30 a 60 s em relação à TV.
           </p>

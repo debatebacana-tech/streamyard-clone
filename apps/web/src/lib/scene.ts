@@ -318,6 +318,8 @@ export type TweetCard = {
 // One YouTube live chat message, as shown on screen.
 export type ChatMessage = { id: string; author: string; text: string; avatarUrl: string | null };
 
+export type RoundOverlay = { strip: boolean; table: boolean; from: number; to: number; title: string };
+
 export type Scene = {
   // "all": everyone in the room is on stage automatically (join order);
   // "manual": only the identities in onStage.
@@ -374,6 +376,9 @@ export type Scene = {
   media: ProjectedMedia;
   // X/Twitter post on air: a tall card beside the cameras ("side") or big in the middle.
   tweet: { visible: boolean; mode: "side" | "center"; card: TweetCard | null };
+  // Live round over the cameras: a strip of every score at the bottom and a
+  // mini table (ranks from..to) in the corner. Needs the live round on.
+  roundOverlay: RoundOverlay;
   // When the last animated cut started (server time), so every output plays
   // the transition together.
   transitionAt: number | null;
@@ -492,6 +497,7 @@ export const DEFAULT_SCENE: Scene = {
   board: { kind: "none", competition: "bra.1", title: "", subtitle: "", logo: null, groups: [], matches: [], bracket: [] },
   tierList: { visible: false, mode: "split", title: "", tiers: DEFAULT_TIERS, items: [], showPool: true, labelWidth: 0, itemScale: 1 },
   tweet: { visible: false, mode: "side", card: null },
+  roundOverlay: { strip: false, table: false, from: 12, to: 18, title: "CONTRA O REBAIXAMENTO" },
   media: { visible: false, url: null, kind: "image", mode: "destaque", startedAt: null, pausedAt: null, loop: false, volume: 1 },
   transitionAt: null,
   step: "aovivo",
@@ -850,6 +856,17 @@ export function normalizeScene(input: unknown): Scene {
         volume: num(m.volume, 1, 0, 1),
       } as ProjectedMedia;
     })(),
+    roundOverlay: (() => {
+      const r = obj(raw.roundOverlay);
+      const from = Math.round(num(r.from, 12, 1, 24));
+      return {
+        strip: bool(r.strip, false),
+        table: bool(r.table, false),
+        from,
+        to: Math.max(from, Math.round(num(r.to, 18, 1, 24))),
+        title: str(r.title, 40, "CONTRA O REBAIXAMENTO"),
+      };
+    })(),
     tweet: {
       visible: bool(obj(raw.tweet).visible, false),
       mode: obj(raw.tweet).mode === "center" ? "center" : "side",
@@ -880,6 +897,7 @@ export function mergeScene(current: Scene, patch: unknown): Scene {
     tierList: { ...current.tierList, ...obj(p.tierList) },
     screenCrop: { ...current.screenCrop, ...obj(p.screenCrop) },
     tweet: { ...current.tweet, ...obj(p.tweet) },
+    roundOverlay: { ...current.roundOverlay, ...obj(p.roundOverlay) },
     media: { ...current.media, ...obj(p.media) },
     // Only the server's animated cut sets this.
     transitionAt: current.transitionAt,

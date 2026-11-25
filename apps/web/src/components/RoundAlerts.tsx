@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Board, BoardTeam, LiveRoundData, RoundAlertData } from "@/lib/scene";
+import type { Board, BoardMatch, BoardRow, BoardTeam, LiveRoundData, RoundAlertData } from "@/lib/scene";
 import { LIME } from "./BoardScreen";
 import { playQuickSound } from "./MediaLayer";
 import { CONDENSED, DISPLAY } from "./showStyle";
@@ -131,6 +131,135 @@ export function RoundAlerts({ alerts, withSound }: { alerts: RoundAlertData[]; w
       style={{ top: 18, width: 860, height: 132, marginLeft: -430, animationDuration: `${SHOW_MS[current.kind]}ms` }}
     >
       {current.kind === "gol" ? <GoalBanner alert={current} /> : <Z4Banner alert={current} />}
+    </div>
+  );
+}
+
+// ------------------------------------------------ over the cameras
+
+export const STRIP_H = 58;
+export const MINI_W = 300;
+const PAGE = 5;
+const PAGE_MS = 8000;
+
+function useTick(ms: number, active: boolean) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setN((x) => x + 1), ms);
+    return () => clearInterval(id);
+  }, [ms, active]);
+  return n;
+}
+
+// Every score of the round in a strip under the cameras, five at a time.
+export function RoundStrip({ matches, bottom }: { matches: BoardMatch[]; bottom: number }) {
+  const pages = Math.max(1, Math.ceil(matches.length / PAGE));
+  const page = useTick(PAGE_MS, pages > 1) % pages;
+  const shown = matches.slice(page * PAGE, page * PAGE + PAGE);
+  return (
+    <div
+      className="absolute z-[31] flex overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
+      style={{ left: 24, right: 24, bottom, height: STRIP_H, background: "#0c0c0c", border: `2px solid ${LIME}` }}
+    >
+      <div className="flex w-[92px] shrink-0 flex-col items-center justify-center text-black" style={{ background: LIME }}>
+        <span style={{ ...DISPLAY, fontSize: 22, lineHeight: 1 }}>RODADA</span>
+        <span className="live-dot text-[13px] font-bold text-red-700" style={CONDENSED}>
+          ● AO VIVO
+        </span>
+      </div>
+      <div key={page} className="round-strip-page flex min-w-0 flex-1">
+        {shown.map((m, i) => (
+          <div key={m.id ?? i} className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-1" style={{ borderLeft: i ? "1px solid #2b2b2b" : undefined }}>
+            <Crest team={m.home} size={30} />
+            <span className="text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 19 }}>
+              {m.home.abbr}
+            </span>
+            <span className="flex flex-col items-center leading-none">
+              <span className="tabular-nums" style={{ ...DISPLAY, fontSize: 26, color: m.state === "pre" ? "#9a9a9a" : LIME }}>
+                {m.home.score === null ? "×" : `${m.home.score}-${m.away.score}`}
+              </span>
+              <span className={`text-[12px] font-bold ${m.state === "in" ? "text-red-500" : "text-neutral-400"}`} style={CONDENSED}>
+                {m.state === "in" ? m.detail : m.state === "post" ? "FIM" : new Date(m.date).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </span>
+            <span className="text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: 19 }}>
+              {m.away.abbr}
+            </span>
+            <Crest team={m.away} size={30} />
+          </div>
+        ))}
+      </div>
+      {pages > 1 && (
+        <div className="flex w-[34px] shrink-0 flex-col items-center justify-center gap-1">
+          {Array.from({ length: pages }, (_, i) => (
+            <span key={i} className="h-2 w-2 rounded-full" style={{ background: i === page ? LIME : "#3a3a3a" }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A slice of the live table (e.g. 12º to 18º, the relegation fight) in the corner.
+export function MiniTable({
+  rows,
+  title,
+  logo,
+  top,
+  bottom,
+  right,
+}: {
+  rows: BoardRow[];
+  title: string;
+  logo: string | null;
+  top: number;
+  bottom: number;
+  right: number;
+}) {
+  const head = 46;
+  const rowH = Math.min(46, Math.floor((720 - top - bottom - head) / Math.max(1, rows.length)));
+  return (
+    <div
+      className="absolute z-[31] overflow-hidden rounded-xl shadow-[0_6px_24px_rgba(0,0,0,0.55)]"
+      style={{ top, right, width: MINI_W, height: head + rowH * rows.length + 4, background: "#0c0c0c", border: `2px solid ${LIME}` }}
+    >
+      <div className="flex items-center gap-2 px-3" style={{ height: head, background: "#141414", borderBottom: `2px solid ${LIME}` }}>
+        {logo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="" className="h-8 w-8 shrink-0 object-contain" />
+        )}
+        <span className="min-w-0 flex-1 truncate uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: title.length > 20 ? 17 : 20, color: LIME }}>
+          {title}
+        </span>
+        <span className="live-dot shrink-0 text-[15px] font-bold text-red-500">●</span>
+      </div>
+      {rows.map((r, i) => (
+        <div
+          key={`${r.rank}-${r.team.name}-${r.points}`}
+          className="board-row flex items-center gap-1.5 pr-2"
+          style={{ height: rowH, background: i % 2 ? "#181818" : "#121212", borderLeft: `5px solid ${r.zone ?? "transparent"}`, animationDelay: `${i * 40}ms` }}
+        >
+          <span className="w-[34px] text-center tabular-nums" style={{ ...DISPLAY, color: LIME, fontSize: Math.min(26, rowH * 0.6) }}>
+            {r.rank}
+          </span>
+          <span className="w-[30px] text-center tabular-nums" style={{ ...CONDENSED, fontWeight: 700, fontSize: 15, color: (r.move ?? 0) > 0 ? "#22c55e" : (r.move ?? 0) < 0 ? "#ef4444" : "#6b6b6b" }}>
+            {(r.move ?? 0) > 0 ? `▲${r.move}` : (r.move ?? 0) < 0 ? `▼${-(r.move ?? 0)}` : "–"}
+          </span>
+          <Crest team={r.team} size={rowH - 12} />
+          <span className="min-w-0 flex-1 truncate text-white uppercase" style={{ ...CONDENSED, fontWeight: 700, fontSize: Math.min(21, rowH * 0.48) }}>
+            {r.team.name.length > 10 ? r.team.abbr || r.team.name : r.team.name}
+          </span>
+          {r.playing && (
+            <span className="rounded px-1 tabular-nums text-white" style={{ ...CONDENSED, fontWeight: 700, fontSize: 15, background: "#b91c1c" }}>
+              {r.playing}
+            </span>
+          )}
+          <span className="w-[36px] text-right tabular-nums" style={{ ...DISPLAY, color: LIME, fontSize: Math.min(26, rowH * 0.6) }}>
+            {r.points}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

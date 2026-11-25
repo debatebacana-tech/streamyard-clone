@@ -15,7 +15,10 @@ import { MediaLayer } from "./MediaLayer";
 import { AUDIO_BLOCKED, AUDIO_UNLOCK, MusicLayer } from "./MusicLayer";
 import { BoardScreen } from "./BoardScreen";
 import { TransitionLayer } from "./TransitionLayer";
-import { RoundAlerts, isLiveBoard, withLiveRound } from "./RoundAlerts";
+import { MINI_W, MiniTable, RoundAlerts, RoundStrip, STRIP_H, isLiveBoard, withLiveRound } from "./RoundAlerts";
+import { competition as findCompetition } from "@/lib/competitions";
+
+const competitionLogo = (id: string | undefined) => (id ? (findCompetition(id)?.logo ?? null) : null);
 import { TIER_W, TierPanel, TierScreen } from "./TierBoard";
 import { TWEET_W, TweetCardView } from "./TweetCard";
 import { ProjectedMediaView } from "./ProjectedMedia";
@@ -1304,6 +1307,13 @@ export function ShowComposition({
 
   // Bottom-up stack: ticker, scoreboard bar, GC; the stage fills what's left.
   let y = tickerOn ? TICKER_H + 12 : 18;
+  // Live round over the cameras: the scores strip sits just above the ticker.
+  const round = show.round;
+  const stripOn = scene.roundOverlay.strip && Boolean(round?.matches.length);
+  const stripBottom = y;
+  if (stripOn) y += STRIP_H + 12;
+  const miniRows = scene.roundOverlay.table ? (round?.table[0]?.rows ?? []).filter((r) => r.rank >= scene.roundOverlay.from && r.rank <= scene.roundOverlay.to) : [];
+  const miniOn = miniRows.length > 0;
   const barBottom = y;
   if (barOn) y += BAR_H + (themeTab ? 40 : 14);
   const gcBottom = y;
@@ -1317,11 +1327,15 @@ export function ShowComposition({
     top,
     left: (tierSplit ? 24 + TIER_W + 16 : side === "left" ? 24 + SIDE_W + 16 : tweetSide === "left" ? 24 + TWEET_W + 16 : 24) + (qrSide === "left" ? QR_W + 16 : 0),
     right:
-      (side === "right" ? 24 + SIDE_W + 16 : 24) + (chatOn ? CHAT_W + 16 : 0) + (tweetSide === "right" ? TWEET_W + 16 : 0) + (qrSide === "right" ? QR_W + 16 : 0),
+      (side === "right" ? 24 + SIDE_W + 16 : 24) +
+      (chatOn ? CHAT_W + 16 : 0) +
+      (tweetSide === "right" ? TWEET_W + 16 : 0) +
+      (qrSide === "right" ? QR_W + 16 : 0) +
+      (miniOn ? MINI_W + 16 : 0),
     bottom: Math.max(y, 24),
   };
   // Re-keys the stage when the arrangement changes, so a cut fades in.
-  const arrangement = `${scene.layout}:${scene.featuredSide}:${scene.layout === "custom" ? JSON.stringify(scene.custom) : ""}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${qrSide}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}`;
+  const arrangement = `${scene.layout}:${scene.featuredSide}:${scene.layout === "custom" ? JSON.stringify(scene.custom) : ""}|${stage.map((t) => `${t.participant.identity}:${t.source}`).join(",")}|${chatOn}|${qrSide}|${side}|${tierSplit}|${tweetSide}|${mediaOn ? `${scene.media.mode}:${scene.media.url}` : ""}|${stripOn}|${miniOn}`;
 
   return (
     <ScaledCanvas>
@@ -1389,6 +1403,17 @@ export function ShowComposition({
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-3xl text-white/70" style={CONDENSED}>
             {emptyHint}
           </div>
+        )}
+        {stripOn && round && <RoundStrip matches={round.matches} bottom={stripBottom} />}
+        {miniOn && (
+          <MiniTable
+            rows={miniRows}
+            title={scene.roundOverlay.title}
+            logo={competitionLogo(round?.competition)}
+            top={top}
+            bottom={box.bottom}
+            right={24 + (chatOn ? CHAT_W + 16 : 0) + (qrSide === "right" ? QR_W + 16 : 0)}
+          />
         )}
         {tierOn && !tierSplit && <TierScreen list={scene.tierList} branding={branding} />}
         {scene.board.kind !== "none" && <BoardScreen board={withLiveRound(scene.board, show.round)} branding={branding} live={isLiveBoard(scene.board, show.round)} />}
