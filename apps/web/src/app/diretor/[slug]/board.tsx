@@ -71,6 +71,7 @@ function CameraOverlay() {
   return (
     <div className="space-y-2 rounded-md bg-neutral-900 p-2">
       <p className="text-xs font-semibold text-neutral-300">Na cena das câmeras (entra e sai na hora)</p>
+      <p className="text-[11px] text-neutral-500">Aparecem quando as câmeras estão no ar: com os jogos ou a classificação em tela cheia, eles ficam por trás.</p>
       <div className="flex flex-wrap gap-2">
         <button className={toggle(o.strip)} onClick={() => set({ strip: !o.strip })}>
           {o.strip ? "✓ Faixa de placares" : "Faixa de placares"}
@@ -178,6 +179,9 @@ function LiveRoundBox({ competition, from, to, title, subtitle }: { competition:
             </button>
             <button className={btnOn} onClick={() => onAir("tabela")}>
               No ar: classificação ao vivo
+            </button>
+            <button className={btnGo} onClick={() => patch({ board: { kind: "none" } }, { air: true })}>
+              Voltar para as câmeras
             </button>
             <button className={btn} disabled={busy} onClick={() => act({ action: "test" })}>
               Testar aviso de gol
